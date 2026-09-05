@@ -1,0 +1,37 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Data products are large and redistributable only under ISSDC terms -- keep
+# them out of the repo. See README for the acknowledgement requirement.
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.IMG
+*.img
+*.qub
+*.tif
+
+outputs/
+*.pth
+
+# Personal learning notes -- written for one reader, not part of the deliverable.
+# Regenerate or edit freely; nothing in the pipeline reads them.
+udocs/
+
+# Node / web showcase
+node_modules/
+web/dist/
+web/node_modules/
+
+# Scratch
+*.output

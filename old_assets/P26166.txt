@@ -1,0 +1,29 @@
+Problem Statement ID 	
+26166
+Problem Statement Title 	
+Multi-modal, Sun angle and scale invariant image correspondence using Chandrayaan-2 optical images (OHRC, TMC and IIRS)
+Description 	
+Background Image Registration is the process of aligning two or more images of the same scene taken at different times, from different viewpoints, or by different sensors into a common coordinate system.
+
+It has two main components:
+
+• Source Image (Moving): The image that is to be geometrically transformed to align with the reference image.
+• Reference Image (Fixed): The target image about which source image is to be geometrically transformed.
+
+Description The process of lunar images registration involves finding match points between source and reference image and then aligning the source image with the reference image. The key challenges involved in this process are as follows:
+
+• Illumination variation: Illumination variation refers to changes in sun azimuth and elevation effect on the surface lighting conditions that affect the appearance of the lunar surface features which is hard to correlate.
+• Viewpoint variation: It refers to geometric distortions caused by different camera positions/orientations capturing the same scene. Objects appear shifted, scaled, rotated, or perspective-distorted depending on observing angle.
+• Scale Variation: Lunar imaging missions operate at vastly different altitudes and at different spatial resolutions. This creates scale ratios.
+
+Expected Solution Generic software solution for finding correspondence between Chandrayaan-2 acquired optical images and Lunar reference images with a sub-pixel accuracy of source image maintaining uniform distribution across the images.
+
+• Software and registered product with corresponding match points.
+• Evaluation metric (eg. RMSE, inlier match count, inlier ratio, etc.)
+Organization 	Indian Space Research Organisation(ISRO)
+Department 	Department of Space / Indian Space Research Organisation
+Category 	Software
+Theme 	Space Technology
+Youtube Link 	
+Dataset Link 	Specific datasets link will be provided - TBD • Chandrayaan-2 orbiter optical payload: OHRC, TMC-2, IIRS lunar images. (Link: https://chmapbrowse.issdc.gov.in/) • Reference: LRO NAC Images (Lunar Reconnaissance Orbiter Narrow Angle Camera) (Link: https://lroc.im.-ldi.com/images/downloads/ , https://quickmap.lroc.im-ldi.com/ ), SELENE Images
+Contact info 	

@@ -1,0 +1,536 @@
+/* Chandralipi — see DESIGN.md for the reasoning behind every rule here. */
+
+/* Light is the default. Dark is a derived theme, not a second design: the same
+   ink hue, inverted in lightness, so the palette stays one palette. */
+:root {
+  color-scheme: light;
+
+  --ink:        #1A1F71;
+  --ink-85:     #33386a;
+  --ink-70:     #4d5289;
+  --ink-45:     #8286ab;
+  --ink-25:     #b4b7cd;
+  --ink-12:     #dcdde8;
+
+  --gold:       #F7B600;
+  --gold-soft:  #fdf3d8;
+
+  --paper:      #FFFFFF;
+  --paper-warm: #F7F5F0;
+  --paper-deep: #EFEDE6;
+
+  --rule:       #dcdad2;
+  --rule-soft:  #e9e7e0;
+
+  /* Strength of the contour field. Lower on paper: dark lines on white read
+     stronger than light lines on navy at the same opacity. */
+  --topo-opacity: 0.075;
+
+  /* Display: an ultra-wide grotesque in caps with heavy tracking, standing in
+     for the Dune title lettering. Archivo carries a variable width axis, so
+     `font-stretch: 125%` gets far closer to that wide modernist proportion than
+     letterspacing a normal-width face would.
+     Serif and sans follow Anthropic's published substitutes for Copernicus and
+     Styrene B, neither of which is licensable as a web font. See DESIGN.md. */
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --serif:   "EB Garamond", Georgia, "Times New Roman", serif;
+  --sans:    "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --rail: 160px;
+  --gutter: 40px;
+  --shell: min(1180px, 100vw - 2 * var(--pad));
+  --pad: 28px;
+}
+
+/* The dark ground is the ink hue taken down in lightness rather than a neutral
+   black, so the Visa navy is still the colour of the page even when it is the
+   background instead of the text. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --ink:        #E9EBF7;
+  --ink-85:     #c6cae4;
+  --ink-70:     #a0a6c9;
+  --ink-45:     #7379a3;
+  --ink-25:     #474d7c;
+  --ink-12:     #2b3059;
+
+  --gold:       #F7B600;
+  --gold-soft:  #2a2412;
+
+  --paper:      #0B0E24;
+  --paper-warm: #10142e;
+  --paper-deep: #151a38;
+
+  --rule:       #262b52;
+  --rule-soft:  #1c2144;
+
+  --topo-opacity: 0.13;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --ink:        #E9EBF7;
+    --ink-85:     #c6cae4;
+    --ink-70:     #a0a6c9;
+    --ink-45:     #7379a3;
+    --ink-25:     #474d7c;
+    --ink-12:     #2b3059;
+
+    --gold:       #F7B600;
+    --gold-soft:  #2a2412;
+
+    --paper:      #0B0E24;
+    --paper-warm: #10142e;
+    --paper-deep: #151a38;
+
+    --rule:       #262b52;
+    --rule-soft:  #1c2144;
+
+    --topo-opacity: 0.13;
+  }
+}
+
+@media (max-width: 900px) {
+  :root { --rail: 0px; --gutter: 0px; --pad: 20px; }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: clamp(15px, 0.55vw + 13.2px, 17px);
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+a { color: inherit; text-decoration: none; }
+
+::selection { background: var(--gold); color: var(--ink); }
+
+/* --- type ------------------------------------------------------------ */
+/* Titles carry the Dune register: caps, wide, tracked out. Kept to h1 and h2
+   only — it is a display face and unreadable in a paragraph. h3 steps down to
+   the serif so a section heading does not shout like a poster. */
+h1, h2 {
+  font-family: var(--display);
+  font-stretch: 125%;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.02;
+  margin: 0;
+  text-wrap: balance;
+}
+h1 { font-size: clamp(1.85rem, 4.6vw, 3.5rem); }
+h2 { font-size: clamp(1.35rem, 2.6vw, 2rem); letter-spacing: 0.055em; }
+
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(1.1rem, 1.4vw, 1.28rem);
+  /* Anthropic's spec: Copernicus and its substitutes read as off-brand without
+     negative tracking. */
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  margin: 0;
+  text-wrap: balance;
+}
+
+p { margin: 0 0 1.05em; max-width: 68ch; }
+
+.lede {
+  font-family: var(--serif);
+  font-size: clamp(1.14rem, 1.8vw, 1.45rem);
+  line-height: 1.45;
+  color: var(--ink-85);
+  letter-spacing: -0.011em;
+}
+
+.prose { color: var(--ink-85); }
+.prose strong { font-weight: 600; color: var(--ink); }
+
+/* Labels: mono, uppercase, letterspaced. Data: mono, not letterspaced. */
+.label {
+  font-family: var(--mono);
+  font-size: 0.685rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-45);
+}
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.marginal {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-45);
+  max-width: 34ch;
+}
+
+/* --- layout ---------------------------------------------------------- */
+.shell { width: var(--shell); margin-inline: auto; }
+
+/* The editorial spine: a numbered rail on the left, content on the right. */
+.spread {
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  gap: var(--gutter);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .spread { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+}
+
+.rail { position: sticky; top: 108px; }
+@media (max-width: 900px) { .rail { position: static; } }
+
+.section-no {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.section { padding: clamp(46px, 6vw, 86px) 0; border-top: 1px solid var(--rule); }
+.section:first-of-type { border-top: 0; }
+
+.band { background: var(--paper-warm); }
+
+/* --- rules & lists ---------------------------------------------------- */
+.hairline { height: 1px; background: var(--rule); border: 0; margin: 0; }
+
+.rows { display: grid; }
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: baseline;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+/* --- figure ----------------------------------------------------------- */
+figure { margin: 0; }
+.figure {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.figure img { display: block; width: 100%; }
+figcaption { font-size: 0.82rem; color: var(--ink-45); line-height: 1.55; margin-top: 10px; }
+
+/* --- data ------------------------------------------------------------- */
+.tabular { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+.tabular th {
+  font-family: var(--mono); font-weight: 500; font-size: 0.66rem;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-45);
+  text-align: left; padding: 9px 14px 9px 0; white-space: nowrap;
+  border-bottom: 1px solid var(--ink-25); position: sticky; top: 0;
+  background: var(--paper); cursor: pointer; user-select: none;
+}
+.tabular th:hover { color: var(--ink); }
+.tabular td {
+  padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule-soft);
+  white-space: nowrap; color: var(--ink-85);
+}
+.tabular tbody tr { cursor: pointer; }
+.tabular tbody tr:hover { background: var(--paper-warm); }
+.tabular tbody tr[data-selected='true'] { background: var(--gold-soft); }
+.tabular tbody tr[data-selected='true'] td { color: var(--ink); }
+
+.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* --- marks ------------------------------------------------------------ */
+.tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em;
+  padding: 3px 8px; border: 1px solid var(--ink-25); color: var(--ink-70);
+  border-radius: 2px; white-space: nowrap;
+}
+.tag-gold { border-color: var(--gold); background: var(--gold-soft); color: var(--ink); }
+.tag-solid { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+/* Pass/fail without inventing colours: a tint of ink plus a glyph. */
+.state { font-family: var(--mono); font-size: 0.78rem; white-space: nowrap; }
+.state::before { margin-right: 5px; font-weight: 600; }
+.state-ok::before { content: '●'; color: var(--ink); }
+.state-no::before { content: '○'; color: var(--ink-45); }
+.state-no { color: var(--ink-45); }
+
+/* --- controls --------------------------------------------------------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 18px;
+  font-family: var(--mono); font-size: 0.76rem; letter-spacing: 0.09em;
+  text-transform: uppercase;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink);
+  border-radius: 2px; cursor: pointer;
+  transition: background 0.16s var(--ease), color 0.16s var(--ease);
+}
+.btn:hover { background: var(--ink); color: var(--paper); }
+.btn-fill { background: var(--ink); color: var(--paper); }
+.btn-fill:hover { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+
+select.btn, label.btn { text-transform: none; letter-spacing: 0.02em; font-size: 0.8rem; }
+select.btn { appearance: none; padding-right: 34px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+                    linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+/* --- nav -------------------------------------------------------------- */
+.nav {
+  position: sticky; top: 0; z-index: 60;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--rule);
+}
+.nav-inner {
+  width: var(--shell); margin-inline: auto;
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 62px; gap: 16px;
+}
+.wordmark { display: flex; align-items: baseline; gap: 10px; }
+.wordmark .latin {
+  font-family: var(--display); font-stretch: 125%; font-weight: 700;
+  font-size: 0.98rem; text-transform: uppercase; letter-spacing: 0.13em;
+  line-height: 1;
+}
+.wordmark .ref { font-family: var(--mono); font-size: 0.66rem; color: var(--ink-45); letter-spacing: 0.1em; }
+
+.nav-links { display: flex; gap: 2px; }
+.nav-link {
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-45);
+  padding: 10px 12px; min-height: 44px; display: inline-flex; align-items: center;
+  border-bottom: 2px solid transparent;
+  transition: color 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+.nav-link:hover { color: var(--ink); }
+.nav-link[aria-current='page'] { color: var(--ink); border-bottom-color: var(--gold); }
+
+.nav-toggle { display: none; }
+@media (max-width: 760px) {
+  .nav-links {
+    display: none; position: absolute; left: 0; right: 0; top: 100%;
+    flex-direction: column; gap: 0;
+    background: var(--paper); border-bottom: 1px solid var(--rule);
+    padding: 6px var(--pad) 14px;
+  }
+  .nav-links[data-open='true'] { display: flex; }
+  .nav-link { border-bottom: 1px solid var(--rule-soft); border-left: 2px solid transparent; }
+  .nav-link[aria-current='page'] { border-left-color: var(--gold); border-bottom-color: var(--rule-soft); }
+  .nav-toggle { display: inline-flex; }
+}
+
+/* --- footer ----------------------------------------------------------- */
+.footer {
+  border-top: 1px solid var(--rule);
+  padding: 34px 0 46px;
+  font-size: 0.8rem; color: var(--ink-45);
+}
+
+/* --- misc ------------------------------------------------------------- */
+.note {
+  border-left: 2px solid var(--gold);
+  background: var(--gold-soft);
+  padding: 14px 18px;
+  font-size: 0.86rem;
+  color: var(--ink-85);
+}
+.note p { margin-bottom: 0.6em; }
+.note p:last-child { margin-bottom: 0; }
+
+.loading {
+  display: grid; place-items: center; min-height: 60vh;
+  font-family: var(--mono); font-size: 0.78rem; color: var(--ink-45);
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+
+.stat-figure {
+  font-family: var(--serif); font-weight: 500;
+  font-size: clamp(2rem, 4.6vw, 3.1rem); line-height: 1;
+  letter-spacing: -0.035em; font-variant-numeric: tabular-nums;
+}
+.stat-unit { font-family: var(--sans); font-size: 0.9rem; color: var(--ink-45); margin-left: 4px; letter-spacing: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --- home ------------------------------------------------------------- */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(20px, 4vw, 56px);
+  align-items: center;
+}
+.hero-moon { aspect-ratio: 1 / 1; width: 100%; min-height: 300px; }
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
+  /* Moon first on phones: it is the thing worth seeing at a glance, and it
+     stops the headline being pushed below the fold by a tall figure. */
+  .hero-moon { order: -1; min-height: 0; max-width: 340px; margin-inline: auto; }
+}
+
+.challenge {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 190px;
+  gap: clamp(14px, 3vw, 34px);
+  align-items: start;
+  padding: 26px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.challenge-mark { padding-top: 3px; }
+.challenge-figure { text-align: right; }
+
+@media (max-width: 760px) {
+  .challenge { grid-template-columns: 28px minmax(0, 1fr); }
+  .challenge-figure { grid-column: 2; text-align: left; padding-top: 6px; }
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: start;
+}
+@media (max-width: 900px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+
+/* --- architecture ----------------------------------------------------- */
+.module {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: clamp(14px, 3vw, 34px);
+  padding: 22px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .module { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}
+
+.qa {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(14px, 3vw, 34px);
+  align-items: start;
+}
+@media (max-width: 760px) { .qa { grid-template-columns: minmax(0, 1fr); gap: 8px; } }
+
+/* --- resources -------------------------------------------------------- */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(16px, 3vw, 34px);
+  border-top: 1px solid var(--ink-25);
+  padding-top: 22px;
+  align-items: start;
+}
+.stat { min-width: 0; }
+@media (max-width: 860px) { .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 26px; } }
+@media (max-width: 460px) { .stat-row { grid-template-columns: minmax(0, 1fr); } }
+
+.finding,
+.paper {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(14px, 3vw, 40px);
+  padding: 26px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  align-items: start;
+}
+.paper { transition: background 0.16s var(--ease); }
+.paper:hover { background: var(--paper-warm); }
+@media (max-width: 760px) {
+  .finding, .paper { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+}
+
+.finding-headline {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  line-height: 1.4;
+  color: var(--ink);
+  border-left: 2px solid var(--gold);
+  padding-left: 14px;
+  margin: 0;
+}
+
+/* --- results ---------------------------------------------------------- */
+.results-head {
+  display: flex; gap: 20px; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap;
+}
+.filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.filters label.btn { cursor: pointer; }
+
+
+/* --- contour field ---------------------------------------------------- */
+/* Iso-elevation lines traced from NASA's LOLA lunar elevation model — the same
+   raster the 3D Moon uses as its bump map, so the lines behind the page are the
+   Moon's real hypsometry rather than a decorative pattern.
+   Applied as a mask rather than a background image: a background image is an
+   isolated document and cannot inherit `currentColor`, so it could not follow
+   the theme. Masking a solid `--ink` fill can. */
+.topo {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--ink);
+  opacity: var(--topo-opacity);
+  -webkit-mask-image: var(--topo-src);
+  mask-image: var(--topo-src);
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* --- theme toggle ----------------------------------------------------- */
+.theme-toggle {
+  min-height: 36px; padding: 0 12px;
+  border: 1px solid var(--ink-25); background: transparent; color: var(--ink-70);
+  border-radius: 2px; cursor: pointer;
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+.theme-toggle:hover { color: var(--ink); border-color: var(--ink); }
+@media (max-width: 760px) { .theme-toggle { min-height: 44px; } }
+
+.nav-right { display: flex; align-items: center; gap: 14px; }
+@media (max-width: 760px) { .nav-right { gap: 10px; } }
+
+/* Below ~420px the wordmark, theme control and menu button compete for the
+   same row. The problem reference is the least useful of the three at that
+   width — it is on every page below the fold anyway. */
+@media (max-width: 430px) {
+  .wordmark .ref { display: none; }
+  .wordmark .latin { font-size: 0.92rem; letter-spacing: 0.11em; }
+  .theme-toggle { padding: 0 9px; letter-spacing: 0.08em; }
+}
