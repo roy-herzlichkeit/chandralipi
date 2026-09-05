@@ -2,6 +2,21 @@
 
 The single concept that most trips up a software engineer entering this field.
 
+**New words in this doc:**
+
+| word | plain meaning |
+|---|---|
+| **frame camera** | a camera that captures a whole 2D grid of pixels in one instant, from one position. Your phone. |
+| **pushbroom** | a camera with a single *row* of detectors, read out over and over while the spacecraft flies forward. The rows stack into an image. |
+| **scan line** | one such readout — one row of the final image, with its own time and its own spacecraft position. |
+| **detector** | here, a physical light-sensing element on the sensor chip. (Elsewhere in these notes "detector" means a keypoint finder — different sense, doc 21.) |
+| **along-track / cross-track** | along the direction of flight / across it. The two axes of a pushbroom image. |
+| **GSD** | Ground Sample Distance — how much ground one pixel covers. |
+| **PDS4 label** | the XML metadata file describing a data product. See doc 30. |
+| **viewpoint** | the single point in space a picture was taken from. A pushbroom image does not have one, and that is the whole point of this doc. |
+
+---
+
 ## Frame camera vs pushbroom
 
 Your phone is a **frame camera**. One shutter click captures a whole 2D grid of

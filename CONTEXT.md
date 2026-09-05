@@ -11,6 +11,7 @@ model or engineer picking it up cold.
 | **Language** | Python 3.10+, package `src/lunar_reg/` |
 | **Tests** | 431 passed, 1 skipped; `ruff` clean |
 | **Size** | ~17,800 lines across `src/`, `tests/`, `scripts/` |
+| **Review** | `FABLE_REVIEW.md` — ten open questions for an adversarial second pass; four are scoped in as the current pass |
 
 ## Where to look first
 
@@ -23,6 +24,8 @@ model or engineer picking it up cold.
 | `docs/REPORT_SECTION.md` | Draft results section for submission |
 | `docs/VRAM_CONSTRAINTS.md` | Measured tiling limits |
 | `web/DESIGN.md` | Showcase site visual system |
+| **`FABLE_REVIEW.md`** | **Ten open questions for an adversarial second pass**, each with the code path, why it is uncertain, and what a useful answer looks like. Carries an explicit budget: four questions are in scope, the rest are recorded for a later reviewer. Read this if you are the reviewer. |
+| `udocs/` | Eighteen learning notes for a software engineer with no domain background. Gitignored; not part of the deliverable. Includes `60_MATHS.md` (every formula derived), `61_ML_and_where_it_fits.md` (what learning is used and what would help), `70_SYSTEM_DESIGN_distributed_gpu.md` (a scale-out design, **not built**). |
 
 ## The one-paragraph state
 
@@ -84,7 +87,15 @@ These are not style preferences; violating them has caused real bugs here.
   self-residual and the truth-based figure differ by 12.7× to 58.6× on the same
   pairs. `eval/metrics.py` computes the former; `eval/error_budget.py` the
   latter.
-- **`docs/` is the deliverable; `udocs/` is gitignored personal notes.**
+- **`docs/` is the deliverable; `udocs/` is gitignored personal notes.** The
+  `udocs/` set is complete (18 files) and every number in it is traceable to a
+  named module, but it is written for one reader and is not reviewed output.
+- **`web/` is a separate artefact.** A React showcase site that reads a static
+  JSON export. It does not call the Python package and is not part of the
+  deliverable. Changes there never affect a result.
+- **`70_SYSTEM_DESIGN_distributed_gpu.md` describes nothing that exists.** It is
+  a design for scaling out. Nothing in it is implemented, and no run on a GPU of
+  any kind has ever happened in this project.
 
 ## Immediate next steps
 

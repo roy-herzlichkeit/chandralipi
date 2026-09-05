@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
+import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
 import * as THREE from 'three'
 
 /**
@@ -14,6 +15,11 @@ import * as THREE from 'three'
  * elevation model. Elevation is applied as a bump map, not vertex displacement:
  * real lunar relief against the lunar radius is far too subtle to read as
  * geometry, and exaggerating it produces a potato.
+ *
+ * Nothing is drawn *on* the sphere. An earlier build traced two coloured tubes
+ * across it as illustrative instrument swaths; they were the one element on the
+ * page that stated something the project has not measured, and at hero scale
+ * they read as decoration rather than as data. The plate is left clean.
  */
 
 function useIsCoarse() {
@@ -26,18 +32,6 @@ function useIsCoarse() {
     return () => query.removeEventListener('change', update)
   }, [])
   return coarse
-}
-
-function useReducedMotionFlag() {
-  const [reduced, setReduced] = useState(false)
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const update = () => setReduced(query.matches)
-    update()
-    query.addEventListener('change', update)
-    return () => query.removeEventListener('change', update)
-  }, [])
-  return reduced
 }
 
 function Body({ segments, spin }) {
@@ -72,38 +66,6 @@ function Body({ segments, spin }) {
   )
 }
 
-/**
- * An instrument swath drawn on the sphere.
- *
- * Illustrative, not a real product footprint. Deliberately thin: an OHRC strip
- * is 3 km against a 3474 km body, so a proportionate footprint would be
- * invisible and a wide rectangle would misrepresent the instrument.
- */
-function Swath({ lat, from, to, colour, radius = 2.015, width = 0.011 }) {
-  const geometry = useMemo(() => {
-    const points = []
-    for (let i = 0; i <= 40; i++) {
-      const lon = THREE.MathUtils.lerp(from, to, i / 40)
-      const phi = THREE.MathUtils.degToRad(90 - lat)
-      const theta = THREE.MathUtils.degToRad(lon)
-      points.push(new THREE.Vector3(
-        radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.cos(phi),
-        radius * Math.sin(phi) * Math.sin(theta),
-      ))
-    }
-    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 52, width, 6, false)
-  }, [lat, from, to, radius, width])
-
-  useEffect(() => () => geometry.dispose(), [geometry])
-
-  return (
-    <mesh geometry={geometry}>
-      <meshBasicMaterial color={colour} />
-    </mesh>
-  )
-}
-
 function Scene({ segments, spin, parallax }) {
   const group = useRef()
 
@@ -122,31 +84,56 @@ function Scene({ segments, spin, parallax }) {
       <ambientLight intensity={0.07} />
       <group ref={group}>
         <Body segments={segments} spin={spin} />
-        <Swath lat={5} from={-54} to={40} colour="#1A1F71" />
-        <Swath lat={-15} from={-26} to={58} colour="#F7B600" />
       </group>
     </>
   )
 }
 
 export default function Moon({ className = '' }) {
+  const host = useRef(null)
   const coarse = useIsCoarse()
-  const reduced = useReducedMotionFlag()
+  const reduced = useReducedMotion()
 
   // Fewer segments and no rotation on phones: it costs battery for no benefit
   // at that size, and a coarse pointer has no parallax to respond to anyway.
   const segments = coarse ? 64 : 128
   const spin = reduced || coarse ? 0 : 0.016
 
+  // Scroll drift. The moon leaves to the right as the hero is scrolled past,
+  // so the reader is handed the page rather than made to scroll around a
+  // fixed object. Driven off the element's own progress through the viewport
+  // rather than a pixel threshold, so it behaves the same on a phone and on a
+  // 4K display. `end start` — the drift completes as the moon's bottom edge
+  // reaches the top of the viewport, which is also the point it stops being
+  // visible, so the animation never runs against nothing.
+  const { scrollYProgress } = useScroll({
+    target: host,
+    offset: ['start start', 'end start'],
+  })
+
+  // The transform is applied to the wrapping element, not inside the WebGL
+  // scene. A composited CSS transform costs nothing per frame; moving the
+  // camera or the group would re-render the sphere on every scroll event.
+  const x = useTransform(scrollYProgress, [0, 1], ['0%', '42%'])
+  const scale = useTransform(scrollYProgress, [0, 1], [1, 0.88])
+  const opacity = useTransform(scrollYProgress, [0, 0.75, 1], [1, 0.5, 0])
+
+  const drift = reduced ? undefined : { x, scale, opacity }
+
   return (
-    <Canvas
-      className={className}
-      camera={{ position: [0, 0, 6.9], fov: 40 }}
-      dpr={[1, coarse ? 1.5 : 2]}
-      gl={{ antialias: true, alpha: true }}
-      style={{ pointerEvents: 'none' }}
+    <motion.div
+      ref={host}
+      style={{ width: '100%', height: '100%', transformOrigin: '50% 40%', ...drift }}
     >
-      <Scene segments={segments} spin={spin} parallax={!coarse && !reduced} />
-    </Canvas>
+      <Canvas
+        className={className}
+        camera={{ position: [0, 0, 6.9], fov: 40 }}
+        dpr={[1, coarse ? 1.5 : 2]}
+        gl={{ antialias: true, alpha: true }}
+        style={{ pointerEvents: 'none' }}
+      >
+        <Scene segments={segments} spin={spin} parallax={!coarse && !reduced} />
+      </Canvas>
+    </motion.div>
   )
 }

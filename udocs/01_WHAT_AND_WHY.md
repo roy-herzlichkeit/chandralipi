@@ -2,6 +2,23 @@
 
 ## What ISRO actually asked for
 
+**New words in this doc:**
+
+| word | plain meaning |
+|---|---|
+| **registration** | finding the geometric transform that lays one image exactly on top of another picture of the same place. The whole problem. |
+| **source / reference** | the image you move, and the image you align it to. Also called *moving* and *fixed*. |
+| **sub-pixel** | accurate to less than the width of one pixel. |
+| **RMSE** | Root Mean Square Error — average miss distance, with big misses weighted more. |
+| **inlier** | a matched point pair that agrees with the fitted transform. A good match. |
+| **descriptor** | a short vector summarising what a small patch of image looks like, so it can be compared against patches in another image. |
+| **azimuth** | a compass direction in degrees. "Sun azimuth" is which way the sun is, horizontally. |
+| **terminator** | the boundary between the lit and unlit parts of a body. Abrupt on the Moon, because there is no atmosphere to scatter light. |
+| **GSD** | Ground Sample Distance — how much ground one pixel covers. |
+| **synthetic scene** | a computer-generated test image where we chose the correct answer in advance, so accuracy can actually be checked. |
+
+---
+
 Problem statement **SIH26166**, Indian Space Research Organisation, Smart India
 Hackathon 2026. The core sentence:
 

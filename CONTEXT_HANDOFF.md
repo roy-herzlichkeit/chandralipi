@@ -104,18 +104,51 @@ three products instead of 79 km². Adding the corner columns would fix it and
 would also change every non-polar area in the table, so it is not a change to
 make without a decision.
 
-### 1.1c The downloaded OHRC and TMC-2 products do not overlap each other
+### 1.1c The downloaded OHRC, TMC-2 and IIRS products do not overlap each other
 
-**Traces to:** operational.
+**Traces to:** operational. **Updated 2026-09-05**, re-checked directly against
+a larger, still-growing download (labels read from the zip archives without
+full extraction — `unzip -p <zip> <label.xml>`).
 
-The three OHRC products are polar (≈ −85°). The three TMC-2 products are
-mid-latitude (−29.5° … −2.0°, areas 16,000–17,800 km²). **They cover different
-parts of the Moon**, so even with the polar issue fixed, this particular
-download yields zero OHRC↔TMC-2 pairs.
+As of this check, 8 OHRC products, 11 TMC-2 products (two fore/nadir/aft
+tri-stereo triples plus a partial third), and 2 IIRS products had downloaded.
+Every product's four-corner footprint, read directly from its label:
 
-Any further download needs to be selected by *region*, not by taking the first N
-products of each instrument. This is a large part of why §1.4's volume problem is
-also a targeting problem.
+| instrument | latitude range | longitude range |
+|---|---|---|
+| OHRC (8 products) | −83.9° … −85.5° | 22.8° … 35.9°E |
+| TMC-2 (11 products, 2 triples) | −1.9° … −29.6° | 138.6° … 143.0°E |
+| IIRS (1 readable product; 1 still mid-download) | −3.9° … 31.4° | 100.0° … 101.4°E |
+
+**Three disjoint regions of the Moon, none closer than roughly 65° of
+longitude to either of the others.** Zero cross-instrument overlap is possible
+at any pairing with what has been fetched so far — not a bug, a fact about
+which orbits were selected.
+
+**The cart itself is the reason, and it is now confirmed rather than inferred.**
+The three `.sh` download scripts in `~/Downloads` each list **500 unique
+product files** spanning the mission's full date range (2019–2026 for OHRC).
+This is not a region-filtered query — it reads as an unfiltered "every archived
+product of this instrument" pull. Downloading further items from the same three
+carts adds more independently-selected orbits; it does not converge toward
+overlap, because nothing about the selection targets a shared location.
+
+**Measured download rate at the time of this check: ≈2.6 MB/s combined across
+three simultaneous transfers** (sampled over 12.4s on the three then-active
+`wget` processes). At that rate, and with the carts at 500 files each while only
+21 have completed (≈16 GB), completing the existing carts is a multi-day,
+multi-terabyte transfer with **821 GB of free disk** against a plausible total
+in the 1–2 TB range extrapolated from the file sizes seen so far (OHRC ≈750 MB,
+TMC-2 ≈500 MB, IIRS 0.75–5.5 GB per product, wildly variable) — it will not
+finish before the disk fills even if left running.
+
+**Recommendation, given to the user directly when asked "does this suffice":**
+stop pulling from these three carts. They cannot produce a usable cross-sensor
+pair regardless of how many more files complete. The fix is a new, targeted
+search on PRADAN filtered by a shared ground footprint (a lat/lon or orbit-path
+filter) across OHRC, TMC-2 and IIRS, then a cart built from that small
+intersecting set — likely single digits to low tens of files per instrument,
+not 500.
 
 ### 1.2 Field map: 22 of 25 fields verified, 3 still unresolved
 
