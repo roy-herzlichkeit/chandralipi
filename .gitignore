@@ -24,6 +24,10 @@ data/processed/*
 outputs/
 *.pth
 
+# Local secrets / machine-specific env
+.env
+.env.*
+
 # Personal learning notes -- written for one reader, not part of the deliverable.
 # Regenerate or edit freely; nothing in the pipeline reads them.
 udocs/

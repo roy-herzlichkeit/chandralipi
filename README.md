@@ -85,6 +85,23 @@ Then confirm what the pipeline thinks it is running on:
 lunar-reg env
 ```
 
+### Setting up another machine
+
+`data/` is git-ignored, so it travels as an archive. On the machine that has it:
+
+```bash
+./scripts/pack_data.sh            # -> dist/chandralipi-data-processed-<date>.tar.zst
+```
+
+Then on the new machine, `git clone` and:
+
+```bash
+./scripts/setup.sh --data /path/to/that/archive   # venv -> deps -> data -> verify
+./scripts/run_dashboard.sh
+```
+
+`scripts/README.md` has the options (`--cuda`, `--results-only`, `--full`, …).
+
 ## Use
 
 ```bash
