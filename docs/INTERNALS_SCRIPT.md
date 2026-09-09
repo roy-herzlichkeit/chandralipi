@@ -1,122 +1,168 @@
-# 5-minute internals script
+# 5-minute pitch script (spoken, casual)
 
-Written to be **spoken**, not read off a slide. Direct, front-loaded evidence,
-no hedging language. Every acronym is spelled out in full the first time it's
-said, then shortened after — so nobody in the room has to guess what a letter
-stands for. Every number here traces to a file — if challenged on any of
-them, the answer is "here's the run" (`CONTEXT_HANDOFF.md`,
-`udocs/50_findings.md`, `data/processed/demo_real/README.md`), not "trust me."
+Written to be **said out loud**, not read off a slide — so it's loose, it has
+contractions, it sounds like a person talking. It follows the six-slide idea
+deck in order: title, problem/solution, technical approach, feasibility,
+impact, references.
 
-Target: ~700 words, ~4:45 spoken at a confident, unhurried pace. Practice it
-once against a timer before the room.
+What does **not** loosen up: every number in here traces to a file and a real
+run. If someone challenges a figure, the answer is "here's the run"
+(`CONTEXT_HANDOFF.md`, `udocs/50_findings.md`,
+`data/processed/demo_real/README.md`) — never "trust me." Acronyms still get
+said in full the first time, just naturally, not as a drill.
 
----
-
-**[0:00] What we built**
-
-"Team Severed Department, problem SIH26166 — that's the Smart India
-Hackathon, problem number 26166, set by the Indian Space Research
-Organisation, ISRO. Their orbiter Chandrayaan-2 carries three optical
-instruments — the Orbiter High Resolution Camera, OHRC; the Terrain Mapping
-Camera 2, TMC-2; and the Imaging Infrared Spectrometer, IIRS — imaging the
-Moon at wildly different resolutions and conditions. The ask: find
-pixel-accurate correspondences between them and a reference image,
-automatically, to sub-pixel accuracy, spread evenly across the frame. Not a
-paper. A working pipeline, tested, and I'll show you real output in a
-minute."
-
-**[0:30] Why it's actually hard — three things, each measured, not assumed**
-
-"One. Illumination. No atmosphere, so shadows are hard black. Move the sun,
-and a crater's lit wall becomes its dark wall. We measured this using the
-Scale-Invariant Feature Transform, SIFT — a standard matching algorithm: 228
-correct matches at 15 degrees of sun-angle difference, 4 at 30, zero at 60.
-Not gradual decay — a cliff.
-
-Two. Scale. IIRS is 320 times coarser than OHRC. Nothing is scale-invariant
-across eight octaves, so we bridge it in stages, never directly.
-
-Three. Geometry. These are pushbroom sensors — no single camera position,
-ever. Fit the obvious four-corner transform anyway, and we measured a
-639-metre error against ISRO's own per-pixel geometry file. Two-thirds of a
-kilometre, on a sub-pixel requirement."
-
-**[1:20] What we built to solve it**
-
-"Classical detectors — SIFT, and Accelerated-KAZE, AKAZE — as baselines,
-because the collapse above is the argument for going further. Modern
-matchers — LightGlue, and the Local Feature TRansformer, LoFTR — these are
-transformers, the same attention mechanism as a language model, run over
-image patches instead of words. We fit the transform with Random Sample
-Consensus, RANSAC, then refine it to sub-pixel with the Enhanced Correlation
-Coefficient, ECC.
-
-And one thing nobody asked for, but the problem statement needs: ISRO
-suggests Root Mean Square Error, RMSE, as the metric. We proved RMSE cannot
-certify 'sub-pixel across the image.' Six point layouts, identical noise —
-RMSE barely moves, 0.7 pixels across all six. True error away from those
-points: a 51-times range, up to six pixels. So we built a uniformity metric
-and a bootstrap conditioning map that shows exactly *where* a transform can
-be trusted, not just one number that hides the answer."
-
-**[2:25] The direct question — is any of this real data?**
-
-"Yes, and I'll say exactly which parts, because I'd rather you hear it from
-me than find it yourselves.
-
-Chandrayaan-2: we have five real products. Verified 22 of 25 label fields
-against them, found and fixed a bug rejecting every real OHRC strip, found
-the 639-metre error — on real data. But the specific files we hold sit at
-three different, non-overlapping locations on the Moon. Zero real
-cross-instrument Chandrayaan-2 pairs yet. That's a data-acquisition gap —
-ISRO's download portal was unreachable over our network the last two nights
-— not a pipeline gap.
-
-So we validated the *same* pipeline, same matchers, same metrics, end to
-end, on two other real public datasets: the Japan Aerospace Exploration
-Agency's, JAXA's, Kaguya orbiter, and the American National Aeronautics and
-Space Administration's, NASA's, Lunar Reconnaissance Orbiter, LRO.
-[**show dashboard here**] Real imagery, two agencies, genuine overlap.
-Result: LightGlue, 719 inliers out of 741 matches, 97 percent inlier ratio —
-the only result anywhere in this project, real or synthetic, that passes our
-own uniformity gate. Same-sensor pair: 0.33 pixel median error. Sub-pixel. On
-real data."
-
-**[3:55] What's left, scoped, not hidden**
-
-"Two things. One: Chandrayaan-2 OHRC and TMC-2 at the same location — a
-targeted download, not a code fix. Two: wire in the per-pixel geometry grid
-we already validated, replacing the transform that's off by 639 metres —
-ready, held back deliberately because it changes every crop the pipeline
-produces."
-
-**[4:30] Close**
-
-"Every number I gave you traces to a file and a run. Nothing here is a guess
-dressed up as a result. The pipeline works — we proved it end to end on real
-cross-agency imagery — and the only thing between this and Chandrayaan-2
-specifically is one download. Questions."
+Target: ~850 words, ~5:15 spoken at an unhurried pace. Run it once against a
+timer before the room.
 
 ---
 
-## If they push back — short, prepared answers
+**[0:00] Slides 1–2 — who we are, what we're doing**
 
-By this point in the talk every acronym below has already been said in full
-once, so these can stay short.
+"We're Severed Department, from IIIT Bhubaneswar, and we took problem 26166 —
+Smart India Hackathon problem number 26166, set by ISRO, the Indian Space
+Research Organisation.
 
-- **"Why not just use ISRO data?"** — We have five real ISRO products and
-  used them for verification (label fields, the 639 m finding). The ones we
-  hold don't overlap each other geographically — that's what's missing, not
-  the code. Say it once, don't over-explain.
-- **"So this is fake / not Chandrayaan-2?"** — Say plainly: correct, this
-  specific result is JAXA and NASA data, labelled honestly as such on the
-  dashboard. It proves the pipeline; it does not claim to be OHRC data.
-  Do not let this get reframed as "faking a result" — the sensor names are
-  right there on screen.
-- **"What's actually novel here?"** — The uniformity and conditioning
-  metrics, and the 639 m pushbroom finding. Lead with those if asked for
-  "the contribution."
-- **"How do you know your metric is any good?"** — Spearman rank
-  correlation of −0.83 between the uniformity score and true worst-case
-  error, on six synthetic layouts. Say the sample size is small if
-  pressed — don't oversell it.
+Here's the setup. Chandrayaan-2, ISRO's lunar orbiter, carries three optical
+instruments — OHRC, the Orbiter High Resolution Camera; TMC-2, the Terrain
+Mapping Camera 2; and IIRS, the Imaging Infrared Spectrometer. They shoot the
+Moon at wildly different resolutions, at different times of lunar day, from a
+moving platform. ISRO wants those images lined up against each other and
+against a reference map — automatically, down to sub-pixel accuracy, with the
+matched points spread evenly across the frame instead of bunched in one
+corner.
+
+We didn't write a paper about it. We built the pipeline, ran it, and I'll show
+you real output before I'm done."
+
+**[0:40] Slide 2 — why this is genuinely hard, and we measured all three**
+
+"Three things break normal image matching here, and we didn't assume any of
+them — we measured them.
+
+One, illumination. The Moon has no atmosphere, so shadows are dead black, and
+when the sun moves, a crater wall that was lit goes dark. We ran SIFT — the
+Scale-Invariant Feature Transform, the standard matcher — across a sweep of
+sun angles. 228 good matches at 15 degrees of difference. Four at 30. Zero at
+60. That's not a gentle decline, that's a cliff.
+
+Two, scale. IIRS is 320 times coarser than OHRC. Nothing stays matchable
+across a gap that big, so we never match them directly — we bridge it in
+steps.
+
+Three, geometry. These are pushbroom sensors — no single camera position, the
+image is built line by line as the orbiter flies. Fit the obvious flat
+four-corner transform anyway and you're off by 639 metres against ISRO's own
+per-pixel geometry file. Two-thirds of a kilometre, on a problem that asks for
+sub-pixel."
+
+**[1:35] Slide 3 — the pipeline**
+
+"So the pipeline is five stages, each with one job.
+
+Ingestion reads the PDS4 labels from OHRC, TMC-2 and IIRS, with an LRO and
+SELENE fetcher as backup, and pulls out ground scale and sun angle.
+
+Preprocessing resamples everything to a common ground scale, collapses IIRS's
+spectral bands down to one grayscale image, and tiles the big OHRC frames so
+they fit in 6 to 8 gigs of VRAM.
+
+The matching engine is the swappable part — two tracks. A classical track,
+phase-congruency and RIFT-style, and a deep-learning track: LoFTR and
+LightGlue. Those two are transformers — same attention mechanism as a language
+model, run over image patches instead of words. LightGlue is the fast
+successor to SuperGlue, which is what's named on the slide. A selector picks or
+combines the tracks.
+
+Then geometric verification — RANSAC to throw out the bad matches, then
+sub-pixel refinement with ECC, the Enhanced Correlation Coefficient. And an
+output stage that writes the registered image, the match points, and the
+metrics.
+
+Stack's all open: Python, PyTorch, OpenCV, NumPy, GDAL, CUDA when there's a
+GPU."
+
+**[2:35] Slides 3–4 — the metric nobody asked for, and feasibility**
+
+"One thing we added that wasn't in the ask. ISRO suggests RMSE — root mean
+square error — as the accuracy metric. We don't think RMSE can certify
+'sub-pixel across the whole image,' and we showed it: six different point
+layouts, same noise, RMSE barely moves — 0.7 pixels across all six. But the
+true error away from those points ranges 51 to 1, up to six pixels. So we
+built a uniformity score and a bootstrap conditioning map that tells you
+*where* the transform is trustworthy, instead of one number that hides it. It
+rank-correlates minus 0.83 with true worst-case error — small sample, but it
+fires.
+
+On feasibility: it's zero-shot. No training, no GPU cluster. Everything I'm
+about to show you actually ran on a CPU. Public LRO data means you're not
+blocked waiting on archive access. The known risks — OHRC's giant tiles, IIRS
+being hyperspectral — we handle with tiling and band selection, and the
+classical track stays in as a fallback when the deep matchers choke on
+shadow."
+
+**[3:25] The honest bit — is any of this real data?**
+
+"Straight answer, because I'd rather you hear it from me. Yes, with one
+specific gap.
+
+Chandrayaan-2: we have five real products. We verified 22 of 25 label fields
+against them, found and fixed a bug that was rejecting every real OHRC strip,
+and found that 639-metre error — all on real ISRO data. But the five files we
+got sit at three spots on the Moon that don't overlap. So we have zero real
+Chandrayaan-2 cross-instrument pairs. That's a download problem — ISRO's
+portal was unreachable on our network two nights running — not a pipeline
+problem.
+
+So we ran the exact same pipeline — same matchers, same metrics, end to end —
+on two other real, public datasets: JAXA's Kaguya orbiter and NASA's LRO.
+[**show dashboard here**] Real imagery, two space agencies, genuine overlap.
+LightGlue got 719 inliers out of 741, 97 percent — and it's the only result in
+this whole project, real or synthetic, that passes our own uniformity gate.
+Same-sensor pair, 0.33 pixel median error. Sub-pixel, on real data.
+
+And we kept a failure: a second location that looked better and matched
+terribly — big symmetric crater, every point on the rim looks the same, the
+matchers locked onto the wrong crater. We caught it by looking at the image,
+not the metrics table. It's in the writeup on purpose.
+
+The closest published work on this exact dataset is Makharia et al., 2025. We
+read it, we can reproduce their table — but we won't put our numbers next to
+theirs and call it a comparison, because they measure RMSE the way we just
+argued against."
+
+**[4:25] Slide 5 — why it matters**
+
+"What this unlocks: it automates ground-control-point tagging, which is manual
+work right now. It puts Chandrayaan-2, LRO and SELENE into one coordinate
+frame. That feeds landing-site selection, elevation models, change detection.
+And nothing about it is Moon-specific — the same pipeline points at Mars or
+any other ISRO multi-sensor mission."
+
+**[4:45] Close**
+
+"Every number I gave you traces to a file and a run. Nothing's a guess dressed
+up as a result. The pipeline works — we proved it end to end on real
+cross-agency imagery — and the one thing between here and Chandrayaan-2
+specifically is a download. Questions."
+
+---
+
+## If they push back — short, casual answers
+
+By this point every acronym's been said in full once, so keep these tight.
+
+- **"Why not just use ISRO data?"** — We've got five real ISRO products and we
+  used them — that's where the label-field checks and the 639-metre finding
+  came from. The ones we hold just don't overlap each other on the ground.
+  That's what's missing, not the code. Say it once, don't over-explain.
+- **"So this is fake / not Chandrayaan-2?"** — Plainly: correct, this specific
+  result is JAXA and NASA data, and it says so on the dashboard. It proves the
+  pipeline; it doesn't claim to be OHRC. Don't let it get reframed as "faking a
+  result" — the real sensor names are right there on screen.
+- **"What's actually novel?"** — The uniformity and conditioning metrics, and
+  the 639-metre pushbroom finding. Lead with those.
+- **"How do you know your metric's any good?"** — Spearman rank correlation of
+  minus 0.83 between the uniformity score and true worst-case error, on six
+  synthetic layouts. Say the sample's small if pressed — don't oversell it.
+- **"Does it run on our hardware?"** — Zero-shot, no training. Everything so
+  far ran on CPU; a 6–8 GB card is plenty for the deep track.
