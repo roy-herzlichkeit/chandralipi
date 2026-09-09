@@ -96,11 +96,14 @@ lunar-reg env
 Then on the new machine, `git clone` and:
 
 ```bash
-./scripts/setup.sh --data /path/to/that/archive   # venv -> deps -> data -> verify
-./scripts/run_dashboard.sh
+./scripts/up.sh --setup --data /path/to/that/archive
 ```
 
-`scripts/README.md` has the options (`--cuda`, `--results-only`, `--full`, …).
+That builds the venv, installs deps, unpacks the data, and launches both the
+Streamlit dashboard and the React showcase site. `./scripts/setup.sh` alone does
+just the install; `./scripts/run_dashboard.sh` runs only Streamlit.
+`scripts/README.md` has the options (`--cuda`, `--host`, `--no-web`,
+`--results-only`, `--full`, …).
 
 ## Use
 

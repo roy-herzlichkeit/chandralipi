@@ -1,7 +1,27 @@
 # scripts/
 
-Helper scripts. The three below get a second machine from `git clone` to a
-running dashboard.
+Helper scripts. The ones below get a second machine from `git clone` to both
+dashboards running.
+
+## `up.sh` — the one-command everything
+
+Runs setup (optional), refreshes the static export, and launches **both** front
+ends together — the Streamlit dashboard and the React showcase site — tearing
+both down on one Ctrl-C.
+
+```bash
+./scripts/up.sh                     # servers only (setup already done)
+./scripts/up.sh --setup             # venv + deps first
+./scripts/up.sh --setup --data ../chandralipi-data-processed-<date>.tar.zst
+./scripts/up.sh --build             # React: production build + preview, not the dev server
+./scripts/up.sh --no-web            # Streamlit only
+./scripts/up.sh --host              # bind both to 0.0.0.0 for other devices / a projector laptop
+```
+
+Streamlit → `http://localhost:8501`, React → `http://localhost:5173`
+(`--streamlit-port` / `--web-port` to change). `--no-web` drops the Node
+requirement. The React `/dashboard` reads a static snapshot, so `up.sh` re-runs
+`export_web_data.py` on every launch to keep the two in sync.
 
 ## Standing up another device
 
