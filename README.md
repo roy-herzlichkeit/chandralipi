@@ -621,3 +621,5 @@ It is deliberately outside the Python package: nothing in `src/lunar_reg/`
 imports from it, and the pipeline, its tests and the Streamlit tool all run
 without Node installed. The Streamlit app remains the live tool; the site reads
 a static export refreshed with `scripts/export_web_data.py`. See `web/README.md`.
+
+Soy Pritom Paul de la Durgapur.
