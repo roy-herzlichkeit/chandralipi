@@ -559,10 +559,15 @@ the benchmark and preprocessing recipe this pipeline follows. Full list in
 Every registered pair is persisted by `lunar_reg.results` and browsable.
 
 ```bash
-python scripts/build_demo_results.py     # run the pipeline, populate data/processed/results
-streamlit run dashboard/app.py           # browse it
+streamlit run dashboard/app.py           # browse data/processed/results
+python scripts/reindex_results.py         # rebuild index.parquet from the .npz on disk
+python scripts/build_demo_results.py      # regenerate the synthetic scene set (its own store)
 python scripts/demo.py --case hard-30deg --matcher asift   # single-pair demo + figures
 ```
+
+`data/processed/results/` holds the real-sensor pairs. `build_demo_results.py`
+writes the synthetic set to `data/processed/results_ch2_synthetic_backup/`
+instead — a separate store, so regenerating it never disturbs the live one.
 
 The dashboard shows, per pair: the correspondence lines with inliers and
 RANSAC-rejected matches distinguished; RMSE, inlier count, inlier ratio and both

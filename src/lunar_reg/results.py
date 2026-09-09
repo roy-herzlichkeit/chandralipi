@@ -284,13 +284,46 @@ def load_index(root: str | Path):
     return pd.read_parquet(path)
 
 
-def save_results(results, root: str | Path):
-    """Persist a batch of results and rebuild the index."""
+def load_all_pairs(root: str | Path):
+    """Load every ``pairs/*.npz`` under ``root``.
+
+    Returns ``(results, failures)`` where ``failures`` is a list of
+    ``(pair_id, reason)`` -- a single unreadable file is reported, never allowed
+    to abort the scan.
+    """
+    root = Path(root)
+    results, failures = [], []
+    for path in sorted((root / "pairs").glob("*.npz")):
+        try:
+            results.append(load_pair(path.stem, root))
+        except Exception as exc:  # noqa: BLE001 -- one bad file must not stop the rest
+            failures.append((path.stem, f"{type(exc).__name__}: {exc}"))
+    for pair_id, reason in failures:
+        logger.warning("could not load stored pair %s: %s", pair_id, reason)
+    return results, failures
+
+
+def reindex(root: str | Path):
+    """Rebuild ``index.parquet`` from every ``.npz`` on disk. Returns the frame."""
+    results, _ = load_all_pairs(root)
+    frame = write_index(results, root)
+    logger.info("reindexed %s: %d pair(s)", root, len(frame))
+    return frame
+
+
+def save_results(results, root: str | Path, reindex_all: bool = True):
+    """Persist a batch of results and rebuild the index.
+
+    The index is rebuilt from **every** pair on disk, not just this batch, so
+    running one build after another never drops the earlier pairs from
+    ``index.parquet`` while their ``.npz`` files sit unindexed. Pass
+    ``reindex_all=False`` for the old batch-only behaviour.
+    """
     root = Path(root)
     for result in results:
         save_pair(result, root)
-    frame = write_index(results, root)
-    logger.info("wrote %d pair result(s) to %s", len(results), root)
+    frame = reindex(root) if reindex_all else write_index(results, root)
+    logger.info("wrote %d pair result(s) to %s; index covers %d", len(results), root, len(frame))
     return frame
 
 
@@ -298,8 +331,10 @@ __all__ = [
     "SCHEMA_VERSION",
     "THUMBNAIL_MAX_PX",
     "PairResult",
+    "load_all_pairs",
     "load_index",
     "load_pair",
+    "reindex",
     "save_pair",
     "save_results",
     "write_index",

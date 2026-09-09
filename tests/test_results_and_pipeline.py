@@ -10,8 +10,10 @@ from lunar_reg.pipeline import PipelineConfig, RunStatus, register_pair, run_bat
 from lunar_reg.results import (
     SCHEMA_VERSION,
     PairResult,
+    load_all_pairs,
     load_index,
     load_pair,
+    reindex,
     save_results,
 )
 from lunar_reg.viz.figures import (
@@ -124,6 +126,41 @@ def test_index_is_written_and_readable(tmp_path):
 
 def test_load_index_on_an_empty_directory_is_not_an_error(tmp_path):
     assert len(load_index(tmp_path)) == 0
+
+
+def test_second_save_results_does_not_drop_the_first_batch(tmp_path):
+    """The footgun: a build writing its own batch used to clobber the index and
+    hide every pair written by an earlier build (the .npz survived, unindexed)."""
+    save_results([_result(pair_id="real_lightglue", synthetic=False)], tmp_path)
+    save_results(
+        [_result(pair_id="synth_a", synthetic=True),
+         _result(pair_id="synth_b", synthetic=True)],
+        tmp_path,
+    )
+    frame = load_index(tmp_path)
+    assert set(frame["pair_id"]) == {"real_lightglue", "synth_a", "synth_b"}
+
+
+def test_reindex_rebuilds_from_disk_ignoring_a_stale_index(tmp_path):
+    save_results([_result(pair_id="a"), _result(pair_id="b")], tmp_path)
+    # Simulate a stale index that lost a pair whose .npz is still present.
+    save_results([_result(pair_id="a")], tmp_path, reindex_all=False)
+    assert set(load_index(tmp_path)["pair_id"]) == {"a"}
+
+    frame = reindex(tmp_path)
+    assert set(frame["pair_id"]) == {"a", "b"}
+
+    results, failures = load_all_pairs(tmp_path)
+    assert failures == []
+    assert {r.pair_id for r in results} == {"a", "b"}
+
+
+def test_load_all_pairs_reports_a_bad_file_rather_than_raising(tmp_path):
+    save_results([_result(pair_id="good")], tmp_path)
+    (tmp_path / "pairs" / "corrupt.npz").write_bytes(b"not an npz")
+    results, failures = load_all_pairs(tmp_path)
+    assert {r.pair_id for r in results} == {"good"}
+    assert [pid for pid, _ in failures] == ["corrupt"]
 
 
 def test_missing_pair_raises_with_the_path(tmp_path):

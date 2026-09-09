@@ -72,7 +72,8 @@ Assumes `setup.sh` has run. Extra args pass through to streamlit:
 ```
 
 Warns (doesn't fail) if `data/processed/results/` is empty — populate it with a
-bundle, or regenerate locally with `.venv/bin/python scripts/build_demo_results.py`.
+bundle, or, if the `.npz` are there but unindexed,
+`.venv/bin/python scripts/reindex_results.py`.
 
 ## Windows
 
@@ -82,10 +83,16 @@ archive with `tar -xf`, then `.venv\Scripts\streamlit run dashboard\app.py`.
 
 ## The other scripts
 
-- `build_demo_results.py` — runs the pipeline and (re)populates
-  `data/processed/results/`. **Footgun:** it rebuilds `index.parquet` from only
-  its own batch, so running it after real results exist drops them from the
-  index (see `data/processed/demo_real/README.md`).
+- `build_demo_results.py` — runs the pipeline over generated scenes and writes
+  them to `data/processed/results_ch2_synthetic_backup/` (its own store, not the
+  live `results/`). It once wrote to `results/` and its index rebuild dropped
+  the real pairs from view; `save_results()` now reindexes from every `.npz` on
+  disk rather than just its batch, and the separate store keeps the two sets
+  from colliding at all.
+- `reindex_results.py` — rebuild `index.parquet` from every `pairs/*.npz` on
+  disk, ignoring the stale index. `--exclude-synthetic` moves generated scenes
+  to `results_ch2_synthetic_backup/` and indexes only the real pairs (the
+  showcase state); `--dry-run` reports without writing. Never deletes a result.
 - `demo.py` — single-pair registration plus the four figures, e.g.
   `demo.py --case hard-30deg --matcher asift`.
 - `export_web_data.py` — exports the results store to JSON for the `web/` site.

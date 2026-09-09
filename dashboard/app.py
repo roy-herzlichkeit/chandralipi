@@ -83,8 +83,12 @@ if not len(frame):
     st.title("Lunar Image Registration")
     st.error(
         f"No results found under `{root}`.\n\n"
-        "Generate a browsable set with:\n\n"
-        "```\npython scripts/build_demo_results.py\n```"
+        "If `.npz` files exist under `pairs/` but the index is empty or stale, "
+        "rebuild it from disk:\n\n"
+        "```\npython scripts/reindex_results.py\n```\n\n"
+        "To generate the synthetic scene set instead:\n\n"
+        "```\npython scripts/build_demo_results.py\n"
+        "# then point this box at data/processed/results_ch2_synthetic_backup\n```"
     )
     st.stop()
 
