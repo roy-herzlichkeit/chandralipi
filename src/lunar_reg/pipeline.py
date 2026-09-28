@@ -76,6 +76,24 @@ class PipelineConfig:
     extra: dict = field(default_factory=dict)
 
 
+#: Matcher names routed to the learned (torch) implementations rather than OpenCV.
+LEARNED_MATCHERS: tuple[str, ...] = ("lightglue", "disk", "loftr")
+
+
+def _build_matcher(name: str):
+    """Classical matchers by default; LightGlue/LoFTR when named explicitly.
+
+    Learned matchers import torch lazily, so classical-only runs stay light.
+    """
+    if name.lower().startswith(LEARNED_MATCHERS):
+        from lunar_reg.match.learned import build_matcher
+
+        return build_matcher(name)
+    from lunar_reg.match.classical import build_classical
+
+    return build_classical(name)
+
+
 def register_pair(
     source: np.ndarray,
     reference: np.ndarray,
@@ -102,13 +120,12 @@ def register_pair(
     from lunar_reg.eval.conditioning import bootstrap_conditioning
     from lunar_reg.eval.metrics import compute_metrics
     from lunar_reg.eval.uniformity import compute_uniformity
-    from lunar_reg.match.classical import build_classical
     from lunar_reg.results import PairResult
 
     config = config or PipelineConfig()
 
     try:
-        matches = build_classical(config.matcher).match(source, reference)
+        matches = _build_matcher(config.matcher).match(source, reference)
     except Exception as exc:  # noqa: BLE001 - a matcher failing is an outcome
         return RunOutcome(
             pair_id, RunStatus.MATCHER_ERROR, detail=f"{type(exc).__name__}: {exc}"

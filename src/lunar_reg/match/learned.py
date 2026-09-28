@@ -45,6 +45,29 @@ def _to_tensor(image: np.ndarray, device: str):
     return torch.from_numpy(arr)[None, None].to(device)
 
 
+def _pad_to_multiple(tensor, multiple: int):
+    """Zero-pad a ``(1, C, H, W)`` tensor on the bottom/right to a multiple of ``multiple``."""
+    import torch.nn.functional as F
+
+    h, w = tensor.shape[-2:]
+    pad_h, pad_w = (-h) % multiple, (-w) % multiple
+    if not (pad_h or pad_w):
+        return tensor
+    return F.pad(tensor, (0, pad_w, 0, pad_h))
+
+
+def _drop_outside(features, shape: tuple[int, int]):
+    """Keep only DISK keypoints inside the unpadded ``(H, W)`` image."""
+    import kornia.feature as KF
+
+    h, w = shape
+    kp = features.keypoints
+    keep = (kp[:, 0] < w) & (kp[:, 1] < h)
+    if bool(keep.all()):
+        return features
+    return KF.DISKFeatures(kp[keep], features.descriptors[keep], features.detection_scores[keep])
+
+
 class LoFTRMatcher:
     """Dense detector-free matching.
 
@@ -166,11 +189,16 @@ class LightGlueMatcher:
         )
 
         with torch.inference_mode(), autocast:
-            # DISK expects 3-channel input; repeat the single band.
-            t0 = _to_tensor(source, self.device).repeat(1, 3, 1, 1)
-            t1 = _to_tensor(reference, self.device).repeat(1, 3, 1, 1)
+            # DISK expects 3-channel input; repeat the single band. It also
+            # rejects any side that is not a multiple of 16, so pad bottom/right
+            # with zeros: keypoint coordinates are unchanged by padding there,
+            # and anything detected inside the padding is dropped below.
+            t0 = _pad_to_multiple(_to_tensor(source, self.device), 16).repeat(1, 3, 1, 1)
+            t1 = _pad_to_multiple(_to_tensor(reference, self.device), 16).repeat(1, 3, 1, 1)
             f0 = extractor(t0, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
             f1 = extractor(t1, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
+            f0 = _drop_outside(f0, source.shape[:2])
+            f1 = _drop_outside(f1, reference.shape[:2])
 
             out = matcher({
                 "image0": {

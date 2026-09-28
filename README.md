@@ -139,6 +139,107 @@ print(compute_metrics(result, transform).as_dict())
 print(compute_uniformity(result.inliers().src_pts, (src.height, src.width)).as_dict())
 ```
 
+## Running every pipeline
+
+Every command below runs from the repository root. Use the project virtualenv
+(`.venv/bin/python`, or activate it first).
+
+### 0. Set up
+
+```bash
+./scripts/setup.sh                  # virtualenv + dependencies (add --cuda for a GPU torch build)
+./scripts/up.sh                     # setup (optional) + dashboard + showcase site in one command
+```
+
+### 1. Find where both archives cover the same ground (catalogue, no imagery)
+
+1. Save the ISSDC footprint catalogue. This needs your PRADAN login, so run the
+   console snippet in [`docs/DATA_ACQUISITION.md`](docs/DATA_ACQUISITION.md) §2
+   in a signed-in browser tab and put the `*.geojson` files in
+   `data/raw/catalogue/`.
+2. Build a manifest for a lat/lon box. This joins ISSDC with NASA's ODE, which
+   needs no login:
+
+```bash
+.venv/bin/python scripts/fetch_catalogue.py \
+  --issdc-dir data/raw/catalogue --box -69.9 -68.7 31.9 32.8 \
+  --ode-pt CDRNAC4 --ode-pt SDNDTM \
+  --output data/processed/manifest_vikram.parquet
+```
+
+This prints a per-outcome report, and it writes the OHRC product IDs for a
+PRADAN cart to `data/processed/ohrc_vikram_product_ids.txt`.
+
+### 2. Get the imagery
+
+- **ISRO:** add the IDs to a PRADAN cart, download, and extract into
+  `data/raw/ohrc_vikram/`. Check each zip with `unzip -t`; a partly downloaded
+  tar can still hold complete early members.
+- **NASA:** no login. See §6 of `docs/DATA_ACQUISITION.md`. The origin
+  rate-limits at roughly 20 requests, so fetch sequentially with `wget -c`.
+
+### 3. Register Chandrayaan-2 OHRC to LRO NAC (Vikram site)
+
+```bash
+# Default: 4 m/px, coarse-to-fine, all four matchers, saves results and GeoTIFFs
+.venv/bin/python scripts/run_vikram.py
+
+# Common variations
+.venv/bin/python scripts/run_vikram.py --only 20240425            # one product
+.venv/bin/python scripts/run_vikram.py --matchers lightglue,rift2 # choose matchers
+.venv/bin/python scripts/run_vikram.py --model affine             # 3-point model
+.venv/bin/python scripts/run_vikram.py --nac 2                    # second NAC orthoimage
+.venv/bin/python scripts/run_vikram.py --dry-run                  # crops only, no matching
+
+# Write registered GeoTIFFs for results already stored (no re-matching)
+.venv/bin/python scripts/run_vikram.py --export-only
+```
+
+Results go to the normal store (`data/processed/results/`). Registered images
+go to `data/processed/vikram/registered/<pair_id>.tif`: north-up GeoTIFFs on
+the NAC grid, with a `.png` preview. The run's settings are stored in each file's
+GeoTIFF tags and in the result's `extra` field. Results and caveats:
+[`data/processed/vikram/README.md`](data/processed/vikram/README.md).
+
+Memory: LightGlue/DISK costs roughly 2–3 KB per reference pixel on CPU.
+Keep `--gsd` at 4 or coarser on a 16 GB machine.
+
+### 4. Register any two PDS4 products (generic path)
+
+```bash
+lunar-reg manifest --chandrayaan2 data/raw/ch2 --lro data/raw/lro --output m.parquet
+lunar-reg overlap m.parquet --source-sensor OHRC --reference-sensor LRO_NAC --crop-dir crops/
+lunar-reg preprocess data/raw/ch2/<product>.xml --preset ohrc_nac --output pre.npy
+lunar-reg register <source>.xml <reference>.xml --matcher lightglue --output report.json
+```
+
+### 5. Browse results
+
+```bash
+./scripts/run_dashboard.sh                        # Streamlit, http://localhost:8501
+.venv/bin/python scripts/export_web_data.py       # refresh the showcase site's JSON
+.venv/bin/python scripts/reindex_results.py       # rebuild index.parquet from the .npz files
+```
+
+The dashboard caches the results index. Restart it after a run to see new pairs.
+
+### 6. Synthetic benchmark (optional, not part of the demo)
+
+```bash
+.venv/bin/python scripts/build_demo_results.py    # writes to results_ch2_synthetic_backup/
+.venv/bin/python scripts/demo.py --case hard-30deg --matcher asift
+```
+
+These use generated terrain with a known transform, so they report
+truth-based error. They write outside the live store by default.
+
+### 7. Tests and packaging
+
+```bash
+.venv/bin/python -m pytest -q tests
+./scripts/pack_data.sh                            # bundle data/ for another machine
+```
+
 ## Product ingest and the metadata trust boundary
 
 Build one manifest across both archives:

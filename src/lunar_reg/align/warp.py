@@ -115,3 +115,58 @@ def warp_blockwise(
                 )
 
     logger.info("wrote registered product to %s (%dx%d)", output_path, out_w, out_h)
+
+
+def save_registered_geotiff(
+    source: np.ndarray,
+    matrix: np.ndarray,
+    output_shape: tuple[int, int],
+    path,
+    *,
+    crs: str,
+    origin_xy: tuple[float, float],
+    pixel_size: float,
+    tags: dict | None = None,
+    preview_png: bool = True,
+) -> dict:
+    """Warp ``source`` onto the reference grid and write it as a georeferenced GeoTIFF.
+
+    ``matrix`` maps source pixels to reference-grid pixels (the transform a
+    :class:`~lunar_reg.results.PairResult` stores). The output grid is north-up
+    with its upper-left corner at ``origin_xy`` in ``crs`` units and square
+    pixels of ``pixel_size``. Zero is nodata: pixels with no source support.
+
+    ``tags`` are written into the GeoTIFF metadata, so provenance (pair id,
+    matcher, model, thresholds) travels with the file rather than living only in
+    the results store. Returns a small summary: path, shape, valid fraction.
+
+    In-memory: use :func:`warp_blockwise` for full-resolution OHRC strips.
+    """
+    from pathlib import Path
+
+    import cv2
+    import rasterio
+    from rasterio.transform import Affine
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    h, w = output_shape
+    full = matrix if matrix.shape == (3, 3) else np.vstack([matrix, [0.0, 0.0, 1.0]])
+    warped = cv2.warpPerspective(source, full, (w, h), flags=cv2.INTER_CUBIC,
+                                 borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    geotransform = Affine(pixel_size, 0.0, origin_xy[0], 0.0, -pixel_size, origin_xy[1])
+    profile = {
+        "driver": "GTiff", "height": h, "width": w, "count": 1,
+        "dtype": warped.dtype.name, "crs": crs, "transform": geotransform,
+        "nodata": 0, "compress": "deflate", "tiled": True,
+        "blockxsize": 256, "blockysize": 256,
+    }
+    with rasterio.open(path, "w", **profile) as dst:
+        dst.write(warped, 1)
+        if tags:
+            dst.update_tags(**{k: str(v) for k, v in tags.items()})
+    if preview_png:
+        cv2.imwrite(str(path.with_suffix(".png")), warped)
+    valid = float((warped > 0).mean())
+    logger.info("wrote registered GeoTIFF %s (%dx%d, %.0f%% valid)", path, w, h, valid * 100)
+    return {"path": str(path), "shape": (h, w), "valid_fraction": valid}
