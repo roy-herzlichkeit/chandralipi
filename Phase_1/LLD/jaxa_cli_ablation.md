@@ -1,0 +1,27 @@
+# LLD — run_jaxa, ablation driver, CLI register/inspect (P1.17)
+
+Closes: A066 (pr-12), A065 (pr-4), A067 (tooling-1), A115 (pr-19). Evidence for the JAXA pairs: `data/processed/demo_real/README.md` (git-ignored; its text is the only record of how the 9 v1 JAXA/WAC rows were made — they have no producing script, A066).
+
+## 1. `scripts/run_jaxa.py` (new)
+Rebuilds the two JAXA pairs through `register_pair` with every choice recorded in `extra` (nothing unrecorded, G19).
+| pair | source | reference | preparation |
+|---|---|---|---|
+| `JAXA_SELENE_TC-JAXA_SELENE_TC` | `data/raw/reference/jaxa_selene_tc_pair2/TC1S2B0_01_05504N194E0230/*.tif` | `.../TC1S2B0_01_05505N193E0219/*.tif` | both share a CRS (README); crop both to the intersection of their bounds in that CRS (`rasterio.windows.from_bounds`); resample both to a common GSD `g = max(native GSDs, extent / 1152)` so the longest side ≤ 1152 px; `to_uint8(valid = data > 0)` |
+| `JAXA_SELENE_TC-LRO_WAC` | `data/raw/reference/jaxa_selene_tc/TC1S2B0_01_05600N005E1008/*.tif` | `data/raw/reference/lro_wac/lro_wac_100m_lon99.3-101.4E_lat-0.5-1.3N.tif` | `preprocess.georeference.georeference(tc, tc_ds, wac_ds)` onto the WAC grid (P1.09: reference grid, NaN fill), crop both to the valid bounding box of the reprojected TC, `to_uint8(valid=…)` |
+Matchers `sift, akaze, asift, lightglue, loftr`; `PipelineConfig(matcher, gsd_m=g)` defaults otherwise; `extra = {"pair_prep": "<rule above, one line>", "common_gsd_m": g, "crop_bounds": [..4 floats..], "crs": <proj4>, "source_file": <path>, "reference_file": <path>}`. Saves with `save_results([r], root, overwrite=args.overwrite)`, failures with `save_failures`, a `run_record.json` under `data/processed/demo_real/v2/`, prints `BatchReport.report()`. CLI: `--root data/processed/results`, `--matchers`, `--overwrite`, `--only-pair same|cross`. A missing input file → that pair is reported as `INPUT_MISSING` (a local `PairPrepStatus` enum with `OK`, `INPUT_MISSING`, `NO_OVERLAP`), never an exception; `main(argv: list[str] | None = None) -> int` returns 1 when no registration succeeded, else 0; input paths are relative to the current working directory.
+
+## 2. `scripts/run_ablation.py` (new; executed by P1.18)
+CLI: `python scripts/run_ablation.py --anchor-tag 20240425T1406019344 --presets none,ohrc_nac,clahe_shadow --matchers sift,akaze,asift,lightglue --out data/processed/ablation [--skip-anchor] [--skip-synthetic]`.
+- Anchor: for each preset, `run_site(SiteConfig(only=anchor_tag, instruments=("OHRC",), levels=("raw",), preprocess=preset, matchers=…, results_root=out/"store", out_dir=out/f"anchor_{preset}", save_registered=False, overwrite=True, min_inliers=8))`; one `anchor` row per (preset, matcher) with `status`, `n_inliers`, `u_score` (from the RunOutcome and its result; failures → `n_inliers = extra.get("n_refit_inliers") or 0`, `u_score = 0.0`).
+- Synthetic: `eval.scenes.illumination_pair(shape=(512, 512), seed=s, source_sun=(300, 20), reference_sun=(300 + Δ, 45))` for Δ in the module constant `AZIMUTH_DELTAS = (0, 15, 30, 60)` and s in `SEEDS = (0, 1, 2, 3, 4)` (module-level so tests can shrink them); `main(argv: list[str] | None = None) -> int`; matchers `sift`, `lightglue`; each preset; `register_pair(..., PipelineConfig(matcher, preprocess=preset, n_bootstrap=0))`; `truth_rms_px = error_budget.transform_rms_px(result.transform, H, shape)` for OK rows, None otherwise. Rows are labelled SYNTHETIC in the JSON (`"label": "SYNTHETIC"` on the `synthetic` list's container).
+- Writes `out/ablation.json` in the `preprocess_presets.md` §3 format plus `{"winner": ..., "reason": ...}` from `presets.choose_default_preset`, and `out/run_record.json`. Prints a table and the winner.
+
+## 3. `cli.py`
+| command | change |
+|---|---|
+| `register` (A065) | rebuilt on `pipeline.register_pair`: args `source reference --matcher sift --model homography --threshold 3.0 --preprocess none --max-px 1152 --save-root PATH --pair-id ID --output JSON`; reads band 1 of each (rasterio; PDS4 via `pds4.open_product`), downsamples each so its longest side ≤ `--max-px` (INTER_AREA, factor recorded in extra), stretches with `to_uint8(valid=data>0)`; prints `RunOutcome.status` + key metrics; `--output` writes JSON with exactly the keys `pair_id, status, detail, stage, metrics, uniformity, conditioning, transform, extra` (`status` = `RunStatus` value; `transform` a nested list or null; numpy values converted with the P0.10 `_plain_for_index` conversion rules); `--save-root` saves via `save_results`/`save_failures`; exit 0 on OK, 1 otherwise. The old tiled path (`TiledMatcher` + `standard_chain`) is removed from `cmd_register` (tiling returns in Phase 2 via the runner). |
+| `inspect` (A067) | use `product["sun_azimuth_deg"]` / `product["incidence_angle_deg"]`; guard `image_path is None` (P0.05) |
+| `overlap --crop-dir` (A115) | count crops skipped because a footprint cannot be rebuilt; print `skipped <n>, e.g. <product_id>` after the loop |
+
+## 4. Tests the prompt adds (`tests/test_cli_and_jaxa.py`)
+`main(["inspect", <synthetic label>])` exits 0 and prints the sun line; `main(["register", a.tif, b.tif, "--matcher", "sift"])` on two synthetic GeoTIFFs (tmp, from `illumination_pair`) exits 0 and `--output` JSON parses; `run_jaxa` with missing inputs reports INPUT_MISSING and exits 1; `run_ablation --skip-anchor` with `Δ ∈ {0}` monkeypatched to one seed writes a valid `ablation.json` whose `winner` is in `PRESET_NAMES`.

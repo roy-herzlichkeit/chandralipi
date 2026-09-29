@@ -1,0 +1,6 @@
+# LLD — RIFT2 fixes (P1B.04)
+
+Closes: A072 (match-8), A125 (match-16).
+- A072 decision: **remove** the rotation-invariance claims (docstrings in `rift2/mim.py:1`, `:32` and the matcher/module docstrings) and state: "Not rotation-invariant: the dominant-orientation index recodes the MIM but the sampling grid is not rotated. Rotation is handled upstream by prior-rectified tiling (Phase 2)." Reason: every bridge pair is already rotation-normalised by the prior; implementing grid rotation is unmeasured extra risk.
+- A125: `detect_and_describe` deduplicates the union of corner and edge keypoints (same integer pixel → keep the one with the higher response) **before** truncating to `max_keypoints`; `match` keeps, per source point, only the best-ratio match when dominant-index doubling produced two descriptors for it.
+- Tests (`tests/test_rift2_fixes.py`): the corner/edge union has no duplicate coordinates; the number of **distinct** keypoint coordinates returned by `detect_and_describe` is ≤ `max_keypoints` (dominant-index doubling may repeat a coordinate with a second descriptor); each source index appears at most once in the matches; the words "rotation-invariant" / "rotation invariant" no longer appear in `src/lunar_reg/match/rift2/` except in the "Not rotation-invariant" sentence.

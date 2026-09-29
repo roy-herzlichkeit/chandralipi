@@ -1,0 +1,34 @@
+# LLD — RUN prompts of Phase 1 (P1.18, P1.19, P1.20)
+
+Decisions: G08 (archive), G09 (preset default), G02 (exp-1 gate), G22 (RUN artefacts), G27 (strip tags). CLARIFY Q7, Q18, R1. Every number in the docs these prompts write comes from the artefact whose path is cited next to it (G19).
+
+## P1.18 — archive v1, ablation, JAXA re-run
+Preconditions (else BLOCKER): `lunar-reg catalog` reports OHRC PRESENT with the anchor tag `20240425T1406019344` at level `raw`, LRO_NAC PRESENT; `scripts/verify_downloads.py --no-scan` exits 0 when `data/raw/DOWNLOADS.json` exists.
+1. Archive (G08): if `data/processed/results_archive_20260929/` does not exist, `mv data/processed/results data/processed/results_archive_20260929` then `mkdir -p data/processed/results`. If the archive already exists, do nothing (never overwrite it). Record which happened in the run record `notes`.
+2. `.venv/bin/python scripts/run_ablation.py --anchor-tag 20240425T1406019344 --presets none,ohrc_nac,clahe_shadow --matchers sift,akaze,asift,lightglue --out data/processed/ablation` (CPU is acceptable; LightGlue uses CUDA when available).
+3. `.venv/bin/python scripts/run_jaxa.py --root data/processed/results`.
+4. `.venv/bin/python scripts/reindex_results.py --root data/processed/results` and print the report.
+Artefacts checked by `check_P1.18.sh`: `data/processed/results_archive_20260929/index.parquet` (v1, 13 rows on 2026-09-29), `data/processed/ablation/ablation.json` (valid per `preprocess_presets.md` §3, with `winner` in `PRESET_NAMES`, 12 anchor rows, 3 × 2 × 4 × 5 = 120 synthetic rows), `data/processed/ablation/run_record.json` and `data/processed/demo_real/v2/run_record.json` (C15-valid), and live-store rows whose `pair_id` starts with `JAXA_SELENE_TC-` all with `schema_version == 2`.
+
+## P1.19 — apply the default, anchor into the live store
+1. `winner, reason = choose_default_preset(json.load(open("data/processed/ablation/ablation.json")))`.
+2. Set `PipelineConfig.preprocess`'s default to `winner` in `src/lunar_reg/pipeline.py` and add a comment line citing `data/processed/ablation/ablation.json` and `reason`.
+3. Write `docs/PREPROCESS_ABLATION.md`: what a preset is (plain words, G26), the anchor table (preset × matcher: status, n_inliers, u_score) and the synthetic summary (preset × matcher × Δ azimuth: median truth RMS, labelled SYNTHETIC), each table captioned with the artefact path, the rule from `preprocess_presets.md` §3 and its outcome.
+4. `.venv/bin/python scripts/run_vikram.py --only 20240425T1406019344 --instruments OHRC --levels raw --matchers sift,akaze,asift,lightglue --min-inliers 8 --results-root data/processed/results --out-dir data/processed/vikram/runs/p1_19_anchor --overwrite` (preset = the new default).
+Artefacts checked: the default in `PipelineConfig` equals `ablation.json["winner"]`; `docs/PREPROCESS_ABLATION.md` cites `data/processed/ablation/ablation.json`; `data/processed/vikram/runs/p1_19_anchor/run_record.json` C15-valid; ≥ 1 live-store row for the anchor tag with `schema_version == 2`.
+
+## P1.20 — 2023 diagnosis (exp-1, exp-2) and the 1B gate
+Tags (G27): `20230823T1450475804`, `20230823T1647285085`, `20230823T1647285315`.
+1. **exp-2 (reference sun):** `.venv/bin/python scripts/fit_reference_sun.py --nac 1 --out data/processed/vikram/reference_sun` (needs `data/raw/reference/lro_nac_vikram/ode/edrnac4_vikram_box.json`; absent → BLOCKER asking the human to run `.venv/bin/python scripts/fetch_public.py --only ode_edrnac4_box`, because this prompt has no network permission).
+2. **exp-1a (corrected prior):** `.venv/bin/python scripts/run_vikram.py --only 20230823 --instruments OHRC --levels raw --prior-shift 556,-2888 --margin-m 2000 --matchers sift,akaze,asift,lightglue --min-inliers 8 --results-root data/processed/results --out-dir data/processed/vikram/exp1/raw_prior --overwrite`.
+3. **exp-1b (geometry grid prior):** only when the catalog shows the `ncp` twin of a 2023 tag PRESENT: `.venv/bin/python scripts/run_vikram.py --only 20230823 --instruments OHRC --levels calibrated --no-coarse --prior-shift '' --margin-m 1000 --matchers sift,akaze,asift,lightglue --min-inliers 8 --results-root data/processed/results --out-dir data/processed/vikram/exp1/cal_grid --overwrite`. Absent → recorded as "not run: ncp absent" in the diagnosis doc.
+4. **Gate:** `.venv/bin/python -c` calling `sites.runner.compute_exp1_gate("data/processed/results", <3 tags>, json.load(open("data/processed/vikram/reference_sun/reference_sun.json"))["sun"], "data/processed/vikram/exp1/raw_prior/run_record.json")` and writing the result with `json.dump(..., indent=2, sort_keys=True)` to `data/processed/vikram/exp1_gate.json` (C20); also write `data/processed/vikram/exp1/run_record.json` (C15) whose artefacts include the gate file.
+5. **Diagnosis doc** `docs/VIKRAM_2023_DIAGNOSIS.md` (G26, zero-domain-knowledge reader). Sections: question; what was run (commands above); per-strip table (tag, matcher, status, raw matches, RANSAC inliers, final inliers, U, pre-ECC agreement, prior used) built from the live store with the artefact path in the caption; reference sun (fit azimuth, peak margin, elevation) with its provenance (INFERRED / DOCUMENTED) and the caveat that OHRC and NAC azimuths are in different frames (`azimuth_frame`); per-strip cause classification, exactly one of:
+   | class | rule (evaluated from the table) |
+   |---|---|
+   | `PRIOR` | fails in the v1 run (FABLE_NOTES §5) and passes the targets in exp-1a or exp-1b |
+   | `ILLUMINATION_SUSPECTED` | fails in both exp-1 runs that were executed, reference valid fraction ≥ 0.5, and the label sun azimuth differs from the anchor strip's by ≥ 90° |
+   | `DATA` | prep status not OK or reference valid fraction < 0.5 |
+   | `UNRESOLVED` | none of the above |
+   and the gate decision copied from `exp1_gate.json`. No number without its artefact path; unknowns are `[INSERT RESULT]`.
+Artefacts checked: `exp1_gate.json` C20-valid with exactly the three tags; `reference_sun/reference_sun.json` with `sun.elevation_source == "documented"` and `sun.azimuth_source == "inferred"`; run records C15-valid; the doc exists, names each tag, contains one of the four class names per tag, and cites `data/processed/vikram/exp1_gate.json`.

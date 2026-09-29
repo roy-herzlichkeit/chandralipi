@@ -170,3 +170,52 @@ Difficulty: S ≤1 prompt · M 2–4 prompts · L ≥5 prompts or needs hardware
 | torch 2.14.0+cu130 installed in `.venv`; `torch.cuda.is_available()` True; kornia still imports. Phase 2 prerequisite (TBD 2.1) DONE 2026-09-29 | M |
 | Role split done: architect instructions in `.fable/ARCHITECT.md`; launch Fable with `claude -n FABLE --append-system-prompt-file .fable/ARCHITECT.md` (flag confirmed in `claude --help`). Root `CLAUDE.md` = implementer stub, to be completed in Task B | M |
 | CLARIFY still open: R2 (ISRO OHRC SIS PDF), R3b (3060 host details) | — |
+
+## 10. Session B1 (2026-09-29) — Task B progress + audit outcomes
+Resume point: `PLAN_PROGRESS.md` (RESUME NEEDED). Written: HLD.md, DECISIONS.md (G01–G29), PHASES.md (62 prompts, file-ownership §3), CLAUDE.md (implementer), STATUS.md. Not written: AUDIT.md, CONTRACTS.md, all Phase_* folders.
+Audit workflow output (6 subsystem auditors + adversarial verify + 2 research agents): `.fable/audit_20260929.json` (full), `.fable/module_facts_20260929.txt` (exact signatures per subsystem, for CONTRACTS/LLD), `.fable/research_20260929.json` (validated ODE/PDS/JAXA/PRADAN URLs, Redis/fakeredis/torch API facts — not yet read by me).
+
+| new fact | tag |
+|---|---|
+| S12 partly refuted: corrected NAC transform matches the label's own cart bounds to ≤~2 m in x, ≤~7 m in y; label W/E bounds are top-edge corner longitudes. UL-x flip consistent with label; absolute accuracy vs terrain still unestablished. Replace "~1 km" wording. | M (auditor) |
+| NEW-match-1 (H): learned.LightGlueMatcher crashes on every CUDA call (autocast fp16 into kornia LightGlue fp32 posenc) → every lightglue row MATCHER_ERROR, coarse pass always falls back. GPU now live, so this is live. | M |
+| NEW-match-2 (H): canonical learned.LoFTRMatcher does not pad to /8 → 3.04 px median error vs 0.17 px; duplicate loftr.py pads. Dedup must MERGE padding in, not just delete loftr.py. superglue.py LightGlue lacks /16 padding. | M |
+| NEW-ingest-1 (H): pds4._resolve returns LAST match (reverse DFS) → DTM label file_name → .LBL; 2 Observing_System_Component → second; corners from Refined not System_Level. | M |
+| NEW-ingest-2 (H): LRO PDS4 rows get lines/samples/min_lat None → footprint never resolved. NEW-ingest-3 (H): geometry_grid.polygon_to_pixel_window ignores interior nodes → wrong/None window. | M |
+| NEW-pipeline_results-3 (H): fetch_catalogue writes ring vertices as corner1..4 → all 21 catalogue rows are bow-ties. | M |
+| S1 confirmed in store: 9/13 rows model=affine with non-zero perspective row. S2 confirmed (m_inlier_ratio 1.0 on 6/13). | M |
+| 9 JAXA/WAC results have NO producing script in repo (NEW-pipeline_results-12) → P1.14 needs `scripts/run_jaxa.py` or mark legacy. | M |
+| Preprocess not safe to wire as-is: no nodata handling (NEW-preprocess-1), geometric steps return no pixel transform (-2, H), source-centric GSD from nominal SENSORS (-3). | M |
+| Others: refine_full ValueError uncaught (NEW-align-1); min_inliers not re-checked after refit (align-2); ECC mutates caller float32 arrays (align-3); ECC accepted without displacement gate (align-4); is_subpixel is self-residual (eval-1); pair_id unsanitised path (pr-9); reindex can overwrite good index with 0 rows (pr-7); thumbnail ref scale ignored in viewers (pr-1); save_pair silently overwrites (pr-2); free_vram_bytes wrong for 'cuda:0' (match-3); benchmark RLIMIT_AS breaks torch import on CUDA (match-6); RIFT2 not rotation-invariant (match-8). | R/M |
+
+Planned plan changes (apply when resuming):
+- Phase 0 additions (critical/high, independent of later components): NEW-match-1, NEW-match-2 (merge padding during P0.02 dedup), NEW-ingest-1, NEW-pipeline_results-3, NEW-align-1/2/3/4 (with P0.06/P0.07), NEW-eval-1 + pr-9 + pr-7 + pr-2 + pr-11 (with P0.08 schema v2). Expect Phase 0 ≈ 13 prompts.
+- Phase 1: P1.04 absorbs NEW-ingest-2; P1.05 absorbs NEW-ingest-3, S5, S6, ingest-11 (grid suffix `*_g_grd_*.csv`); split P1.07 into (a) preprocess nodata mask + pixel_transform + reference-side GSD, (b) presets in register_pair; P1.14 adds `scripts/run_jaxa.py`; P1.17 absorbs pr-1, pr-16, pr-21.
+- Phase 2: match-3/5/6/7/11/12, S7, S8, S9, align-6/7.
+- Phase 1B: eval-7 (shadow steps), match-8/16 (RIFT2).
+
+## 11. Session B2 (2026-09-29) — revised plan (apply to PHASES.md/HLD/DECISIONS on resume)
+AUDIT.md written; its `prompt` column uses the numbering below (binding). PHASES.md still shows the OLD 62-prompt numbering → rewrite §1/§3 to this list first.
+- P0 (13): 00 preflight · 01 test runner+CI (S10,S19,tooling-2/5/15; move _pds4_label to conftest) · 02 learned matchers merge (loftr.py −, superglue LightGlue −, match-1/2/9/10/14/15) · 03 dedupe shadow_mask/scale_ratio · 04 remove footprint.py (moon_datum→constants) + default.yaml · 05 PDS4 resolver doc-order (ingest-1/14/20) · 06 fetch_catalogue corners (pr-3) · 07 provenance enum + seeded fit + float64 origin (S15, align-7/8) · 08 ECC model fidelity + no mutation + displacement gate + valid mask (S1, align-3/4/5) · 09 counts/refit/classification (S2,S3, align-1/2, pr-10, eval-1, match-19) · 10 results schema v2 (S13,S14, pr-2/7/8/9/11/18) · 11 run_vikram numeric crop geometry + tests (pr-5/6/20, tooling-3) · 12 eval correctness (eval-2..6/8/9, preprocess-6).
+- P1 (22 + DL): 00 · DL · 01 downloads manifest · 02 public fetch · 03 catalog (+manifest ingest-9/10) · 04 NAC georef (S11, ingest-2) · 05 geometry grid fixes (ingest-3/11/16, tooling-16) · 06 overlap wiring + fixes (TBD1.1, S5,S6, ingest-4..8/12/15/18) · 07 datum · 08 nodata/NaN radiometric+shadow (preprocess-1/12/13) · 09 preprocess pipeline geometry+StepStatus (preprocess-2..5/7/9, ingest-13) · 10 presets in register_pair (S4) · 11 sun geometry · 12 agreement · 13 pairs.py · 14 SuperGlue opt-in (match-20) · 15 TMC-2/IIRS (ingest-19, preprocess-10) · 16 site runner (pr-13/14/15/21) · 17 run_jaxa.py + cli register/inspect (pr-4/12/19, match-13, tooling-1) · 18 RUN re-run v2 + ablation · 19 apply default · 20 RUN 2023 diagnosis + gate · 21 viewers + docs (pr-1/16/17/22, S17, tooling-4/11..14, ingest-17, preprocess-8).
+- P2 (12): 00 · 01 CUDA env + free_memory_bytes (match-3, tooling-7) · 02 device profiles (match-4) · 03 benchmark CLI (match-6/7) · 04 RUN measure profile · 05 device/timing/VRAM/OOM (match-5) · 06 prior tiling + tile outcomes (S7,S8,S9, match-11/18) · 07 classical caps + RIFT2 memory guard (match-12/17, preprocess-11) · 08 native refine · 09 warp georef (align-6/9) · 10 runner GPU+native · 11 RUN GPU e2e + VRAM doc (tooling-10).
+- P1B (7): 00 gate · 01 DTM renderer (eval-7) · 02 rendered reference prep · 03 pooled consensus · 04 RIFT2 fixes (match-8/16) · 05 runner bridge · 06 RUN.
+- P3 (10) unchanged; P4 (7) unchanged, P4.04 absorbs tooling-6/8. Total 72.
+Decision changes (add to DECISIONS): G14 revised — NAC EDR/CDR/ortho labels carry NO sun geometry (research M); reference sun azimuth = fit of DTM hillshade to NAC ortho over azimuth 0–359° (ValueSource.INFERRED), elevation = 90 − ODE incidence (DOCUMENTED; ODE metadata incidence 73.8/74.7 for the two epochs); no SPICE. G30 phase-0 scope rule (text in AUDIT header). G31 redis-py pinned protocol=2; XAUTOCLAIM reply len 2 or 3; redis+fakeredis in `cluster` extra; redis-server not installed (apt 7.0.15, human sudo). G32 JAXA TC ortho: TCO_MAP_02_S66E030S69E033SC + S69E030S72E033SC from DARTS (VALIDATED, no range reads, 288 MB each, pace ≥30 s); DTM/morning/evening tiles DOCUMENTED only. ODE productid form `nac.m1442997156le` (lowercase). NAC 3M orthos/CONF available in SDNDTM, not needed.
+Next steps on resume: rewrite PHASES.md → update HLD component list (K-ids for sun fit in K11) → DECISIONS G14/G30–G32 + reorder G27 → CONTRACTS.md → Phase_0 folder.
+
+## 12. Session B3 (2026-09-29) — Task B completed
+Written: CONTRACTS.md (C01–C27), PHASES.md rewritten (73 prompts), DECISIONS G30–G35 (+ G14 revised, G27 reordered), all six Phase folders (prompts, LLDs, skills, harness with MANIFEST, verify, benchmark, docs). Consistency pass in `PLAN_PROGRESS.md`.
+| new fact / decision | tag |
+|---|---|
+| NAC ul-x sign rule (fit raster boundary to cart bounds): flipped 935 m vs as-written 23.9 km residual; DTM GeoTIFF origin −11046/638262 at 3 m in the same projection | M |
+| ISSDC polar catalogue layers store `UL_LAT…` properties in projected metres, not degrees → P0.06 uses the ring (WKT), never those properties | M |
+| ISSDC ring order is UL, UR, BR, BL → the old corner1..4 writer made bow-ties (A004 confirmed) | M |
+| Real OHRC label lists Observing_System_Component spacecraft first, camera second → P0.05 adds predicate paths `Name[child=value]` | R |
+| LoFTR on a 250×330 crop: median error 2.0 px unpadded, 0.31 px padded to /8 (architect check, not a benchmark) | M |
+| Prior-rectified tiling prototype (scale 0.8, rot 15°, prior +3 px, SIFT, 256 px tiles): 604 raw matches, median 0.10 px | M |
+| cv2.resize is centre-aligned → every resampling matrix uses `to_native = [[fx,0,x0+(fx−1)/2],[0,fy,y0+(fy−1)/2]]` (C11) | I (standard geometry; used in tests) |
+| ODE `results=m` box query is the VALIDATED source of `Incidence_angle`; per-product `fmp` returns file lists | M (research) |
+| Uniformity with log(g²) normalisation made U ≥ 0.7 unreachable for < 45 points → G33 min(n, g²) | I (arithmetic) |
+| 1B skip = one-commit branch + human tag, so the STATUS/branch flow never loops | design |
+Open: R2 (SIS PDFs), R3b (second host). Next session (FABLE review role): review Phase 0 once `phase-0-done` exists.

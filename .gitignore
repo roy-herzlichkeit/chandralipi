@@ -39,3 +39,6 @@ web/node_modules/
 
 # Scratch
 *.output
+
+# Phase benchmark scratch output (score.json is kept; junit XML is not)
+Phase_*/benchmark/out/

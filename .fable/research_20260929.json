@@ -1,0 +1,238 @@
+[
+ {
+  "sources": [
+   {
+    "dataset": "ODE product-type catalogue for the Moon (query=iipy)",
+    "access": "public-no-login",
+    "url_or_query": "https://oderest.rsl.wustl.edu/live2/?query=iipy&odemetadb=moon&ihid=LRO&iid=LROC&output=JSON",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200, 132,409 bytes, 207 IIPTSet entries. LROC entries include EDRNAC4 (2,903,649 products, 'PDS4 Experiment Data Record Narrow Angle Camera', lro-l-lroc-2-edr), CDRNAC4 (2,899,891), SDNDTM (668), ASPDTM (101), SDPPHO (765), BDRROI (2,388), BDRNPL (1,752), ANAGLY (2,369). The ihid filter was ignored: every host came back, including SLN/TC with TCORT, TCORTS, TCDTMM, TCMORM, TCEVEM, TCDEMO, TCDTMO, TCSLDEM, TCSL2B and TCWL2B.",
+    "notes": "The product type code is EDRNAC4. Plain 'EDRNAC' is not in the catalogue. ODE also indexes SELENE (ihid=SLN, iid=TC), so one API finds the NASA and JAXA products (task 4)."
+   },
+   {
+    "dataset": "LROC NAC EDR (pt=EDRNAC4) for M1442997156LE/RE, looked up by product id",
+    "access": "public-no-login",
+    "url_or_query": "https://oderest.rsl.wustl.edu/live2/?query=product&results=fmp&output=JSON&odemetadb=moon&ihid=LRO&iid=LROC&pt=EDRNAC4&productid=nac.m1442997156le",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200. The productid must be written 'nac.m1442997156le' (lower case with 'nac.' prefix). productid=M1442997156LE, M1442997156LE.IMG, m1442997156le and M1442997156LE* each returned 'No Products Found'. File list: M1442997156LE.IMG 252001 KB at https://pds.lroc.im-ldi.com/data/LRO-L-LROC-2-EDR-V1.0/LROLRC_0056A/DATA/ESM5/2023184/NAC/M1442997156LE.IMG; label M1442997156LE.xml 13 KB (same directory); browse M1442997156LE_pyr.tif; KML and shapefile footprints on ode.rsl.wustl.edu.",
+    "notes": "The label URL for the RE frame is .../2023184/NAC/M1442997156RE.xml. Its metadata came from the site footprint query, which was fetched. ODE metadata for M1442997156LE: centre -69.2621, 32.1781, UTC 2023-07-03T04:18:08.914Z."
+   },
+   {
+    "dataset": "PDS4 label of EDR M1442997156LE / RE, checked for sun-geometry keywords",
+    "access": "public-no-login",
+    "url_or_query": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-2-EDR-V1.0/LROLRC_0056A/DATA/ESM5/2023184/NAC/M1442997156LE.xml",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 302 to https://pds.mcp.nasa.gov/data/store/img/lunar_reconnaissance_orbiter/pds4/lroc/lro-l-lroc-2-edr/LROLRC_0056A/DATA/ESM5/2023184/NAC/M1442997156LE.xml, then HTTP 200, 12,497 bytes. RE label: HTTP 200, 12,499 bytes. A grep for solar|incidence|emission|phase|sun|azimuth|subsolar|distance|geom matched only a description line ('...permanently polar shadowed and sunlit regions...') and lro:mission_phase_name. Neither label has SUB_SOLAR_LONGITUDE, SOLAR_DISTANCE, INCIDENCE_ANGLE or any geometry class. The label holds only lro:* instrument and timing fields (spacecraft_clock_start_count, line_exposure_duration, temperatures, frame_id, orbit_number, ...) plus start_date_time and stop_date_time.",
+    "notes": "MEASURED: the PDS4 EDR labels carry NO sun geometry. The CDR label M1442997156LC.xml (LROLRC_1056A, HTTP 200, 12,989 bytes) also has none. The local orthoimage label data/raw/reference/lro_nac_vikram/NAC_DTM_VIKRAMSITE1_M1442997156_100CM.xml also has none (grep, read-only). The only sun geometry found is in ODE's own product metadata (fields Incidence_angle, Emission_angle, Phase_angle, Solar_distance, Solar_longitude), which ODE computes; that is not label content. ODE values: M1442997156LE inc 73.84 / emi 15.27 / phase 85.79 / Solar_distance 152450432.4; RE inc 73.94 / emi 12.38 / phase 83.67. M1443025251LE inc 74.65 / emi 14.6 / phase 63.67 (2023-07-03T12:06:23Z); RE inc 74.76 / emi 17.5 / phase 61.73. The two Vikram orthoimage epochs were taken about 8 h apart on the same day, and their incidence angles differ by only about 0.8 deg. EXTRAPOLATION (not measured): that makes them a weak illumination pair; sun azimuth may differ by a few degrees but was not retrieved. No sub-solar azimuth field was seen in ODE output. Sun azimuth would need SPICE or ISIS campt."
+   },
+   {
+    "dataset": "LROC NAC EDR footprint query over the Vikram box",
+    "access": "public-no-login",
+    "url_or_query": "https://oderest.rsl.wustl.edu/live2/?query=product&results=m&output=JSON&odemetadb=moon&ihid=LRO&iid=LROC&pt=EDRNAC4&minlat=-69.9&maxlat=-68.7&westernlon=31.9&easternlon=32.8&limit=1000",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200, 1,786,728 bytes, 380 products. First: M1419567705LE.IMG, LabelURL https://pds.lroc.im-ldi.com/data/LRO-L-LROC-2-EDR-V1.0/LROLRC_0053A/DATA/ESM5/2022278/NAC/M1419567705LE.xml, Incidence_angle 71.85. Fields returned: Product_name, LabelURL, ProductURL, FilesURL, Incidence_angle, Emission_angle, Phase_angle, Solar_distance, Solar_longitude, UTC_start_time, Footprint_* geometries, among others (PDS4 products have no 'pdsid' key).",
+    "notes": "For PDS4 LROC products, parse Product_name, not pdsid. The SLN PDS3 products do have pdsid."
+   },
+   {
+    "dataset": "LROC NAC CDR (pt=CDRNAC4) over the Vikram box",
+    "access": "public-no-login",
+    "url_or_query": "https://oderest.rsl.wustl.edu/live2/?query=product&output=JSON&odemetadb=moon&ihid=LRO&iid=LROC&pt=CDRNAC4&minlat=-69.9&maxlat=-68.7&westernlon=31.9&easternlon=32.8&results=c  (and &results=fmp&limit=5 for sizes)",
+    "validated": "VALIDATED",
+    "evidence": "results=c: HTTP 200, {\"Count\": \"380\"}. results=fmp&limit=5 (HTTP 200): M1419567705LC.IMG 264467 KB (https://pds.lroc.im-ldi.com/data/LRO-L-LROC-3-CDR-V1.0/LROLRC_1053A/DATA/ESM5/2022278/NAC/M1419567705LC.IMG), M1419567705RC.IMG 264467 KB, M1410178753LC.IMG 264467 KB (LROLRC_1052A/DATA/ESM4/2022169), M1410178753RC.IMG 264467 KB, M1410185761RC.IMG 197055 KB. From results=m over all 380: incidence 66.64-104.52 deg, 354 with inc<90.",
+    "notes": "Matches the 380 figure in DATA_ACQUISITION.md. The target frame's CDR is M1442997156LC/RC at https://pds.lroc.im-ldi.com/data/LRO-L-LROC-3-CDR-V1.0/LROLRC_1056A/DATA/ESM5/2023184/NAC/M1442997156LC.xml (ODE id nac.m1442997156lc). CDRs are not map-projected. The count of 354 below 90 deg incidence comes from ODE-computed angles; it is not terrain-shadow aware."
+   },
+   {
+    "dataset": "LROC NAC DTM + orthoimages (pt=SDNDTM) over the Vikram box",
+    "access": "public-no-login",
+    "url_or_query": "https://oderest.rsl.wustl.edu/live2/?query=product&results=fp&output=JSON&odemetadb=moon&ihid=LRO&iid=LROC&pt=SDNDTM&minlat=-69.9&maxlat=-68.7&westernlon=31.9&easternlon=32.8",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200, 1 product: NAC_DTM_VIKRAMSITE1.TIF (Map_resolution 2.999999999999, lat -70.0742..-68.5014, lon 31.2285..33.46). Its file list contains product files NAC_DTM_VIKRAMSITE1.TIF 476230 KB, _M1442997156_100CM.IMG 2142335 KB, _M1443025251_100CM.IMG 2142335 KB, _M1442997156_3M.IMG 238068 KB, _M1443025251_3M.IMG 238068 KB, _E693S0323.IMG 476135 KB, _CONF.IMG 119034 KB, _SHADE.TIF, _SLOPE.TIF, _CLRDISC.TIF, _CLRGRAD.TIF, _README.TXT, all under https://pds.mcp.nasa.gov/data/store/img/lunar_reconnaissance_orbiter/pds4/lroc/lro-l-lroc-5-rdr/LROLRC_2001/DATA/SDP/NAC_DTM/VIKRAMSITE1/",
+    "notes": "Files not yet downloaded locally (the local folder has the two 100CM .IMG files and NAC_DTM_VIKRAMSITE1.TIF, plus their .xml labels): the two 3 m orthoimages (_3M), the _E693S0323 DEM variant and the _CONF confidence map. Their content was not opened; the role of each is inferred from its filename only."
+   },
+   {
+    "dataset": "Other LROC RDR types over the Vikram box (ASPDTM, SDPPHO, BDRNPL, BDRROI, ANAGLY)",
+    "access": "public-no-login",
+    "url_or_query": "https://oderest.rsl.wustl.edu/live2/?query=product&results=m&output=JSON&odemetadb=moon&ihid=LRO&iid=LROC&pt={ASPDTM|SDPPHO|BDRNPL|BDRROI|ANAGLY}&minlat=-69.9&maxlat=-68.7&westernlon=31.9&easternlon=32.8",
+    "validated": "VALIDATED",
+    "evidence": "ASPDTM: 'No Products Found'. SDPPHO: 'No Products Found'. BDRNPL: 'No Products Found'. BDRROI: results=c Count 38; paged listing shows only WAC regional mosaics (e.g. WAC_ROI_SOUTH_SUMMER_100M.IMG, lat -90..-45; WAC_ROI_NEARSIDE_DAWN_P900S0000_*; WAC_ROI_FARSIDE_DUSK_P900S0000_*), no NAC products. ANAGLY: Status ERROR 'Locations queries not available for this Instrument Host, Instrument, and Product Type combination'.",
+    "notes": "results=m for BDRROI with limit=200 was cut off mid-JSON at about 2.2 MB, and one page (offset 11) was also cut off. The other pages were readable. So SDNDTM VIKRAMSITE1 is the only NAC-resolution map-projected LROC product over the site. ANAGLY cannot be searched by location."
+   },
+   {
+    "dataset": "SELENE (Kaguya) TC tiles over the Vikram box, found through ODE (ihid=SLN, iid=TC)",
+    "access": "public-no-login",
+    "url_or_query": "https://oderest.rsl.wustl.edu/live2/?query=product&results=fp&output=JSON&odemetadb=moon&ihid=SLN&iid=TC&pt={TCORT|TCORTS|TCDTMM|TCMORM|TCEVEM}&minlat=-69.9&maxlat=-68.7&westernlon=31.9&easternlon=32.8",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200. Each of the 5 types returns 2 tiles, because the box crosses the -69 deg tile edge: *_S66E030S69E033SC and *_S69E030S72E033SC. pdsids: TCO_MAP_02_*, TCO_MAPS02_*, DTM_MAP_02_*, TCO_MAPM04_*, TCO_MAPE04_*. The file URLs ODE gives are on https://data.darts.isas.jaxa.jp/pub/pds3/<dataset-lowercase>/lon030/data/<NAME>.img|.lbl. ODE lists every .IMG as 288001 KB, including the TCO_MAPS02 (seamless) tiles.",
+    "notes": "Tile naming as returned: S{north-lat}E{west-lon}S{south-lat}E{east-lon}SC in 3x3 deg tiles, in a volume per 30-deg longitude band (lon030). The site's southern edge (-69.9) lies in S69..S72 and its northern part (-68.7..-69) in S66..S69, so both tiles are needed. The ODE-listed size (288001 KB) is wrong for the seamless tiles: DARTS reports 233,280,000 bytes for them."
+   },
+   {
+    "dataset": "JAXA DARTS directory listing, TC Ortho Map v2.0, lon030",
+    "access": "public-no-login",
+    "url_or_query": "https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-ortho-map-v2.0/lon030/data/",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200, 57,069 bytes, Apache-style index. Contains: TCO_MAP_02_S66E030S69E033SC.img 2016-02-01 22:32 288M; TCO_MAP_02_S66E030S69E033SC.lbl 3.4K; TCO_MAP_02_S69E030S72E033SC.img 2016-02-01 22:36 288M; TCO_MAP_02_S69E030S72E033SC.lbl 3.4K (also S63E030S66E033SC).",
+    "notes": "The directory names are lowercase and the file names are uppercase with lowercase extensions (.img/.lbl)."
+   },
+   {
+    "dataset": "DARTS TC Ortho Map v2.0 tiles containing the site (file URLs)",
+    "access": "public-no-login",
+    "url_or_query": "https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-ortho-map-v2.0/lon030/data/TCO_MAP_02_S69E030S72E033SC.img ; https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-ortho-map-v2.0/lon030/data/TCO_MAP_02_S66E030S69E033SC.img",
+    "validated": "VALIDATED",
+    "evidence": "HEAD: HTTP/2 200, content-length 301989888, accept-ranges: none (both). Label TCO_MAP_02_S69E030S72E033SC.lbl: first try HTTP 503 (WAF 'The requested URL was rejected'), retry after 45 s HTTP 200, 3,512 bytes. Label says: PDS3, SLN-L-TC-5-ORTHO-MAP-V2.0, SIMPLE CYLINDRICAL, MAP_RESOLUTION 4096 pixel/deg, MAP_SCALE 0.0074031617 km/pixel, LINES=LINE_SAMPLES=12288, MSB_UNSIGNED_INTEGER 16-bit, lat -69.0..-71.999756, lon 30.0..32.999756. 12288*12288*2 = 301,989,888 bytes, which equals the content-length.",
+    "notes": "accept-ranges: none means no GDAL /vsicurl window reads; the whole 288 MB tile must be downloaded. The label has no sun-geometry keywords (it is a mosaic). EXTRAPOLATION (arithmetic, not measured): simple cylindrical at 4096 px/deg gives about 7.4 m/px north-south but about 2.6 m/px east-west at -69.5 deg, so the pixels are strongly non-square here and need reprojection before registration against OHRC at 0.25 m, a scale ratio of about 30 N-S, well above MAX_SAFE_SCALE_RATIO=8."
+   },
+   {
+    "dataset": "DARTS TC Ortho Map Seamless v2.0 tiles",
+    "access": "public-no-login",
+    "url_or_query": "https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-ortho-map-seamless-v2.0/lon030/data/TCO_MAPs02_S69E030S72E033SC.img ; .../TCO_MAPs02_S66E030S69E033SC.img",
+    "validated": "VALIDATED",
+    "evidence": "HEAD: HTTP/2 200, content-length 233280000, accept-ranges: none (both).",
+    "notes": "The mixed-case 'TCO_MAPs02' filename comes from ODE and resolves as given. The directory listing was not fetched, and the label was not fetched (its grid size is unknown)."
+   },
+   {
+    "dataset": "DARTS TC DTM Map v2.0, Morning Map v4.0 and Evening Map v4.0 tiles",
+    "access": "public-no-login",
+    "url_or_query": "https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-dtm-map-v2.0/lon030/data/DTM_MAP_02_S69E030S72E033SC.img ; .../DTM_MAP_02_S66E030S69E033SC.img ; https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-morning-map-v4.0/lon030/data/TCO_MAPm04_S69E030S72E033SC.img ; https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-evening-map-v4.0/lon030/data/TCO_MAPe04_S69E030S72E033SC.img",
+    "validated": "DOCUMENTED",
+    "evidence": "URLs come from ODE's results=fp file list (fetched, HTTP 200). Every HEAD sent to DARTS for these URLs returned HTTP/2 503, content-length 398, body 'The requested URL was rejected. Please consult with your administrator.' These were sent in fast succession after about 6 earlier DARTS requests. A single paced retry of a different file after 45 s succeeded.",
+    "notes": "The 503 looks like WAF rate limiting, not a missing file. That is an inference: a paced retry of a different file succeeded, and these exact URLs were not retried. Re-check them one at a time with spacing of 30 s or more before trusting them. Morning and evening maps would give two illumination conditions over the same tile, which is useful for illumination-invariance testing. This is an extrapolation; their sun geometry has not been read."
+   },
+   {
+    "dataset": "JAXA DARTS SELENE portal page",
+    "access": "public-no-login",
+    "url_or_query": "https://darts.isas.jaxa.jp/planet/pdap/selene/",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200, 108,277 bytes. A JS-rendered page; its only static data link is https://data.darts.isas.jaxa.jp/pub/.",
+    "notes": "This page is a front end. The actual file tree is https://data.darts.isas.jaxa.jp/pub/pds3/<data-set-id-lowercase>/lonNNN/data/."
+   },
+   {
+    "dataset": "ISRO PRADAN Chandrayaan-2 landing page (public)",
+    "access": "public-no-login",
+    "url_or_query": "https://pradan.issdc.gov.in/ch2/",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200, 31,050 bytes. Public text lists payloads OHRC, TMC-2, IIRS, SAR, CLASS, XSM, CHACE-2, DFRS and SPICE, and gives instrument specs (OHRC 0.25 m GSD / 3 km swath; TMC-2 5 m; IIRS 80 m, about 256 bands). It links to https://chmapbrowse.issdc.gov.in ('MapBrowse').",
+    "notes": "Browse links are under /ch2/protected/ and need login: browse.xhtml?id=ohrc, payload.xhtml, miscDownloads.xhtml ('Other Downloads', which holds the SIS documents) and statistics.xhtml. Each returned HTTP 302 to https://idp.issdc.gov.in/auth/realms/issdc/protocol/openid-connect/auth?client_id=Pradan... No login was attempted."
+   },
+   {
+    "dataset": "ISRO PRADAN FAQ (public): product naming conventions",
+    "access": "public-no-login",
+    "url_or_query": "https://pradan.issdc.gov.in/ch2/faq.xhtml",
+    "validated": "VALIDATED",
+    "evidence": "HTTP 200, 56,349 bytes. Example names, verbatim: OHRC 'ch2_ohr_ncp_20200824T1003365280_d_img_d18.zip' (acquired 2020-08-24 10:03:36.5280 UTC); TMC-2 'ch2_tmc_nrn_20191206T0712227064_d_img_d18.zip'; IIRS 'ch2_iir_nci_20191202T0639493114_d_img_d18.zip'; SAR 'ch2_sar_ncls_20200516t013453432_d_cp_d18.zip'. Per the FAQ, each zip unpacks into data/, geometry/ and browse/ folders. Products are PDS4 with XML labels, raw and calibrated levels. TMC-2 derived products 'dtm' (DTM), 'oth' (ortho) and 'grd' (seleno-referenced grid) are GeoTIFF. The naming SIS for each instrument is inside OHR.zip, TMC.zip and IIR.zip under Other Downloads (login needed).",
+    "notes": "The FAQ does not define the meaning of the three-letter code (ncp/nrn/nci) or of the 'd_img_d18' suffix; the full convention is in the login-gated SIS. Do not infer those fields from these examples."
+   },
+   {
+    "dataset": "ISSDC Chandrayaan map browse / GeoServer WFS catalogue",
+    "access": "login-required",
+    "url_or_query": "https://chmapbrowse.issdc.gov.in/server/moon/wfs?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities",
+    "validated": "VALIDATED",
+    "evidence": "Landing page https://chmapbrowse.issdc.gov.in/ returned HTTP 200 anonymously. The WFS GetCapabilities returned HTTP 302 to https://idp.issdc.gov.in/auth/realms/issdc/protocol/openid-connect/auth?...client_id=ch2browse...",
+    "notes": "This confirms DATA_ACQUISITION.md: the catalogue behind the WFS needs a browser login session. Access was validated as login-gated; the catalogue content itself was not fetched."
+   }
+  ],
+  "gaps": [
+   "No PDS4 LROC label fetched carries sun geometry: EDR LE/RE, CDR LC and the local 100CM ortho label have no SUB_SOLAR_*, SOLAR_DISTANCE or INCIDENCE_ANGLE fields. The only sun angles found are ODE-computed metadata (Incidence/Emission/Phase_angle, Solar_distance, Solar_longitude). Sun azimuth or sub-solar point was not found anywhere; it would need SPICE/ISIS (campt) or the LROC CUMINDEX, which was not checked.",
+   "Measured from ODE metadata: the two Vikram orthoimage epochs (M1442997156 and M1443025251, both 2023-07-03, about 8 h apart) differ by only about 0.8 deg in incidence (73.8 vs 74.7) and by about 22 deg in phase. Whether this is a usable illumination pair is unresolved; azimuth difference is not known.",
+   "Not validated because DARTS returned HTTP 503 WAF rejections: the TC DTM_MAP_02, TCO_MAPm04 (morning) and TCO_MAPe04 (evening) tile URLs. Their labels and the seamless-ortho label were also not fetched. Retry one request at a time with 30 s+ spacing.",
+   "DARTS serves accept-ranges: none, so TC tiles cannot be window-read over the network. Each tile needs a full download of about 233-302 MB, and the site needs 2 tiles per product type.",
+   "The SELENE TC ortho maps are 4096 px/deg simple cylindrical, about 7.4 m/px N-S and about 2.6 m/px E-W at -69.5 deg (arithmetic from the label, not measured on the data). Against OHRC's 0.25 m this exceeds MAX_SAFE_SCALE_RATIO=8. The individual TC Level-2B0 swaths and the TCDTMO/TCDEMO ortho strips were not queried and may give finer data.",
+   "BDRROI results=m responses cut off mid-JSON at about 2.2 MB (the known ODE results=fmp/m size issue). One page (offset 11-20) is unread. The other readable pages were all WAC ROI mosaics, so it is assumed, not verified, that the unread page is also WAC.",
+   "PRADAN: the meaning of the filename fields (e.g. ncp/nrn/nci, d_img_d18) and the product catalogue are behind login (idp.issdc.gov.in Keycloak), as are 'Other Downloads' (SIS docs) and browse.xhtml. Only the FAQ example names are public. No catalogue or browse URL is usable anonymously; https://pradan.issdc.gov.in/ch2/protected/browse.xhtml?id=ohrc is the browse entry point and needs login.",
+   "The ISSDC chmapbrowse WFS catalogue content was not re-fetched (it is login-gated). Its OHRC counts in DATA_ACQUISITION.md were not re-validated here.",
+   "ODE query quirks confirmed: productid for LROC PDS4 must be 'nac.m<id><le|re|lc|rc>' in lower case; PDS4 products have no 'pdsid' key (use Product_name); the ihid filter on query=iipy is ignored; ANAGLY does not support location queries."
+  ]
+ },
+ {
+  "sources": [
+   {
+    "dataset": "Redis XAUTOCLAIM (server command)",
+    "access": "public-no-login",
+    "url_or_query": "https://redis.io/docs/latest/commands/xautoclaim/",
+    "validated": "VALIDATED",
+    "evidence": "Fetched page metadata: since=6.2.0. Syntax: 'XAUTOCLAIM key group consumer min-idle-time start [COUNT count] [JUSTID]'. COUNT defaults to 100; scans at most COUNT*10 PEL entries per call, so fewer than COUNT may be claimed. RESP2 and RESP3 reply is a 3-element array: [next-start-cursor, claimed entries in XRANGE format, IDs that no longer exist in the stream and were deleted from the PEL]. The page says the deleted-ID behaviour 'was introduced in Redis 7.0'. A cursor of 0-0 means the scan is complete. JUSTID does not increment the delivery counter; a normal claim does.",
+    "notes": "Minimum server version is 6.2.0 for the command. The 3rd reply element exists only on 7.0 and later; 6.2 returns 2 elements. Consumer code must accept a reply of length 2 or 3. Ubuntu 24.04 ships 7.0.15, so production replies should have 3 elements."
+   },
+   {
+    "dataset": "Redis XREADGROUP '>' semantics, and XACK",
+    "access": "public-no-login",
+    "url_or_query": "https://redis.io/docs/latest/commands/xreadgroup/",
+    "validated": "VALIDATED",
+    "evidence": "since=5.0.0. '>' without CLAIM returns only messages never delivered to any consumer. Any other ID (e.g. 0) returns this consumer's own pending entries and ignores BLOCK/NOACK/CLAIM. Delivered messages go into the PEL until XACK. Re-reading your own PEL increments the delivery count. A deleted pending entry comes back with nil payload. The CLAIM option is Redis 8.4+ and MAXCOUNT/MAXSIZE are 8.10+, so none of them exist on Ubuntu's 7.0.15. RESP2 reply is an array of [key, entries]; RESP3 reply is a Map.",
+    "notes": "The XACK page was not fetched directly. XACK semantics (removes the ID from the PEL; returns an int count) are described on the XREADGROUP and XPENDING pages, and fakeredis returned 1 for xack in a local run."
+   },
+   {
+    "dataset": "Redis XPENDING extended form",
+    "access": "public-no-login",
+    "url_or_query": "https://redis.io/docs/latest/commands/xpending/",
+    "validated": "VALIDATED",
+    "evidence": "since=5.0.0. Syntax: 'XPENDING key group [[IDLE min-idle-time] start end count [consumer]]'. The IDLE filter has since=6.2.0. The summary form returns [count, min-id, max-id, [[consumer, n], ...]]. The extended form returns [id, owner, ms-since-last-delivery, delivery-count] per entry. Use a '(' prefix for exclusive-range iteration.",
+    "notes": "The delivery count can be used as a poison-message / retry counter."
+   },
+   {
+    "dataset": "Ubuntu 24.04 redis-server apt package",
+    "access": "public-no-login",
+    "url_or_query": "apt-cache policy redis-server (local host, Ubuntu 24.04.5 LTS noble)",
+    "validated": "VALIDATED",
+    "evidence": "Installed: (none). Candidate: 5:7.0.15-1ubuntu0.24.04.4. No redis-server or redis-cli binary on PATH.",
+    "notes": "7.0.15 >= 6.2, so XAUTOCLAIM and XPENDING IDLE are available and XAUTOCLAIM returns the 3-element reply. Redis is NOT installed on this machine; installing it needs sudo apt install."
+   },
+   {
+    "dataset": "redis-py (PyPI 'redis') latest version and stream method signatures",
+    "access": "public-no-login",
+    "url_or_query": "https://pypi.org/pypi/redis/json ; pip install --target <scratchpad>/pkgs redis ; inspect.signature on redis.commands.core.StreamCommands",
+    "validated": "VALIDATED",
+    "evidence": "Latest 8.1.0, uploaded 2026-07-30, requires_python>=3.10. Signatures: xadd(name, fields, id='*', maxlen=None, approximate=True, nomkstream=False, minid=None, limit=None, ref_policy=None, idmpauto=None, idmp=None); xreadgroup(groupname, consumername, streams: Dict[key,id], count=None, block=None, noack=False, claim_min_idle_time=None, max_count=None, max_size=None); xack(name, groupname, *ids) -> int; xautoclaim(name, groupname, consumername, min_idle_time: int, start_id='0-0', count=None, justid=False) -> list; xgroup_create(name, groupname, id='$', mkstream=False, entries_read=None); xpending(name, groupname) -> dict; xpending_range(name, groupname, min, max, count, consumername=None, idle=None); xclaim(...). Also found redis/utils.py: DEFAULT_RESP_VERSION = 3, which applies when protocol=None.",
+    "notes": "Installed ONLY into the session scratchpad, NOT into the project venv. 'redis' is not importable from the venv. Hazard: with protocol=None, redis-py 8.1 uses RESP3 by default. Under RESP3, xreadgroup returns a dict keyed by stream instead of a list (confirmed with fakeredis protocol=3). The design should pin protocol=2 or 3 explicitly and parse to match. Behaviour against a real 7.0 server has not been run. xautoclaim returns the raw reply list, so element [2] exists only when the server is 7.0 or later."
+   },
+   {
+    "dataset": "fakeredis (PyPI) and its stream-command support",
+    "access": "public-no-login",
+    "url_or_query": "https://pypi.org/pypi/fakeredis/json ; local run with fakeredis 2.38.0 + redis 8.1.0 in scratchpad",
+    "validated": "VALIDATED",
+    "evidence": "Latest 2.38.0, uploaded 2026-09-08, requires_python>=3.8, depends on redis>=4.3 and sortedcontainers. Local run with FakeRedis(version=(7,)): xgroup_create(mkstream=True) OK. A second xreadgroup '>' returned []. xreadgroup '0' returned own PEL. xack returned 1. After xdel of a pending ID, xautoclaim returned ['0-0', [(id2, {...})], [id1]] (3 elements; the deleted ID appears in element 3). With version=(6,2), xautoclaim returned 2 elements. xpending summary dict and xpending_range(idle=...) both worked. times_delivered incremented on PEL re-read and on autoclaim.",
+    "notes": "fakeredis supports XAUTOCLAIM, and its reply shape depends on the emulated version. The PyPI description does not list stream commands; support was confirmed by running the code, not from docs. fakeredis with protocol=None returned a list (RESP2-like), while real redis-py 8.1 defaults to RESP3. Tests on fakeredis's default could therefore pass while production gets a dict. Pin protocol in both. fakeredis is an emulator, so parity with real Redis 7.0.15 on edge cases (idle-time precision, COUNT*10 scan cap) is not proven."
+   },
+   {
+    "dataset": "pytest / pytest-timeout in project venv",
+    "access": "public-no-login",
+    "url_or_query": ".venv/bin/pip list ; import pytest_timeout ; https://pypi.org/pypi/pytest-timeout/json",
+    "validated": "VALIDATED",
+    "evidence": "venv has pytest 9.1.1 and pytest-cov 7.1.0. pytest-timeout is NOT installed (ModuleNotFoundError). Neither redis nor fakeredis is installed in the venv. PyPI: pytest-timeout latest is 2.4.0 (2025-05-05), requires pytest>=7.0.0.",
+    "notes": "pytest-timeout 2.4.0 has not been tested against pytest 9.1.1; its metadata requires only pytest>=7. The design needs to add redis, fakeredis and (optionally) pytest-timeout as dependencies."
+   },
+   {
+    "dataset": "torch CUDA memory APIs and OOM exception class",
+    "access": "public-no-login",
+    "url_or_query": ".venv/bin/python introspection (torch 2.14.0+cu130)",
+    "validated": "VALIDATED",
+    "evidence": "torch 2.14.0+cu130. cuda.is_available()=True. mem_get_info() returned (7297433600 free, 8161198080 total) bytes. mem_get_info, max_memory_allocated, max_memory_reserved and reset_peak_memory_stats all exist and were exercised in the smoke test. torch.cuda.OutOfMemoryError is torch.OutOfMemoryError (same class, repr <class 'torch.OutOfMemoryError'>). MRO: OutOfMemoryError -> RuntimeError -> Exception.",
+    "notes": "Catch torch.OutOfMemoryError (or the torch.cuda alias). Because it subclasses RuntimeError, any 'except RuntimeError' handler placed before it will swallow OOMs, so order the handlers carefully. Earlier torch 2.x versions were not checked for which name exists."
+   },
+   {
+    "dataset": "Local GPU (nvidia-smi)",
+    "access": "public-no-login",
+    "url_or_query": "nvidia-smi --query-gpu=name,memory.total,memory.used,driver_version --format=csv",
+    "validated": "VALIDATED",
+    "evidence": "NVIDIA GeForce RTX 4060 Laptop GPU, 8188 MiB total, 722 MiB used, driver 580.178.04.",
+    "notes": "This is a single 8 GiB laptop GPU. Memory used will vary with other processes."
+   },
+   {
+    "dataset": "kornia 0.8.3 LoFTR / DISK / LightGlueMatcher constructors and fp16 behaviour",
+    "access": "public-no-login",
+    "url_or_query": ".venv/bin/python inspect.signature + GPU smoke test on random 480x640 input (weights cached in ~/.cache/torch/hub/checkpoints)",
+    "validated": "VALIDATED",
+    "evidence": "kornia 0.8.3. Signatures: LoFTR(pretrained='outdoor', config=dict) and forward({'image0','image1'}) -> keypoints0/1, confidence, batch_indexes. DISK(desc_dim=128, unet=None) and DISK.from_pretrained(checkpoint='depth', device=None); forward(images, n=None, window_size=5, score_threshold=0.0, pad_if_not_divisible=False) -> list[DISKFeatures]. LightGlueMatcher(feature_name='disk', params=None) and forward(desc1, desc2, lafs1, lafs2, hw1=None, hw2=None) -> (dists, idxs). LightGlue(features='superpoint', **conf); default_conf has mp=False, flash=True; FLASH_AVAILABLE=True; LightGlue wraps its forward in torch.autocast(enabled=conf.mp). There is no 'half'/'precision' constructor argument on any of these. Smoke test peak allocations (random input, meaningful only for relative memory): LoFTR fp32 OK, 4256 matches, 1033 MiB. LoFTR .half() on model and inputs OK, fp16 outputs, 675 MiB. LoFTR under torch.autocast fp16 OK, fp32 outputs, 805 MiB. DISK+LightGlueMatcher fp32 OK, 2048 matches, 775 MiB. Under torch.autocast fp16 OK, 2042 matches, 514 MiB. LightGlueMatcher.half() with half inputs FAILS: RuntimeError 'Index put requires the source and destination dtypes match, got Float for the destination and Half for the source.'",
+    "notes": "Half precision works for LoFTR via .half() or autocast, and for DISK+LightGlue via torch.autocast only (not via .half()). The input was random noise, so match counts say nothing about accuracy. Whether fp16 degrades matching or registration accuracy on OHRC/NAC imagery is UNVERIFIED. The first combined run leaked an autocast context, so the numbers above for DISK+LightGlue come from a clean rerun."
+   }
+  ],
+  "gaps": [
+   "No real Redis server was run. redis-server is not installed locally (apt candidate 7.0.15). All command behaviour was exercised only through fakeredis emulation plus the redis.io docs. Behaviour against real 7.0.15 is UNVERIFIED, including reply shapes under RESP3, the XAUTOCLAIM COUNT*10 scan cap and idle-time precision.",
+   "redis-py 8.1.0 defaults to RESP3 (DEFAULT_RESP_VERSION = 3 in redis/utils.py, found in the source). With protocol=3, xreadgroup returns a dict; fakeredis's default returned a list. Whether a real server with protocol=None returns a dict for xreadgroup was not run. The design should pin protocol explicitly.",
+   "The XACK doc page was not fetched directly. Its semantics come from the XREADGROUP/XPENDING pages and a fakeredis run (xack returned 1).",
+   "redis, fakeredis and pytest-timeout are NOT in the project venv. They were installed only into the session scratchpad for introspection. pytest-timeout 2.4.0 with pytest 9.1.1 was not tested.",
+   "kornia fp16 was tested only on random-noise 480x640 inputs. The effect of fp16 on match quality or registration accuracy for real OHRC/NAC tiles is UNVERIFIED, and no accuracy numbers were produced.",
+   "Memory figures (peak MiB) come from one random-input run on an RTX 4060 Laptop 8 GiB. They are indicative only and are not budgets for production tile sizes.",
+   "Only torch 2.14.0 was checked for which OOM exception names exist; earlier torch 2.x versions were not tested."
+  ]
+ }
+]
