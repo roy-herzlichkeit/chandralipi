@@ -105,6 +105,59 @@ The confidence object deliberately returns `None` for its total while any term i
 the total. A floor labelled as a floor is useful; a partial sum labelled as a
 total is not.
 
+### 8 · Real cross-mission registration works — on JAXA/NASA, not yet Chandrayaan-2
+
+**2026-09-08/09.** ISRO/PRADAN archive access was blocked by poor network
+conditions the night before a demo. Rather than show nothing, the actual
+pipeline (`pipeline.register_pair`, real classical and learned matchers, real
+ECC refinement, real metrics) was run end-to-end on real, public,
+no-login-required imagery from **two other agencies**: JAXA's Kaguya
+(SELENE) Terrain Camera and NASA's LRO WAC. This is the first time this
+project's learned matchers (LoFTR, LightGlue) have produced a result on
+anything other than synthetic scenes.
+
+**Same-sensor, two independent Kaguya passes ~2 hours apart, genuine overlap:**
+
+| matcher | matches | inliers | ratio | RMSE (px) | median (px) |
+|---|---|---|---|---|---|
+| **SIFT** | 542 | 542 | 100% | 0.46 | **0.33 — sub-pixel** |
+| ASIFT | 3660 | 3659 | 99.97% | 0.70 | 0.44 |
+| AKAZE | 279 | 279 | 100% | 0.71 | 0.42 |
+| LightGlue | 275 | 274 | 99.6% | 0.80 | 0.63 |
+| LoFTR | 1783 | 1762 | 98.8% | 6.05 | 5.94 |
+
+**Cross-instrument, JAXA vs NASA WAC — the real version of the scale-bridging
+problem doc 31 describes:**
+
+| matcher | matches | inliers | ratio | RMSE (px) | uniformity |
+|---|---|---|---|---|---|
+| **LightGlue** | 741 | 719 | 97% | 2.31 | **0.85 — passes the gate** |
+| ASIFT | 29 | 29 | 100% | 2.21 | 0.24 |
+| SIFT | 16 | 16 | 100% | 3.05 | 0.25 |
+| LoFTR | 17 | 13 | 76.5% | 4.03 | 0.29 |
+| AKAZE | — | — | — | — | refused, `TOO_FEW_MATCHES` (1 raw match) |
+
+LightGlue is the only real-data pair anywhere in this project's history to
+pass the uniformity gate — doc 23's central metric, previously validated
+only on synthetic layouts, now confirmed to fire correctly on a real result.
+
+**A negative result worth keeping.** A second, visually more striking location
+— a large symmetric crater plus a sinuous rille, chosen deliberately after
+previewing dozens of candidates for terrain quality — matched badly.
+LightGlue and LoFTR reported deceptively high "inlier ratios" (100%, 99.6%)
+alongside RMSE of 53–72 px. **Caught by looking at the checkerboard image, not
+by trusting the metrics table** — the crater rims did not align across tile
+boundaries. Cause: a rotationally-symmetric crater is a poor matching target,
+because every point on its rim resembles every other point, and a second
+similar-sized crater nearby gave the matchers a second, wrong place to lock
+onto. This is a genuine finding about *what makes lunar terrain matchable*
+that a clean success would not have surfaced.
+
+**What this does not do.** It does not produce a single Chandrayaan-2
+cross-instrument result — finding 6 above still stands unchanged. Full
+writeup: `data/processed/demo_real/README.md`; status entry:
+`CONTEXT_HANDOFF.md` §7.
+
 ---
 
 ## Findings from the archive itself
@@ -208,11 +261,12 @@ guess.
 
 | what | status |
 |---|---|
-| any run on a GPU | **never happened** |
-| LRO NAC/WAC reference data | **never downloaded** — mirrors confirmed reachable, no login needed |
-| cross-sensor registration result | **none** — 0 usable pairs, see finding 6 |
+| any run on a GPU | **never happened** — everything below, including finding 8, ran on CPU |
+| LRO **NAC** reference data | **never downloaded** — mirrors confirmed reachable, no login needed |
+| LRO **WAC** reference data | small windowed crops fetched for finding 8 (JAXA/NASA substitute); never fetched for an actual Chandrayaan-2 pair |
+| **Chandrayaan-2** cross-sensor registration result | **still none** — 0 usable OHRC/TMC-2/IIRS pairs, see finding 6, unchanged by finding 8 |
 | IIRS↔OHRC matching result | **none** — blocked on ground truth quality |
-| end-to-end sub-pixel accuracy on real data | **none** — synthetic only so far |
+| end-to-end sub-pixel accuracy, **any real data** | **yes, finding 8** — 0.33 px median, JAXA vs JAXA. **Still none for Chandrayaan-2 data specifically.** |
 
 Every one of these is a `[INSERT RESULT]` in the report drafts rather than a
 plausible number. That is deliberate and non-negotiable: a results table filled

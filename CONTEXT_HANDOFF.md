@@ -292,15 +292,21 @@ corner longitudes (142.69–142.80), i.e. one scene viewed three ways. So 500
 TMC-2 "products" is nearer 125 scenes, and any coverage count computed
 per-product overstates distinct coverage by roughly 4×.
 
-### 1.6 No LRO reference data has been fetched
+### 1.6 No LRO **NAC** data has been fetched; WAC has, but not via `ingest/lro.py`
 
-**Traces to:** `src/lunar_reg/ingest/lro.py` — written, never run on a real product.
+**Traces to:** `src/lunar_reg/ingest/lro.py` — still written, still never run on a
+real product; the project's own LRO ingest path remains unexercised.
 
-The LRO NAC/WAC PDS archive is public and needs no login; three mirrors were
-confirmed reachable today (HTTP 200). Nothing has been downloaded. **Every
-"registration" the project has performed is Chandrayaan-2-shaped synthetic data
-against Chandrayaan-2-shaped synthetic data** — the cross-mission case the
-problem statement actually asks for has never been exercised.
+**Updated 2026-09-08/09.** The LRO **WAC** global mosaic (100 m/px) has now
+been fetched — not through this project's ingest code, but by a windowed
+`vsicurl` read against the public S3-hosted GeoTIFF, done as part of a
+real-data substitute when PRADAN access was blocked by network conditions
+(see §7). LRO **NAC** (0.5 m/px, the correct counterpart to OHRC) has still
+never been fetched, and the crop obtained is a small ~50–100 MB window per
+location, not the systematic archive fetch this section originally flagged as
+missing. **The cross-mission case the problem statement actually asks for
+(Chandrayaan-2 vs LRO) has still never been exercised** — §7 is JAXA/NASA
+against each other, a substitute, not that case.
 
 ### 1.7 IIRS has never been touched by any real data path
 
@@ -447,11 +453,17 @@ is emulated on this host and did not complete a single 512 px pass in 15 minutes
 Correcting the model was itself a finding: an earlier pure-S⁴ cost model
 underestimated 1024 px by ~4× and would have handed out tile sizes that OOM.
 
-### 2.9 No learned matcher has ever run on a GPU
+### 2.9 No learned matcher has ever run on a GPU — but both have now run on CPU with real results
 
 LoFTR, LightGlue and the SuperGlue wrapper are implemented and load correctly on
-CPU. None has produced a result on a GPU. SuperGlue additionally **cannot ship**:
-its weights are noncommercial-research-only and
+CPU. **Updated 2026-09-08/09:** LoFTR and LightGlue have now produced real
+results on real (non-Chandrayaan-2) imagery — see §7. LightGlue in particular
+produced this project's strongest real cross-instrument result (719 inliers,
+97% inlier ratio, the only matcher to pass the uniformity gate on real data).
+**None has produced a result on a GPU, and none has touched Chandrayaan-2
+data** — both qualifiers in the original finding still hold; only "has never
+produced a real result at all" is now false. SuperGlue additionally **cannot
+ship**: its weights are noncommercial-research-only and
 `match/superglue.py` raises `PermissionError` unless explicitly acknowledged.
 LightGlue (Apache-2.0) is the shippable substitute and is a different model, so
 it would not reproduce Makharia et al.'s headline number in any case.
@@ -596,3 +608,70 @@ Outstanding:
    counts each pair twice (3 products gave 9 "pairs": 3 self-pairs + 3 real pairs
    in both orderings). Harmless for reporting, wrong for any count of distinct
    overlaps.
+
+---
+
+## 7. Real cross-mission validation on JAXA/NASA data, 2026-09-08/09
+
+**Traces to:** `data/processed/demo_real/README.md`, which has the full
+writeup — this section is the pointer and the summary.
+
+**Why this exists.** ISRO/PRADAN archive access was blocked by poor network
+conditions the night before a POC showcase. Rather than show nothing, the
+project's actual pipeline (`pipeline.register_pair`, `align/`, `eval/`,
+`preprocess/georeference.py`, `preprocess/resample.py`) was run end-to-end on
+two other real, public, no-login datasets: **JAXA's Kaguya (SELENE) Terrain
+Camera** and **NASA's LRO WAC**. Nothing here is Chandrayaan-2 data and
+nothing here is generated imagery — every sensor name in the results store
+is the real one (`JAXA_SELENE_TC`, `LRO_WAC`), a deliberate choice after
+declining a request to relabel this data as OHRC/TMC-2/IIRS for the panel.
+
+**Two real pairs, nine results, all `synthetic=False`:**
+
+1. **JAXA vs JAXA**, two independent Kaguya passes ~2 hours apart over
+   genuinely overlapping ground (confirmed from PDS footprints). SIFT: 542/542
+   matches, 100% inlier ratio, **0.33 px median residual — sub-pixel**, the
+   strongest sub-pixel result anywhere in this project's real-data work.
+2. **JAXA vs NASA WAC**, the real cross-instrument case. LightGlue: 741
+   matches, 719 inliers, 97% inlier ratio, **the only real-data result to
+   pass the 0.7 uniformity gate** (score 0.85).
+
+**A negative result was found and kept, not discarded.** A second,
+visually-more-striking location (a large symmetric crater plus a rille) was
+deliberately hunted for and matched badly — LightGlue and LoFTR reported
+deceptively high "inlier ratios" (100%, 99.6%) alongside RMSE of 53–72 px.
+Caught by inspecting the checkerboard image, not by trusting the metrics
+table: a rotationally-symmetric crater is a poor matching target because
+every point on its rim resembles every other point on its rim, and a second
+similar crater nearby gave the matchers a second place to lock onto. Full
+detail in `data/processed/demo_real/README.md`.
+
+**Two bugs found in the project's own tooling while doing this work:**
+
+- `scripts/export_web_data.py` could silently write invalid JSON — a
+  schema-inconsistent `extra` field could come back as pandas `NaN`, and
+  Python's `json.dump` emits a bare `NaN` token that Python's own `json.load`
+  accepts but every browser's `JSON.parse` rejects. **Fixed** — a proper
+  NaN-guard on string fields, plus `allow_nan=False` so this fails loudly at
+  export time in future rather than shipping a broken page.
+- `scripts/build_demo_results.py` → `save_results()` rebuilds `index.parquet`
+  from only its own batch, with no merge against what was already there.
+  Running it after real results exist silently drops them from the index
+  (the `.npz` files survive, just unindexed) — this happened once, mid-session,
+  and was diagnosed from file-mtime evidence rather than guessed at. **Not
+  fixed** — flagged only, per an explicit instruction to find the cause
+  before touching shared pipeline code under deadline pressure.
+
+**The 26 Chandrayaan-2 synthetic pairs are not in the live results store.**
+Moved to `data/processed/results_ch2_synthetic_backup/` on request, since they
+are not part of this showcase. Regenerable via `build_demo_results.py` — which
+is also the footgun above, so regenerating them again requires re-merging the
+index afterward, not just re-running the script.
+
+**What this does and does not demonstrate.** It demonstrates the pipeline
+runs correctly end-to-end on real, independently-sourced lunar imagery across
+two agencies, at genuinely different scales, with honest metrics including
+one gate-passing result and one caught-and-corrected failure. It does **not**
+demonstrate anything about Chandrayaan-2 OHRC/TMC-2/IIRS specifically — §1.1c
+and §1.6 still stand: zero real cross-instrument Chandrayaan-2 pairs exist,
+and that is a distinct, still-open problem this section does not resolve.

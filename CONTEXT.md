@@ -32,14 +32,25 @@ model or engineer picking it up cold.
 The pipeline is complete and internally validated: ingest, footprint overlap,
 preprocessing, classical and learned matchers, robust fitting with sub-pixel
 refinement, evaluation, per-pair persistence, a Streamlit tool, and a React
-showcase. **Its contact with real Chandrayaan-2 data is hours old.** Until
-recently every result came from synthetic scenes. Five real products have now
-been processed; that immediately verified 22 of 25 metadata fields, exposed a
-polar-rejection blocker that discarded 100% of real OHRC data (fixed), and
-measured a 639 m error in the four-corner homography that every crop went
-through (a replacement now exists but is not yet wired in). The honest summary:
-*the machinery is built and tested; its first real data has already overturned
-three assumptions, and more should be expected.*
+showcase. Its contact with real Chandrayaan-2 data remains partial: five real
+products verified 22 of 25 metadata fields, exposed and fixed a
+polar-rejection blocker, and measured a 639 m error in the four-corner
+homography (a replacement exists but is not yet wired in) — **but zero real
+OHRC/TMC-2/IIRS cross-instrument pairs exist**, because the products fetched
+so far sit at three unrelated locations on the Moon (§1.1c in
+`CONTEXT_HANDOFF.md`). **2026-09-08/09: with PRADAN unreachable over poor
+network conditions, the actual pipeline was instead run end-to-end on real
+JAXA (Kaguya Terrain Camera) and NASA (LRO WAC) imagery** — two real pairs,
+nine results, all `synthetic=False`, none of it Chandrayaan-2 and none of it
+generated. Headline: LightGlue on a real JAXA-vs-WAC pair produced 719
+inliers at 97% inlier ratio, the only real-data result to pass the
+uniformity gate; SIFT on a same-sensor JAXA-vs-JAXA pair produced a 0.33 px
+median residual, genuinely sub-pixel. Full writeup in
+`data/processed/demo_real/README.md`, summarised in `CONTEXT_HANDOFF.md` §7.
+The honest summary: *the machinery is built, tested, and now proven against
+real cross-mission imagery end-to-end — the one thing it still has not done
+is register two real Chandrayaan-2 products against each other or against
+LRO, because no such pair has ever been in hand.*
 
 ## Architecture
 
@@ -81,8 +92,16 @@ These are not style preferences; violating them has caused real bugs here.
 
 ## What is most likely to mislead a new reader
 
-- **Every headline metric is from synthetic data** unless it says otherwise.
-  Rankings transfer; absolute numbers do not.
+- **Nine real results now exist alongside the synthetic ones, and they are
+  JAXA/NASA, not Chandrayaan-2.** The 26 OHRC/TMC-2/IIRS pairs are synthetic
+  and live in `data/processed/results_ch2_synthetic_backup/`, not the live
+  dashboard. The live dashboard's 9 real, non-synthetic pairs are
+  `JAXA_SELENE_TC` vs itself or vs `LRO_WAC` — see `CONTEXT_HANDOFF.md` §7
+  and `data/processed/demo_real/README.md`. Do not read "real result" in this
+  repo as "Chandrayaan-2 result" without checking the sensor name.
+- **Every headline metric about OHRC/TMC-2/IIRS specifically is from
+  synthetic data** unless it says otherwise. Rankings transfer; absolute
+  numbers do not.
 - **RMSE in this repo means two different things.** The conventional
   self-residual and the truth-based figure differ by 12.7× to 58.6× on the same
   pairs. `eval/metrics.py` computes the former; `eval/error_budget.py` the

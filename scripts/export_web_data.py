@@ -125,6 +125,26 @@ def main(argv=None) -> int:
                 return None
             return float(value) if isinstance(value, (int, float, np.number)) else value
 
+        def text(key, default="", r=row):
+            """Like ``number`` but for string-typed columns.
+
+            ``row`` comes from a DataFrame built out of several results' index
+            rows, which need not share every ``extra`` key -- a result that
+            never set e.g. ``ecc_prefilter`` leaves that *column* present
+            (because another row did set it) but *this row's* value missing,
+            and pandas fills the gap with float ``NaN`` rather than leaving
+            the key absent. A plain ``row.get(key, default)`` therefore finds
+            the column and returns that NaN instead of falling back -- and
+            Python's ``json.dumps`` emits a bare ``NaN`` token, which is not
+            valid JSON and breaks every strict parser (every browser's
+            ``JSON.parse`` included), even though `json.load` on the Python
+            side accepts it silently. Guard against float NaN explicitly.
+            """
+            value = r.get(key, default)
+            if isinstance(value, float) and not np.isfinite(value):
+                return default
+            return value
+
         pairs.append({
             "id": pair_id,
             "sourceId": result.source_id,
@@ -134,7 +154,7 @@ def main(argv=None) -> int:
             "matcher": result.matcher,
             "synthetic": bool(result.synthetic),
             "notes": result.notes,
-            "case": row.get("x_case", ""),
+            "case": text("x_case"),
             "nMatches": int(result.n_matches),
             "nInliers": int(result.n_inliers),
             "inlierRatio": number("m_inlier_ratio"),
@@ -142,10 +162,17 @@ def main(argv=None) -> int:
             "rmseTruth": number("x_true_rms_px"),
             "uniformity": number("u_score"),
             "extrapolationP95": number("c_p95_px"),
-            "eccPrefilter": row.get("x_ecc_prefilter", ""),
+            "eccPrefilter": text("x_ecc_prefilter"),
             "sunAzimuthDelta": (
-                None if number("x_source_sun_azimuth") is None
-                else abs(number("x_source_sun_azimuth") - number("x_reference_sun_azimuth"))
+                # Both operands must be present: a DataFrame built from several
+                # results' index rows fills a NaN wherever this row did not set a
+                # column another row did (the same class the text() docstring
+                # covers), so the source azimuth can be finite while the
+                # reference one is missing -- abs(float - None) would raise.
+                abs(number("x_source_sun_azimuth") - number("x_reference_sun_azimuth"))
+                if number("x_source_sun_azimuth") is not None
+                and number("x_reference_sun_azimuth") is not None
+                else None
             ),
             "images": files,
         })
@@ -158,7 +185,11 @@ def main(argv=None) -> int:
         "allSynthetic": all(p["synthetic"] for p in pairs),
         "pairs": pairs,
     }
-    (out / "results.json").write_text(json.dumps(payload, indent=1))
+    # allow_nan=False: fail loudly here, at export time, rather than writing a
+    # file that parses fine on the Python side (json.load accepts bare NaN)
+    # and only breaks later in a browser's strict JSON.parse -- the failure
+    # mode that just shipped a "No exported results found" page.
+    (out / "results.json").write_text(json.dumps(payload, indent=1, allow_nan=False))
 
     logger.info("exported %d pair(s) to %s", len(pairs), out / "results.json")
     if skipped:

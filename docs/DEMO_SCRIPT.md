@@ -5,6 +5,19 @@ run that actually happened. Where a figure is not yet available it is written
 `[INSERT RESULT]` and must be filled from a real run before recording — not
 estimated.
 
+**Note added 2026-09-09, script itself unchanged below.** This script and its
+numbers are the synthetic Chandrayaan-2-shaped illumination benchmark from
+2026-09-05 and are still accurate for what they claim. They predate a
+separate, later addition: on 2026-09-08/09, with ISRO/PRADAN access blocked
+by poor network conditions, the same pipeline was run end-to-end on real
+JAXA (Kaguya) and NASA (LRO WAC) imagery instead — 9 real results, headlined
+by a 719-inlier, 97%-ratio cross-instrument LightGlue match and a 0.33 px
+sub-pixel same-sensor SIFT match. That story is not scripted here; see
+`data/processed/demo_real/README.md` for the numbers and
+`CONTEXT_HANDOFF.md` §7 for status. If recording after tonight, consider
+whether the real-data result belongs in this video too, or as a separate
+clip — a judgment call, not made here.
+
 Commands used on screen:
 
 ```
