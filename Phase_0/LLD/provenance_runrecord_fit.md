@@ -26,7 +26,7 @@ def estimate_transform(result, model="homography", threshold_px=DEFAULT_THRESHOL
 Steps (replacing the float32 cast at lines 81-82):
 1. `cs = result.src_pts.mean(axis=0)`, `cd = result.dst_pts.mean(axis=0)` (float64).
 2. `src = (result.src_pts - cs).astype(np.float32)`, `dst = (result.dst_pts - cd).astype(np.float32)`.
-3. `cv2.setRNGSeed(int(seed))` immediately before the OpenCV estimator call.
+3. `cv2.setRNGSeed(int(seed))` immediately before the OpenCV estimator call. `estimateAffine2D`/`estimateAffinePartial2D` take no seed argument: their RANSAC draws from OpenCV's global per-thread RNG, which `setRNGSeed` resets — so the call must happen in the same thread right before the fit (review RC38).
 4. Estimators unchanged: homography `cv2.USAC_MAGSAC` (`estimator="USAC_MAGSAC"`), affine `cv2.estimateAffine2D(method=cv2.RANSAC)` and partial `cv2.estimateAffinePartial2D(method=cv2.RANSAC)` (`estimator="RANSAC"`).
 5. Un-centre in float64: with `Ts = [[1,0,-cs_x],[0,1,-cs_y],[0,0,1]]`, `Td_inv = [[1,0,cd_x],[0,1,cd_y],[0,0,1]]`, `M3` = fitted matrix as 3×3 (append `[0,0,1]` for 2×3): `M = Td_inv @ M3 @ Ts`; homography → `M / M[2,2]`; affine models → `M[:2]` (2×3).
 6. `Transform(..., estimator=..., seed=seed)`.

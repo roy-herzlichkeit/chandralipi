@@ -120,7 +120,8 @@ def q_no_oom() -> dict:
     p = REPO / "data/processed/gpu_run/anchor/run_record.json"
     rec = read_run_record(p)
     n = int(rec.outcome_counts.get("oom", 0))
-    return {"value": float(n == 0), "oom": n}
+    ok = int(rec.outcome_counts.get("ok", 0))
+    return {"value": float(n == 0 and ok > 0), "oom": n, "ok": ok}   # review RC36
 
 
 def synthetic_native() -> dict:

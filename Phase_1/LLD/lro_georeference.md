@@ -27,7 +27,7 @@ Candidates `x0 ∈ {+upperleft_corner_x, −upperleft_corner_x}` (y0 as written)
 Longitudes are compared after mapping both sides into [0, 360).
 
 ## 4. `GeoReference` methods (C10)
-Pixel-corner convention: `x = x0 + col · psx`, `y = y0 − row · psy`. `lonlat_to_pixel` / `pixel_to_lonlat` go through the proj4 string with the sphere `+proj=longlat +R=<R> +no_defs`, vectorised, returning float64 arrays. `affine()` returns `Affine(psx, 0, x0, 0, −psy, y0)`. `as_dict()` / `from_dict()` round-trip every field (`source` as its value string).
+All coordinate arguments are keyword-only (`lonlat_to_pixel(*, lon, lat)`, `pixel_to_lonlat(*, col, row)`, `pixel_to_xy(*, col, row)`, `xy_to_pixel(*, x, y)`) because the legacy `geometry_grid.lonlat_to_pixel(grid, lat, lon)` takes latitude first (review RC21). Pixel-corner convention: `x = x0 + col · psx`, `y = y0 − row · psy`. `lonlat_to_pixel` / `pixel_to_lonlat` go through the proj4 string with the sphere `+proj=longlat +R=<R> +no_defs`, vectorised, returning float64 arrays. `affine()` returns `Affine(psx, 0, x0, 0, −psy, y0)`. `as_dict()` / `from_dict()` round-trip every field (`source` as its value string).
 
 ## 5. `lro.py` changes
 - `georeference_from_label(label_path) -> GeoReference` (module-level, C10).
@@ -41,7 +41,8 @@ Pixel-corner convention: `x = x0 + col · psx`, `y = y0 − row · psy`. `lonlat
 | synthetic polar label (tmp XML with the §1 elements; ul_x written positive, bounds computed from the negative origin) | `x0_m` is negative, `source == INFERRED`, `pixel_size_x_m == 1.0` |
 | synthetic label whose bounds match the written sign | `source == DOCUMENTED` |
 | `pixel_resolution_x` present but `pixel_scale_x` missing | `LabelGeoreferenceError` naming `pixel_scale_x` |
-| round trip | `lonlat_to_pixel(pixel_to_lonlat(c, r)) == (c, r)` within 1e-6 px |
+| round trip | `lonlat_to_pixel(lon=…, lat=…)` of `pixel_to_lonlat(col=c, row=r)` returns `(c, r)` within 1e-6 px |
+| positional call | `geo.lonlat_to_pixel(32.3, -69.3)` raises `TypeError` (keyword-only, review RC21) |
 | `as_dict` / `from_dict` | equality |
 | real NAC label (`data`) | `x0_m == -11043.5 ± 0.01`, `y0_m == 638258.5 ± 0.01`, `width == 23003`, `height == 47683`, `source == INFERRED` |
 | real NAC row (`data`) | `lro_to_row(read_lro_label(...))` has non-null `lines`, `samples`, and the four bounds |

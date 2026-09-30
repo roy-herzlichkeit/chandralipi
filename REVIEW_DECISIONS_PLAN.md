@@ -1,0 +1,59 @@
+# REVIEW_DECISIONS_PLAN — adjudication of the external adversarial review (Task D)
+
+Source: `adversarial_review.md` (38 items, plan-level review of the Task B plan at commit `89b63f5`). Adjudicated 2026-09-30 by the architect session.
+
+The review covered the plan, not code. No phase has started (`STATUS.md` = P0.00 READY), so there is no reviewer diff to merge. Every accepted item was applied straight to the plan documents and harness (see `MERGE_PLAN_PLAN.md`).
+
+Decision values: ACCEPT (fix as suggested), ACCEPT_MODIFIED (the defect is real; the fix differs from the suggestion, reason given), REJECT (not a defect, or the suggested change is worse; reason given), NEEDS_HUMAN (contradicts `CLARIFY.md` or needs a human decision).
+
+Evidence tags in the reason column follow the project's rule on evidence:
+- **M**: measured by the architect this session.
+- **D**: read in a cited document or file.
+- **I**: reasoning only.
+
+| ID | decision | reason | docs changed | later phases touched |
+|---|---|---|---|---|
+| RC01 | ACCEPT_MODIFIED | Real: nothing calls `reclaim_expired` in Phase 4 (D: `Phase_4/LLD/*.md`). A new `distributed supervise` subcommand reclaims every `--every-s` seconds, exits 0 when drained, and exits 3 `STALLED` when no worker makes progress. It is used in the foreground in P4.06 instead of polling `status`. | G36(c); `Phase_4/LLD/hosts_runbook.md`, `determinism_run.md`; P4.04 and P4.06 prompts; `test_P4_04` | 4 |
+| RC02 | ACCEPT | Real: `to_native` is a 3×3 matrix (C11) that already holds the window offset, so the old wording added the offset twice and "called" a matrix (D: C11). The worker now lifts with `h(M, p)` only. | G37; `Phase_3/LLD/worker_reducer.md` steps 2, 6 | 3 |
+| RC03 | ACCEPT | Real (D: `hosts_runbook.md` step 5). The worker command now passes `--cache-dir`, `--source-root` and `--results-dir`. `--results-dir` is required on the CLI. `hosts.json` gains `results_dir` and `source_root`. | C27 hosts schema; `hosts_runbook.md`; `test_contracts_P4` (keys); `test_P4_04` (needles) | 4 |
+| RC04 | ACCEPT_MODIFIED | Real: skip-and-re-add can spin. Adopted tier streams with a registry `<p>:tiers` (name → `max_bytes`). Claim reads only tiers with `max_bytes ≤` the worker's limit and never re-adds an entry. The suggested power-of-two buckets alone would have made a 5 GiB job unclaimable on the 5.55 GiB tier (I: arithmetic), so P4.03 tiers are registered with their exact `max_bytes`. | C27; G36(a); `redis_queue.md`, `cache_scheduler.md`; `test_contracts_P4` (no-spin + tier routing) | 4 |
+| RC05 | ACCEPT | Standard ssh behaviour with background jobs and open stdio (I). Now `ssh -n` plus `< /dev/null`. | `hosts_runbook.md`; `test_P4_04` | 4 |
+| RC06 | ACCEPT_MODIFIED | Real hang (D: `runner_faults.md`). Instead of raising `RuntimeError`, the loop closes unfinished jobs as `worker_lost` (`close_unfinished`), sets `LocalRunReport.aborted`, still reduces, and the CLI exits 1. This keeps "classified, never skipped" (CONTEXT convention 2). | C24 (`LocalJobQueue.close_unfinished`); G36(c); `runner_faults.md`, `queue.md`; `test_P3_08` (new no-hang test), `test_contracts_P3` | 3 |
+| RC07 | ACCEPT_MODIFIED | Real (I: 20 points in 20 cells scored 1.0). Replaced by an adaptive grid: `g = clamp(floor(sqrt(n/4)), 2, 8)`, coverage over `g²`. Measured on the synthetic sets: spread 0.946, quadrant-packed 0.336 (M, architect check, not a benchmark). | G33; `Phase_0/LLD/eval_fixes.md` §3; `test_P0_12` (grid + quadrant test) | 0 |
+| RC08 | ACCEPT | Doc/test mismatch (D: `test_contracts_P0.py`). C02 now says all nine members exist from P0.09. | C02 comment | 0 |
+| RC09 | ACCEPT | Real gap versus TBD 1.8. P1B.06 now runs `--native --device cuda` on the selected bridge variant, recording native OK or classified failures. | `Phase_1B/LLD/bridge_runner.md` step 5a; P1B.06 prompt (+gpu-safety skill); `test_P1B_06` | 1B |
+| RC10 | ACCEPT_MODIFIED | The gap is real, but an automated IIRS URL is not possible: IIRS comes from PRADAN, which a human clicks (CLARIFY R6). A test now reads a real IIRS cube and runs band reduction when the cube is on disk; the download stays in the human P1.DL list. | `test_P1_15` (real-IIRS test, marked `data`) | 1 |
+| RC11 | ACCEPT_MODIFIED | Real gap versus TBD 1.2. P1.18 step 4 adds a cross-instrument run (TMC-2/IIRS, `data/processed/cross/`) that records a per-instrument status. An absent instrument is recorded, not failed. | `Phase_1/LLD/runs.md`; P1.18 prompt; `test_P1_18`; Phase 1 `score.py` (`q_skip_if_absent` reads the cross run) | 1 |
+| RC12 | ACCEPT | Real (D: `score.py` substring search). The benchmark now reads `data/processed/vikram/exp1/diagnosis.json` and requires exactly one matching `Classification: <CLASS>` line under `### <tag>`. | `runs.md` (P1.20); `test_P1_20`; Phase 1 `score.py`, RUBRIC | 1 |
+| RC13 | ACCEPT | Zero offsets hide an offset bug (I). `_h3.py` now places windows at `SRC_WIN = (512, 256, …)` and `REF_WIN = (40, 30, …)` inside larger rasters, with `T_TRUE = [[0.25,0,−14.375],[0,0.25,−58.375]]` (I: derived in the file comment). The Phase 3 tests, the Phase 3 benchmark and Phase 4 (via `_h4`) use it. | `_h3.py`, `test_P3_05`, `test_P3_07`, `test_P3_08`; Phase 3 `score.py` | 3, 4 |
+| RC14 | ACCEPT | Real. ECC gets `source_valid` and `reference_valid` and uses `cv2.findTransformECCWithMask`, which exists in the pinned cv2 4.14. Masked affine ECC converged to 0.022 px on a synthetic scene (M). | C07; G39; `Phase_0/LLD/ecc.md`, `pipeline_counts.md`; P0.09 prompt; `test_P0_08` (spy test) | 0 |
+| RC15 | ACCEPT | Real: `source_image` is a 512 px thumbnail (D: `results.py`). SPICE is now the primary sun source (RC17). The fallback fit uses `anchor_pair.source` at working GSD. | `Phase_1B/LLD/rendered_reference.md` | 1B |
+| RC16 | ACCEPT | Same root cause as RC02. `job.prior` maps patch px (origin 0) to reference-window px. The worker rectifies with `T_rect = prior @ translate(−32, −32)` and applies no tile offset. | G37; `worker_reducer.md` step 5 | 3 |
+| RC17 | ACCEPT_MODIFIED | SPICE with the NAIF generic kernels (LSK, PCK, DE440s; all three URLs returned HTTP 200, spiceypy 8.2.0 on PyPI; M) is now primary and COMPUTED. The ODE incidence (DOCUMENTED) and the DTM-hillshade fit (INFERRED) stay as cross-checks, and the ISRO label azimuth convention is derived from SPICE. Not NEEDS_HUMAN: CLARIFY R1 already allows SPICE as a fallback, and the fallback is now needed because the NAC labels carry no sun geometry (D: research). | G14; C13 (+2 functions, new `azimuth_frame` values); HLD K11; `sun_geometry.md`, `downloads.md` (3 kernel rows), `site_runner.md`, `runs.md`; P1.11 prompt; CLAUDE.md/PHASES network line; `test_P1_11`, `test_P1_02`, `test_P1_20`, `test_contracts_P1` | 1, 1B |
+| RC18 | ACCEPT | Real (D: `site_runner.md`). New `SiteConfig.prior_shift_instruments = ("OHRC",)`. | G38; `site_runner.md`; `test_P1_16` | 1 |
+| RC19 | ACCEPT | C21 consumers set to "1B only". | CONTRACTS index | — |
+| RC20 | ACCEPT | Stricter check. `check_P4.00.sh` now also runs the P1 and P2 contract tests, as `check_P3.00.sh` already does. | `Phase_4/harness/check_P4.00.sh` | 4 |
+| RC21 | ACCEPT_MODIFIED | C10 methods are keyword-only instead of reordering arguments, so a positional call raises `TypeError` rather than silently swapping lon and lat. | C10; `lro_georeference.md`, `pairs.md`; `test_contracts_P1` | 1 |
+| RC22 | ACCEPT | `q_skip_if_absent` now needs no `UNREADABLE` instrument plus a valid cross-run record with a status for both TMC2 and IIRS. | Phase 1 `score.py`, RUBRIC | 1 |
+| RC23 | ACCEPT | P2.04 step 4 now measures LightGlue fp32. For a `(matcher, precision)` the profile lacks, `plan_tile` falls back to the analytic model tagged INFERRED rather than raising `KeyError`. | `Phase_2/LLD/device.md`; P2.04 prompt; `test_P2_04`, `test_contracts_P2` | 2 |
+| RC24 | ACCEPT_MODIFIED | Clarified that `to_uint8(lo_hi=…)` maps valid pixels into 1..255 and writes 0 only where `valid` is False, the same rule as P1.08. No signature change. | `Phase_2/LLD/tiling.md` | 2 |
+| RC25 | ACCEPT | `hosts.json` gains `results_dir`. The worker writes to `<results_dir>/<run_id>`, and P4.06 rsyncs that path per host. | C27; `determinism_run.md`, `hosts_runbook.md` | 4 |
+| RC26 | ACCEPT | `pooled_consensus(..., refit_threshold_px=1.0)`. The runner passes `config.refit_threshold_px`. | C21; `consensus.md`; `test_contracts_P1B` | 1B |
+| RC27 | ACCEPT_MODIFIED | The preflight check keeps skip-when-absent, because it runs before P1.DL can supply data. The Phase 1 benchmark gains `datum_checked`, which fails unless the real-data datum test actually ran and passed. | Phase 1 `score.py` (`q_datum_checked`), RUBRIC | 1 |
+| RC28 | ACCEPT_MODIFIED | Growth is real. `MAXLEN` was rejected because approximate trimming can drop pending jobs (I). Instead, acked and reclaimed entries are `XDEL`ed and `purge()` deletes the run's keys (`status --purge`). | C27; G36(d); `redis_queue.md`; `test_contracts_P4` | 4 |
+| RC29 | ACCEPT | C24 gains `renew`. `run_worker` renews every `lease_s/3` from a daemon thread. For Redis, renew checks ownership with `XPENDING` before `XCLAIM JUSTID`, because on fakeredis `XCLAIM` with min-idle 0 takes the entry back from the reclaimer (M, 2026-09-30). | C24, C27; G36(b); `queue.md`, `worker_reducer.md`, `redis_queue.md`; `test_contracts_P3` (`test_C24_renew`), `test_contracts_P4` | 3, 4 |
+| RC30 | ACCEPT | P1.22 is split: P1.22 covers docs and P1.23 covers code text (docstrings, CLI hints). The total is now 74 prompts. | PHASES.md; AUDIT A069/A116/A120; `viewers_docs.md`; INDEX; new P1.23 prompt, check and test | 1 |
+| RC31 | REJECT | G10 is unchanged. Native-GSD refinement already exists: C19 matches at the reference native GSD. Matching 0.25 m OHRC against a 1 m reference upsampled 4× adds interpolated pixels, not reference information (I). The limit on accuracy is the reference, not the source sampling. | — | — |
+| RC32 | REJECT | G04 is unchanged. Ray would add a heavy dependency and a cluster runtime across a Linux laptop and a possibly-Windows second host (CLARIFY R3b open). The defects cited (hangs, spinning) are fixed directly by G36 (RC01, RC04, RC06, RC29) (I). | — | — |
+| RC33 | ACCEPT_MODIFIED | The URL goes to redis-py unchanged, so `rediss://` works when the broker is TLS-enabled. The runbook default stays LAN bind + `requirepass`, and it documents an SSH tunnel for untrusted networks. The URL is never logged. No TLS work is made mandatory. | C27 comment; `redis_queue.md`, `hosts_runbook.md` | 4 |
+| RC34 | ACCEPT | One pid file per worker. `cluster_up.sh --stop` kills only the recorded pids, and P4.06 uses the pid file. | `hosts_runbook.md`, `determinism_run.md`; `test_P4_04` | 4 |
+| RC35 | ACCEPT | `q_failures_persisted` now fails when either run record is missing. | Phase 1 `score.py` | 1 |
+| RC36 | ACCEPT | `q_no_oom` now also needs `ok > 0`. | Phase 2 `score.py`, RUBRIC | 2 |
+| RC37 | ACCEPT_MODIFIED | Branching from `main` on skip is the G02/G07 design: a skip is a one-commit branch approved like any phase, so it is kept. The actual defect was committing before the check ran; the check now runs first. | P1B.00 prompt | 1B |
+| RC38 | ACCEPT | Doc-only. The LLD now says that affine RANSAC uses OpenCV's global per-thread RNG, which `setRNGSeed` resets. | `Phase_0/LLD/provenance_runrecord_fit.md` | 0 |
+
+## Counts
+ACCEPT 23 · ACCEPT_MODIFIED 13 · REJECT 2 · NEEDS_HUMAN 0 (38 items).
+
+## Contracts changed (all phases not started, so no frozen code is affected)
+C02 (comment), C07 (+`source_valid`, `reference_valid`), C10 (keyword-only), C13 (+`azimuth_elevation_from_vector`, `sun_from_spice`, `azimuth_frame` values), C21 (consumers; +`refit_threshold_px`), C24 (+`renew`, `LocalJobQueue.close_unfinished`, heartbeat rule), C27 (+`reclaim_expired(lease_s)`, `register_tiers`, `purge`, tier-stream routing, renew ownership rule, hosts `results_dir` and `source_root`).

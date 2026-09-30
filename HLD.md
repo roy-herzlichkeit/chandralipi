@@ -16,7 +16,7 @@ Scope: the state after Phases 0 → 1 → 2 → 1B → 3 → 4 (`PHASES.md`). De
 | K8 | pixel geometry | `ingest/overlap.py` + `ingest/geometry_grid.py` | 1 | per-pixel lon/lat grid when present, label-corner fallback, tagged by `PriorSource` |
 | K9 | pair preparation | `src/lunar_reg/pairs.py` | 1 | `prepare_window_pair` → source window, reference window, 3×3 prior (C11) |
 | K10 | preprocessing presets | `src/lunar_reg/preprocess/presets.py` | 1 | named presets applied inside `register_pair` (C12) |
-| K11 | sun geometry | `src/lunar_reg/ingest/sun.py`, `scripts/fit_reference_sun.py` | 1 | reference sun elevation from ODE incidence (DOCUMENTED) and azimuth from a DTM-hillshade fit to the NAC ortho (INFERRED) (C13, G14) |
+| K11 | sun geometry | `src/lunar_reg/ingest/sun.py`, `scripts/fit_reference_sun.py` | 1 | Sun azimuth/elevation for both images from SPICE generic kernels (COMPUTED), cross-checked against ODE incidence (DOCUMENTED) and a DTM-hillshade fit (INFERRED); ISRO label azimuth convention derived from SPICE (C13, G14) |
 | K12 | cross-matcher agreement | `src/lunar_reg/eval/agreement.py` | 1 | pre-ECC corner disagreement between matchers (C14) |
 | K13 | site runner | `scripts/run_vikram.py` → `src/lunar_reg/sites/runner.py` | 1 | catalog → pairs → register → store, failures persisted |
 | K14 | device profiles | `src/lunar_reg/device.py`, `configs/device_profiles/*.json` | 2 | measured VRAM model per GPU (C16, C17) |

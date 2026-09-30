@@ -11,6 +11,7 @@ Produces: C08. Decisions: G12, G32. Sources for every URL: `.fable/research_2026
 | OHRC raw (`nrp`, already on disk) | `data/raw/ohrc_vikram/` | unchanged |
 | LRO NAC ortho + DTM (on disk) | `data/raw/reference/lro_nac_vikram/` | unchanged |
 | ODE metadata JSON | `data/raw/reference/lro_nac_vikram/ode/edrnac4_vikram_box.json` | as fetched |
+| NAIF generic SPICE kernels (G14) | `data/raw/reference/spice/<name>` | as fetched |
 | LRO NAC EDR labels | `data/raw/reference/lro_nac_vikram/edr/<NAME>.xml` | as fetched |
 | SELENE TC Ortho Map tiles | `data/raw/reference/selene_tc_ortho/<NAME>.img` + `.lbl` | as fetched |
 | SELENE TC DTM / morning / evening tiles | `data/raw/reference/selene_tc_dtm/`, `.../selene_tc_morning/`, `.../selene_tc_evening/` | as fetched |
@@ -41,6 +42,9 @@ The four OHRC ids are rows 10–12 and 20 of `data/processed/ohrc_vikram_product
 | tc_dtm_s | `https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-dtm-map-v2.0/lon030/data/DTM_MAP_02_S69E030S72E033SC.img` and `.lbl` | `selene_tc_dtm/` | DOCUMENTED | ODE lists 288 001 KB |
 | tc_dtm_n | same directory, `DTM_MAP_02_S66E030S69E033SC.img` and `.lbl` | `selene_tc_dtm/` | DOCUMENTED | same |
 | tc_morning_s | `https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-morning-map-v4.0/lon030/data/TCO_MAPm04_S69E030S72E033SC.img` and `.lbl` | `selene_tc_morning/` | DOCUMENTED | same |
+| spice_lsk | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/lsk/naif0012.tls` | `data/raw/reference/spice/naif0012.tls` | VALIDATED (HTTP 200, 5 257 B, architect HEAD 2026-09-30) | 5 KB |
+| spice_pck | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc` | `data/raw/reference/spice/pck00011.tpc` | VALIDATED (HTTP 200, 131 226 B, 2026-09-30) | 128 KB |
+| spice_de440s | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp` | `data/raw/reference/spice/de440s.bsp` | VALIDATED (HTTP 200, 32 726 016 B, 2026-09-30) | 31 MB |
 | tc_evening_s | `https://data.darts.isas.jaxa.jp/pub/pds3/sln-l-tc-5-evening-map-v4.0/lon030/data/TCO_MAPe04_S69E030S72E033SC.img` and `.lbl` | `selene_tc_evening/` | DOCUMENTED | same |
 Rules: DARTS serves no range requests (whole-file downloads only) and rate-limits bursts with HTTP 503 → **≥ 30 s between any two DARTS requests**, one attempt per URL per session, a 503 is recorded as a failure (C08 `failures`) and not retried in the same session. ODE/PDS requests: ≥ 3 s apart. All `save as` paths are relative to `data/raw/reference/` except `ode/` and `edr/`, which are under `data/raw/reference/lro_nac_vikram/`.
 
@@ -113,4 +117,4 @@ CLI: `python scripts/fetch_public.py [--only KEY[,KEY]] [--dry-run] [--manifest 
 | report | counts per `FetchStatus` + first sample, printed every run; exit 1 when any HTTP_ERROR/NETWORK_ERROR/SIZE_MISMATCH occurred on a VALIDATED row, else 0 |
 | `--dry-run` | prints the plan (key, url, dest, pacing) and makes no request |
 Tests (`tests/test_fetch_public.py`) monkeypatch `urllib.request.urlopen` and `time.sleep`; they never touch the network.
-**Run step (network, allowed by CLAUDE.md):** after the check passes, run `.venv/bin/python scripts/fetch_public.py --only ode_edrnac4_box,edr_le_label,edr_re_label,tc_ortho_n,tc_ortho_s`, then `.venv/bin/python scripts/verify_downloads.py --no-scan`, and paste both reports into `STATUS.md` notes (≤ 5 lines). The DOCUMENTED rows are fetched only when the human asks.
+**Run step (network, allowed by CLAUDE.md):** after the check passes, run `.venv/bin/python scripts/fetch_public.py --only ode_edrnac4_box,edr_le_label,edr_re_label,tc_ortho_n,tc_ortho_s,spice_lsk,spice_pck,spice_de440s`, then `.venv/bin/python scripts/verify_downloads.py --no-scan`, and paste both reports into `STATUS.md` notes (≤ 5 lines). The DOCUMENTED rows are fetched only when the human asks.

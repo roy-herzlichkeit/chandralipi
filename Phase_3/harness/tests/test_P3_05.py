@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from _h3 import job_kwargs, write_pair
+from _h3 import SRC_SHAPE, job_kwargs, write_pair
 
 
 def test_blank_is_degenerate(tmp_path):
@@ -14,9 +14,9 @@ def test_blank_is_degenerate(tmp_path):
     from lunar_reg.distributed.worker import process_job
 
     write_pair(tmp_path)
-    with rasterio.open(tmp_path / "blank.tif", "w", driver="GTiff", width=1024, height=1024,
-                       count=1, dtype="uint8") as ds:
-        ds.write(np.zeros((1024, 1024), np.uint8), 1)
+    with rasterio.open(tmp_path / "blank.tif", "w", driver="GTiff", width=SRC_SHAPE[1],
+                       height=SRC_SHAPE[0], count=1, dtype="uint8") as ds:
+        ds.write(np.zeros(SRC_SHAPE, np.uint8), 1)
     job = JobDescriptor(**job_kwargs("blank.tif", "ref.tif"))
     assert process_job(job, "cpu", repo_root=tmp_path).status is JobStatus.DEGENERATE_OVERLAP
 

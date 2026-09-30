@@ -40,13 +40,45 @@ def test_C27_max_bytes_skip():
     lease = q.claim("small", 60.0, max_bytes=2 * 2**30)
     assert lease is not None and lease.job.tile_index == 1
     assert q.stats().pending == 1
+    # G36 / review RC04: nothing fits -> None, and no entry is re-added (stream lengths unchanged)
+    before = _stream_lengths(q)
+    assert q.claim("small", 60.0, max_bytes=2 * 2**30) is None
+    assert _stream_lengths(q) == before
+
+
+def _stream_lengths(q):
+    client = next(v for v in vars(q).values() if hasattr(v, "xlen"))
+    return {k: client.xlen(k) for k in sorted(client.scan_iter(match="lunar:run*:jobs:*"))}
+
+
+def test_C27_registered_tiers_route_and_renew():
+    from lunar_reg.distributed.outcome import JobStatus
+    from lunar_reg.distributed.redis_queue import RedisJobQueue
+    from lunar_reg.distributed.scheduler import Tier
+
+    GiB = 2**30
+    q = RedisJobQueue("redis://unused", "run3", client=fake_client())
+    q.register_tiers([Tier("t0", int(4.125 * GiB)), Tier("t1", int(5.55 * GiB))])
+    q.put(job(0, est_vram_bytes=5 * GiB), tier="t1")
+    q.put(job(1, est_vram_bytes=1 * GiB), tier="t0")
+    small = q.claim("rtx3060-gpu0", 60.0, max_bytes=int(4.125 * GiB))
+    assert small.job.tile_index == 1
+    assert q.claim("rtx3060-gpu0", 60.0, max_bytes=int(4.125 * GiB)) is None
+    big = q.claim("laptop-gpu0", 60.0, max_bytes=int(5.55 * GiB))
+    assert big.job.tile_index == 0
+    assert q.renew(big, 60.0) is True
+    assert q.ack(big, JobStatus.OK) is True and q.ack(small, JobStatus.OK) is True
+    assert q.renew(big, 60.0) is False
+    assert all(n == 0 for n in _stream_lengths(q).values())   # acked entries are deleted (RC28)
+    assert q.purge() > 0 and _stream_lengths(q) == {}
 
 
 def test_C27_hosts_example_schema():
     doc = json.loads((REPO / "configs/hosts.example.json").read_text())
     assert doc["schema"] == 1 and set(doc["broker"]) == {"host", "port", "password_env"}
     assert len(doc["hosts"]) == 2
-    keys = {"name", "address", "ssh_user", "repo_path", "python", "cache_dir", "max_workers", "gpus"}
+    keys = {"name", "address", "ssh_user", "repo_path", "python", "cache_dir", "results_dir",
+            "source_root", "max_workers", "gpus"}
     for h in doc["hosts"]:
         assert set(h) == keys
         for g in h["gpus"]:

@@ -18,7 +18,8 @@ def test_profile_measured():
     assert doc["source"] == "measured" and "4060" in doc["device_name"]
     prof = DeviceProfile.load(PROFILE)
     assert prof.source is ValueSource.MEASURED
-    for matcher, precision in (("loftr", "fp16"), ("loftr", "fp32"), ("lightglue", "fp16")):
+    for matcher, precision in (("loftr", "fp16"), ("loftr", "fp32"), ("lightglue", "fp16"),
+                               ("lightglue", "fp32")):
         entry = doc["matchers"][matcher][precision]
         assert len(entry["points"]) >= 3 and entry["max_tile_px"] > 0
     rr = REPO / doc["run_record"]

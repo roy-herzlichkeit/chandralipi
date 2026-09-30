@@ -100,6 +100,8 @@ def test_C16_plan_tile_fits_flag(tmp_path):
     assert 500e6 + 2000.0 * big.tile_px**2 <= 0.75 * 7 * 2**30
     tiny = prof.plan_tile("loftr", "fp16", free_bytes=100 * 2**20)
     assert tiny.fits is False
+    other = prof.plan_tile("lightglue", "fp32", free_bytes=7 * 2**30)   # not in the profile
+    assert other.source is ValueSource.INFERRED                           # review RC23: no KeyError
 
 
 # --------------------------------------------------------------------- C18

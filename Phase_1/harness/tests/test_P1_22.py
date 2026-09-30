@@ -36,9 +36,3 @@ def test_added_numbers_have_sources():
             if not any(s in line for s in ("docs/results/", "data/processed/", "[INSERT RESULT]")):
                 bad.append(line[:160])
     assert not bad, "numbers without a source:\n" + "\n".join(bad[:10])
-
-
-def test_setup_hints():
-    for rel in ("scripts/setup.sh", "scripts/up.sh"):
-        assert "build_demo_results.py" not in (REPO / rel).read_text() or \
-            "run_vikram.py" in (REPO / rel).read_text()

@@ -147,11 +147,13 @@ def test_C10_roundtrip(tmp_path):
 
     geo = georeference_from_label(_nac_like_label(tmp_path))
     cols, rows = np.array([0.0, 100.5, 2299.0]), np.array([0.0, 2000.25, 4767.0])
-    lon, lat = geo.pixel_to_lonlat(cols, rows)
-    c2, r2 = geo.lonlat_to_pixel(lon, lat)
+    lon, lat = geo.pixel_to_lonlat(col=cols, row=rows)
+    c2, r2 = geo.lonlat_to_pixel(lon=lon, lat=lat)
     np.testing.assert_allclose(c2, cols, atol=1e-6)
     np.testing.assert_allclose(r2, rows, atol=1e-6)
     assert GeoReference.from_dict(json.loads(json.dumps(geo.as_dict()))) == geo
+    with pytest.raises(TypeError):   # keyword-only coordinates (review RC21)
+        geo.lonlat_to_pixel(32.3, -69.3)
     a = geo.affine()
     assert (a.a, a.c, a.e, a.f) == pytest.approx((10.0, -11043.5, -10.0, 638258.5))
 
@@ -284,6 +286,42 @@ def test_C13_ode_elevation(tmp_path):
     assert sun_from_ode_metadata(path, "M1443025251LE").elevation_deg == pytest.approx(90 - 74.65)
     assert sun_from_ode_metadata(path, "M1").elevation_source in (
         ValueSource.UNKNOWN, ValueSource.DOCUMENTED)
+
+
+def test_C13_vector_geometry():
+    """Pure local-horizon geometry (G14 revised, review RC17)."""
+    from lunar_reg.ingest.sun import azimuth_elevation_from_vector
+
+    az, el = azimuth_elevation_from_vector(np.array([1.0, 0.0, 0.0]), 0.0, 0.0)
+    assert el == pytest.approx(90.0, abs=1e-9)
+    az, el = azimuth_elevation_from_vector(np.array([0.0, 2.0, 0.0]), 0.0, 0.0)
+    assert (az, el) == pytest.approx((90.0, 0.0), abs=1e-9)
+    az, el = azimuth_elevation_from_vector(np.array([0.0, 0.0, 5.0]), 0.0, 0.0)
+    assert (az % 360, el) == pytest.approx((0.0, 0.0), abs=1e-9)
+    lat, lon = np.radians(-69.37), np.radians(32.32)
+    east = np.array([-np.sin(lon), np.cos(lon), 0.0])
+    az, el = azimuth_elevation_from_vector(east, -69.37, 32.32)
+    assert (az, el) == pytest.approx((90.0, 0.0), abs=1e-9)
+    assert lat < 0
+
+
+@pytest.mark.data
+def test_C13_spice_kernels():
+    """SPICE elevation agrees with ODE's incidence for M1442997156LE (research: inc 73.84 deg at
+    centre -69.2621, 32.1781, 2023-07-03T04:18:08.914Z)."""
+    kernels = REPO / "data/raw/reference/spice"
+    if not all((kernels / k).exists() for k in ("naif0012.tls", "pck00011.tpc", "de440s.bsp")):
+        pytest.skip("SPICE kernels not fetched yet (P1.02 run step)")
+    try:
+        import spiceypy  # noqa: F401
+    except ImportError:
+        pytest.skip("spiceypy not installed (spice extra, P1.11)")
+    from lunar_reg.ingest.sun import sun_from_spice
+    from lunar_reg.provenance import ValueSource
+
+    s = sun_from_spice("2023-07-03T04:18:08.914", -69.2621, 32.1781, kernels)
+    assert s.azimuth_frame == "north_clockwise" and s.azimuth_source is ValueSource.COMPUTED
+    assert abs(s.elevation_deg - (90.0 - 73.84)) <= 1.0
 
 
 # --------------------------------------------------------------------- C14

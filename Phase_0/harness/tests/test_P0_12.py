@@ -70,12 +70,20 @@ def test_uniformity_small_sets_can_pass():
     from lunar_reg.eval.uniformity import UNIFORMITY_GATE, compute_uniformity
 
     cells = [(c * 64 + 32, r * 64 + 32) for r in range(8) for c in range(8)]
-    pts = np.array(cells[::3][:20], dtype=float)  # 20 points, each in its own cell
+    pts = np.array(cells[::3][:20], dtype=float)  # 20 points spread over the frame
     m = compute_uniformity(pts, (512, 512))
-    assert m.coverage == pytest.approx(1.0)
-    assert m.score >= 0.99 >= UNIFORMITY_GATE
-    assert m.max_occupiable_cells == 20
+    assert m.grid == 4 and m.total_cells == 16      # g_eff = floor(sqrt(20)) (G33 revised)
+    assert m.score >= 0.9 >= UNIFORMITY_GATE
     assert m.as_dict()["gate_source"] == "inferred"
+
+
+def test_uniformity_clustered_small_set_fails():
+    """Review RC07: 20 points packed into one quadrant must not pass the gate."""
+    from lunar_reg.eval.uniformity import UNIFORMITY_GATE, compute_uniformity
+
+    pts = np.random.default_rng(0).uniform(0, 256, (20, 2))
+    m = compute_uniformity(pts, (512, 512))
+    assert m.score < 0.5 < UNIFORMITY_GATE
 
 
 def test_uniformity_out_of_frame_counted():

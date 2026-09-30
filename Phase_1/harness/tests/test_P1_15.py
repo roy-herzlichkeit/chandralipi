@@ -61,3 +61,22 @@ def test_probe_outputs_or_question():
         assert probes, f"{present} on disk but no docs/probes/*.txt"
     else:
         assert "Q-P1.15" in questions, "no probe possible: a non-blocking QUESTIONS entry is required"
+
+
+@pytest.mark.data
+def test_real_iirs_band_reduction():
+    """Review RC10: when an IIRS product is on disk, its real cube goes through band reduction."""
+    labels = sorted(REPO.glob("data/raw/ch2/iirs/*/data/**/*.xml"))
+    if not labels:
+        pytest.skip("no IIRS product under data/raw/ch2/iirs (download pending, G24)")
+    from rasterio.windows import Window
+
+    from lunar_reg.ingest.pds4 import open_product
+    from lunar_reg.preprocess.hyperspectral import reduce_bands
+
+    with open_product(labels[0]) as ds:
+        assert ds.count > 1, "IIRS cube expected to have several bands"
+        h, w = min(256, ds.height), min(256, ds.width)
+        cube = ds.read(window=Window(0, 0, w, h)).astype(np.float32)
+    plane, detail = reduce_bands(cube, method="pca", n_components=1)
+    assert plane.shape == (h, w) and np.isfinite(plane).mean() > 0.5

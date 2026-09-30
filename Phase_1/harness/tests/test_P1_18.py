@@ -44,3 +44,20 @@ def test_jaxa_v2():
     idx = load_index(REPO / "data/processed/results")
     jaxa = idx[idx["pair_id"].str.startswith("JAXA_SELENE_TC-")]
     assert len(jaxa) >= 1 and (jaxa["schema_version"] == 2).all()
+
+
+def test_cross_instrument_record():
+    """Review RC10/RC11: other CH-2 instruments are run when present and recorded when absent."""
+    from lunar_reg.ingest.catalog import build_catalog
+
+    rec_path = REPO / "data/processed/cross/run_record.json"
+    _rr_ok(rec_path)
+    rec = json.loads(rec_path.read_text())
+    keys = [k for k in rec["outcome_counts"] if k.startswith("instrument_")]
+    cat = build_catalog(REPO / "data/raw")
+    for inst in ("TMC2", "IIRS"):
+        assert any(k.startswith(f"instrument_{inst}_") for k in keys), inst
+        if cat.status[inst].value == "present":
+            assert (REPO / f"data/processed/cross/overlap_ohrc_{inst.lower()}.parquet").exists()
+        else:
+            assert f"{inst}: absent, not run" in rec["notes"]

@@ -8,7 +8,8 @@ import urllib.error
 import pytest
 from _h1 import load_script
 
-VALIDATED_KEYS = {"ode_edrnac4_box", "edr_le_label", "edr_re_label", "tc_ortho_n", "tc_ortho_s"}
+VALIDATED_KEYS = {"ode_edrnac4_box", "edr_le_label", "edr_re_label", "tc_ortho_n", "tc_ortho_s",
+                  "spice_lsk", "spice_pck", "spice_de440s"}
 
 
 def test_sources_table():

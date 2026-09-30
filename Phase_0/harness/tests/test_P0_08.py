@@ -119,6 +119,34 @@ def test_nodata_mask():
     assert _err(out.transform, A) < 0.2
 
 
+def test_explicit_masks_use_with_mask(monkeypatch):
+    """Review RC14 / G39: both validity masks reach cv2.findTransformECCWithMask."""
+    import cv2
+
+    from lunar_reg.align.estimate import Transform
+    from lunar_reg.align.refine import EccStatus, ecc_refine
+
+    A = np.array([[1.0, 0.0, 3.0], [0.0, 1.0, -2.0]])
+    src, ref = _scene(A)
+    ref_valid = np.ones(ref.shape, bool)
+    ref_valid[:, 200:] = False
+    seen = {}
+    real = cv2.findTransformECCWithMask
+
+    def spy(template, image, tmask, imask, warp, *args, **kwargs):
+        seen["tmask"] = np.array(tmask)
+        return real(template, image, tmask, imask, warp, *args, **kwargs)
+
+    monkeypatch.setattr(cv2, "findTransformECCWithMask", spy)
+    start = A.copy()
+    start[:, 2] += (0.4, 0.2)
+    out = ecc_refine(Transform(start, "affine", 10, 10), src, ref,
+                     source_valid=np.ones(src.shape, bool), reference_valid=ref_valid)
+    assert "tmask" in seen, "findTransformECCWithMask was not used"
+    assert (seen["tmask"][:, 210:] == 0).all() and (seen["tmask"][:, :150] > 0).all()
+    assert out.status is EccStatus.APPLIED
+
+
 def test_wrapper_and_docstring():
     from lunar_reg.align.estimate import Transform
     from lunar_reg.align.refine import refine_transform_ecc

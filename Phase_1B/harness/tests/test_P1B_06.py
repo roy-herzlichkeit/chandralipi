@@ -33,6 +33,21 @@ def test_rows_and_records():
     assert bridge_or_failed or fails["pair_id"].str.contains("_bridge-").any()
 
 
+def test_selected_bridge_rows_refined_natively():
+    """Review RC09: the selected bridge variant is refined at native resolution."""
+    from lunar_reg.results import load_index
+
+    from lunar_reg.results import load_failures
+
+    idx = load_index(REPO / "data/processed/results")
+    sel = idx[idx["x_bridge_selected"] == True] if "x_bridge_selected" in idx else idx.iloc[0:0]  # noqa: E712
+    if len(sel):
+        assert "x_native_status" in sel and sel["x_native_status"].notna().all()
+    else:   # no OK variant: every bridge attempt must then be a classified failure
+        fails = load_failures(REPO / "data/processed/results")
+        assert fails["pair_id"].str.contains("_bridge-").any()
+
+
 def test_doc():
     text = (REPO / "docs/ILLUMINATION_BRIDGE.md").read_text()
     assert "data/processed/bridge/" in text

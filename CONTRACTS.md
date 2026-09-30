@@ -26,7 +26,7 @@ Index
 | C18 | `TileStatus`, `TileDiagnostics`, `TiledMatcher.match_arrays(prior=)` | `src/lunar_reg/match/tiled.py` | P2.06 | 2, 1B, 3 |
 | C19 | `NativeStatus`, `refine_native_arrays` | `src/lunar_reg/align/native.py` | P2.08 | 2, 3 |
 | C20 | `data/processed/vikram/exp1_gate.json` | file | P1.20 | 1B, 3 |
-| C21 | `render_shaded_relief`, `pooled_consensus` | `src/lunar_reg/eval/render.py`, `src/lunar_reg/consensus.py` | P1B.01 / P1B.03 | 3 |
+| C21 | `render_shaded_relief`, `pooled_consensus` | `src/lunar_reg/eval/render.py`, `src/lunar_reg/consensus.py` | P1B.01 / P1B.03 | 1B only (no later phase consumes it; 1B may be skipped, G02) |
 | C22 | `JobDescriptor` | `src/lunar_reg/distributed/job.py` | P3.01 | 3, 4 |
 | C23 | `JobStatus`, `JobResult`, result files | `src/lunar_reg/distributed/outcome.py` | P3.02 | 3, 4 |
 | C24 | `JobQueue` protocol, `Lease`, `QueueStats` | `src/lunar_reg/distributed/queue.py` | P3.04 | 3, 4 |
@@ -64,8 +64,8 @@ class RunStatus(str, Enum):
     MATCHER_ERROR = "matcher_error"
     REFINEMENT_FAILED = "refinement_failed"
     EVAL_FAILED = "eval_failed"
-    PREPROCESS_FAILED = "preprocess_failed"   # produced from P1.10
-    OOM = "oom"                               # produced from P2.05
+    PREPROCESS_FAILED = "preprocess_failed"   # member exists from P0.09; first produced by P1.10
+    OOM = "oom"                               # member exists from P0.09; first produced by P2.05
     @property
     def is_failure(self) -> bool   # every member except OK
 
@@ -79,6 +79,7 @@ class RunOutcome:
     @property
     def ok(self) -> bool
 ```
+All nine members are introduced together in P0.09 (the P0 contract test checks all nine).
 `RunOutcome.extra` on every outcome (OK or not) contains the keys `source_id, reference_id, source_sensor, reference_sensor, matcher, model, stage` plus every key of `PipelineConfig.extra`. `stage` ∈ {`"match"`, `"estimate"`, `"refine"`, `"eval"`, `"preprocess"`, `"done"`}. Failures after matching also carry `n_raw_matches` (int); failures after RANSAC also carry `n_ransac_inliers` (int). `register_pair` never raises for a bad pair.
 Test: `test_C02_members`, `test_C02_failure_extra_keys`.
 
@@ -244,7 +245,13 @@ ECC_MAX_SHIFT_PX = Sourced(3.0, ValueSource.INFERRED, "equals the default RANSAC
 def ecc_refine(transform: Transform, source: np.ndarray, reference: np.ndarray, *,
                max_iterations: int = 200, epsilon: float = 1e-7, gaussian_blur: int = 5,
                prefilter: str = "none", nodata: float | None = None,
-               max_shift_px: float = 3.0) -> EccOutcome
+               max_shift_px: float = 3.0,
+               source_valid: np.ndarray | None = None,        # bool, True = valid (input mask)
+               reference_valid: np.ndarray | None = None      # bool, True = valid (template mask)
+               ) -> EccOutcome
+# masks: explicit *_valid wins; else (image != nodata) when nodata is set; else none. With any mask,
+# cv2.findTransformECCWithMask(template=reference, input=source, templateMask, inputMask, ...) is used
+# (present in cv2 4.14, measured 2026-09-30); without masks, cv2.findTransformECC as today.
 
 def refine_transform_ecc(...same positional args as today..., nodata=None, max_shift_px=3.0) -> tuple[Transform, float]
     # thin wrapper: (outcome.transform, outcome.cc)
@@ -318,10 +325,12 @@ class GeoReference:
     height: int
     source: ValueSource
     note: str = ""
-    def pixel_to_xy(self, col, row) -> tuple[np.ndarray, np.ndarray]
-    def xy_to_pixel(self, x, y) -> tuple[np.ndarray, np.ndarray]
-    def lonlat_to_pixel(self, lon, lat) -> tuple[np.ndarray, np.ndarray]
-    def pixel_to_lonlat(self, col, row) -> tuple[np.ndarray, np.ndarray]
+    # keyword-only coordinates: geometry_grid.lonlat_to_pixel(grid, lat, lon) takes lat first,
+    # so positional calls here are forbidden to make an axis swap impossible
+    def pixel_to_xy(self, *, col, row) -> tuple[np.ndarray, np.ndarray]           # returns (x, y)
+    def xy_to_pixel(self, *, x, y) -> tuple[np.ndarray, np.ndarray]               # returns (col, row)
+    def lonlat_to_pixel(self, *, lon, lat) -> tuple[np.ndarray, np.ndarray]       # returns (col, row)
+    def pixel_to_lonlat(self, *, col, row) -> tuple[np.ndarray, np.ndarray]       # returns (lon, lat)
     def affine(self) -> affine.Affine
     def as_dict(self) -> dict      # JSON-safe, round-trips via GeoReference.from_dict
     @classmethod
@@ -398,7 +407,7 @@ class SunGeometry:
     elevation_deg: float | None
     azimuth_source: ValueSource
     elevation_source: ValueSource
-    azimuth_frame: str       # "grid_up_clockwise" | "label_unverified"
+    azimuth_frame: str       # "north_clockwise" (SPICE) | "grid_up_clockwise" (DTM fit) | "label_unverified" (ISRO label)
     note: str = ""
     def as_tuple(self) -> tuple[float, float] | None
     def as_dict(self) -> dict
@@ -412,8 +421,14 @@ def lambert_shade(dtm, posting_m, azimuth_deg, elevation_deg) -> np.ndarray   # 
 def fit_sun_azimuth(dtm, posting_m, image, elevation_deg, *, valid=None, step_deg=1.0) -> AzimuthFit
 def sun_from_ode_metadata(json_path, product_name) -> SunGeometry   # elevation = 90 - Incidence_angle
 def sun_from_label(product: PDS4Product) -> SunGeometry            # OHRC label fields, DOCUMENTED, frame "label_unverified"
+def azimuth_elevation_from_vector(sun_body_xyz, lat_deg: float, lon_deg: float) -> tuple[float, float]
+    # pure geometry: body-fixed sun vector (any length) seen from surface point (lat, lon east-positive,
+    # sphere) -> (azimuth clockwise from north in [0, 360), elevation above the local horizon), degrees
+def sun_from_spice(utc: str, lat_deg: float, lon_deg: float, kernels_dir) -> SunGeometry
+    # spiceypy (optional extra `spice`): Sun position in IAU_MOON from the generic kernels (LSK, PCK, DE SPK)
+    # at `utc`; both sources ValueSource.COMPUTED; azimuth_frame "north_clockwise"
 ```
-Test: `test_C13_synthetic_azimuth_recovered`, `test_C13_ode_elevation`.
+Test: `test_C13_synthetic_azimuth_recovered`, `test_C13_ode_elevation`, `test_C13_vector_geometry` (+ data-marked `test_C13_spice_kernels`).
 
 ## C14 — cross-matcher agreement (P1.12)
 ```python
@@ -574,7 +589,7 @@ class ConsensusResult:
 def pooled_consensus(results: dict[str, MatchResult], shape: tuple[int, int], *,
                      model: str = "homography", threshold_px: float = 3.0,
                      agreement_threshold_px: float = 1.0, min_matchers: int = 2,
-                     seed: int = 0) -> ConsensusResult
+                     seed: int = 0, refit_threshold_px: float = 1.0) -> ConsensusResult
 ```
 Test: `test_C21_render_uint8`, `test_C21_consensus_agree`, `test_C21_consensus_disagree`.
 
@@ -640,12 +655,15 @@ class JobQueue(Protocol):
         # max_bytes: only jobs with est_vram_bytes <= max_bytes (None = any); used by P4.03 routing
     def ack(self, lease: Lease, status: JobStatus) -> bool    # False when the lease was already reclaimed
     def reclaim_expired(self) -> list[str]                    # job_ids requeued (each = 1 lost event)
+    def renew(self, lease: Lease, lease_s: float) -> bool     # extend a live lease (worker heartbeat); False when already reclaimed
     def stats(self) -> QueueStats
 MAX_ATTEMPTS = 3   # a job reclaimed 3 times is closed with WORKER_LOST
 class LocalJobQueue:  # SQLite file at <run_dir>/queue.sqlite; process-safe
     def __init__(self, path)
+    def close_unfinished(self, status: JobStatus) -> int  # every pending/leased job -> failed(status); used by run_local when all workers died (G36)
 ```
-Test: `test_C24_put_dedupe`, `test_C24_lease_expiry_counts_lost`, `test_C24_max_attempts`.
+`run_worker` renews its current lease every `lease_s / 3` seconds from a daemon thread while `process_job` runs, so a long tile is never reclaimed while alive.
+Test: `test_C24_put_dedupe`, `test_C24_lease_expiry_counts_lost`, `test_C24_max_attempts`, `test_C24_renew`.
 
 ## C25 — worker (P3.05)
 ```python
@@ -682,16 +700,20 @@ Test: `test_C26_order_independent`, `test_C26_missing_jobs_reported`.
 
 ## C27 — multi-host (P4.01 / P4.04)
 ```python
-class RedisJobQueue:     # implements C24
+class RedisJobQueue:     # implements C24 (incl. renew)
     def __init__(self, url: str, run_id: str, *, stream_prefix: str = "lunar",
-                 group: str = "workers", client=None)   # client: injected redis/fakeredis (protocol=2)
+                 group: str = "workers", client=None)   # url: redis:// or rediss://; client: injected (protocol=2)
+    def reclaim_expired(self, lease_s: float | None = None) -> list[str]
+    def register_tiers(self, tiers) -> None   # P4.03 Tier(name, max_bytes) list
+    def purge(self) -> int      # delete every key of this run; returns keys deleted
 ```
-Keys: stream `<stream_prefix>:<run_id>:jobs`, hash `<stream_prefix>:<run_id>:state`. Lease reclaim uses `XAUTOCLAIM` with `min_idle_time = lease_s*1000`; replies of length 2 or 3 are accepted (G31).
+Routing is by **tier streams**, never by skipping entries (G36). `put(job, tier: str | None = None)` appends to stream `<p>:jobs:<tier>`; every tier is registered in hash `<p>:tiers` (name → `max_bytes`). A named tier comes from P4.03 (`scheduler.capacity_tiers`, `max_bytes` = a real worker's `0.75 × free`) and must be registered first with `register_tiers(tiers)`; `tier=None` uses an automatic bucket `b<k>` with `max_bytes = 2**k`, `k = max(0, ceil(log2(est_vram_bytes)))` (`b0` when `est_vram_bytes <= 1`). `claim(worker_id, lease_s, max_bytes)` reads only registered tiers with `max_bytes_tier <= max_bytes` (all tiers when None), largest first. An entry is never re-added to skip it, so claim cannot spin; a job no worker can take is reported `unschedulable` by the planner and never put. Other keys: hash `<p>:state`, `<p>:attempts`, `<p>:payload`, counter `<p>:lost` (`<p>` = `<stream_prefix>:<run_id>`). Lease reclaim uses `XAUTOCLAIM` with `min_idle_time = lease_s*1000`; replies of length 2 or 3 are accepted (G31). `renew` = `XPENDING <stream> <group> <entry id> <entry id> 1` must show `lease.worker_id` as the owner (else False), then `XCLAIM <stream> <group> <owner> 0 <entry id> JUSTID` (resets idle time without counting a delivery). The ownership check is required: `XCLAIM` with min-idle 0 would otherwise take the entry back from `__reclaimer__` (measured on fakeredis 2.x, 2026-09-30). `reclaim_expired` `XACK`s + `XDEL`s each reclaimed entry immediately after `XAUTOCLAIM`.
 `configs/hosts.json` (human copy of `configs/hosts.example.json`):
 ```json
 {"schema": 1, "broker": {"host": "<ip>", "port": 6379, "password_env": "REDIS_PASSWORD"},
  "hosts": [{"name": "laptop", "address": "<ip>", "ssh_user": "<user>", "repo_path": "<abs path>",
-            "python": ".venv/bin/python", "cache_dir": "<abs path>", "max_workers": 1,
+            "python": ".venv/bin/python", "cache_dir": "<abs path>", "results_dir": "<abs path>",
+            "source_root": "<abs path>", "max_workers": 1,
             "gpus": [{"index": 0, "name": "...", "profile": "configs/device_profiles/<slug>.json"}]}]}
 ```
 Test: `test_C27_fakeredis_protocol_conformance` (runs the C24 behaviour suite against `RedisJobQueue` on fakeredis), `test_C27_hosts_example_schema`.

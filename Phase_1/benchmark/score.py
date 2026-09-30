@@ -106,49 +106,78 @@ def q_anchor() -> dict:
 
 
 def q_2023_diagnosed() -> dict:
-    """Every 2023 strip has a cause class other than UNRESOLVED, or passes the targets (C20)."""
-    gate_path = REPO / "data/processed/vikram/exp1_gate.json"
-    doc_path = REPO / "docs/VIKRAM_2023_DIAGNOSIS.md"
-    if not gate_path.exists() or not doc_path.exists():
-        return {"value": 0.0, "detail": "gate or diagnosis doc missing"}
-    gate = json.loads(gate_path.read_text())
-    text = doc_path.read_text()
+    """Every 2023 strip passes the targets or has a class other than UNRESOLVED in diagnosis.json,
+    and the doc's `Classification:` line under `### <tag>` matches it (review RC12)."""
+    import re
+
+    gate = json.loads((REPO / "data/processed/vikram/exp1_gate.json").read_text())
+    diag = json.loads((REPO / "data/processed/vikram/exp1/diagnosis.json").read_text())
+    text = (REPO / "docs/VIKRAM_2023_DIAGNOSIS.md").read_text()
+    sections = re.split(r"^### ", text, flags=re.M)
+    passes = {s["tag"]: bool(s["passes_targets"]) for s in gate["strips"]}
     diagnosed, per = 0, {}
-    for strip in gate["strips"]:
-        tag = strip["tag"]
-        section = text.split(tag, 1)[1][:4000] if tag in text else ""
-        cls = next((c for c in CLASSES if c in section), None)
-        per[tag] = {"class": cls, "passes": strip["passes_targets"]}
-        if strip["passes_targets"] or (cls and cls != "UNRESOLVED"):
-            diagnosed += 1
+    for tag in TAGS_2023:
+        cls = diag["strips"].get(tag, {}).get("class")
+        body = next((s for s in sections if s.startswith(tag)), "")
+        doc_cls = re.findall(r"^Classification: (\w+)\s*$", body, flags=re.M)
+        consistent = doc_cls == [cls]
+        ok = consistent and (passes.get(tag, False) or (cls in CLASSES and cls != "UNRESOLVED"))
+        per[tag] = {"class": cls, "doc": doc_cls, "passes": passes.get(tag), "counted": ok}
+        diagnosed += int(ok)
     return {"value": diagnosed / len(TAGS_2023), "per_strip": per, "decision": gate["decision"]}
 
 
 def q_failures_persisted() -> dict:
-    """failures.parquet holds at least as many rows as the failures the Phase 1 run records counted."""
+    """failures.parquet holds at least as many rows as the failures the Phase 1 run records counted;
+    both run records must exist (review RC35)."""
     from lunar_reg.results import load_failures
     from lunar_reg.runrecord import read_run_record
 
     n_rows = len(load_failures(LIVE))
-    counted = 0
+    counted, missing = 0, []
     for rel in ("data/processed/vikram/runs/p1_19_anchor/run_record.json",
                 "data/processed/vikram/exp1/raw_prior/run_record.json"):
         p = REPO / rel
-        if p.exists():
-            rec = read_run_record(p)
-            counted += sum(v for k, v in rec.outcome_counts.items()
-                           if k in {"too_few_matches", "estimation_failed", "too_few_inliers",
-                                    "matcher_error", "refinement_failed", "eval_failed",
-                                    "preprocess_failed", "oom"})
-    return {"value": float(n_rows >= counted), "failures_rows": n_rows, "run_record_failures": counted}
+        if not p.exists():
+            missing.append(rel)
+            continue
+        rec = read_run_record(p)
+        counted += sum(v for k, v in rec.outcome_counts.items()
+                       if k in {"too_few_matches", "estimation_failed", "too_few_inliers",
+                                "matcher_error", "refinement_failed", "eval_failed",
+                                "preprocess_failed", "oom"})
+    ok = not missing and n_rows >= counted
+    return {"value": float(ok), "failures_rows": n_rows, "run_record_failures": counted,
+            "missing_run_records": missing}
 
 
 def q_skip_if_absent() -> dict:
+    """Review RC22: the catalog has no UNREADABLE instrument, and the P1.18 cross-instrument run
+    recorded every requested instrument's status (absent ones as not run) without failing."""
     from lunar_reg.ingest.catalog import INSTRUMENTS, build_catalog
+    from lunar_reg.runrecord import read_run_record, validate_run_record
 
     cat = build_catalog(REPO / "data/raw")
     statuses = {k: v.value for k, v in cat.status.items()}
-    return {"value": float(set(statuses) == set(INSTRUMENTS)), "statuses": statuses}
+    rec_path = REPO / "data/processed/cross/run_record.json"
+    rec_ok = rec_path.exists() and validate_run_record(rec_path) == []
+    recorded = []
+    if rec_ok:
+        rec = read_run_record(rec_path)
+        recorded = [k for k in rec.outcome_counts if k.startswith("instrument_")]
+    covered = all(any(k.startswith(f"instrument_{i}_") for k in recorded) for i in ("TMC2", "IIRS"))
+    ok = set(statuses) == set(INSTRUMENTS) and "unreadable" not in statuses.values() and rec_ok \
+        and covered
+    return {"value": float(ok), "statuses": statuses, "recorded": recorded}
+
+
+def q_datum_checked() -> dict:
+    """Review RC27: the real-data datum test ran (not skipped) and passed."""
+    junit = HERE / "out" / "bench_datum_junit.xml"
+    res = run_pytest(["tests/test_datum.py", "-m", "data"], junit)
+    ran = res["passed"] + res["failed"]
+    return {"value": float(ran > 0 and res["failed"] == 0), "passed": res["passed"],
+            "failed": res["failed"], "skipped": res["skipped"], "skip_reasons": res["skip_reasons"]}
 
 
 def synthetic_axis() -> dict:
@@ -184,13 +213,13 @@ def main() -> int:
     parts = {}
     for name, fn in (("anchor", q_anchor), ("diagnosed_2023", q_2023_diagnosed),
                      ("failures_persisted", q_failures_persisted),
-                     ("skip_if_absent", q_skip_if_absent)):
+                     ("skip_if_absent", q_skip_if_absent), ("datum_checked", q_datum_checked)):
         try:
             parts[name] = fn()
         except Exception:  # noqa: BLE001 - a crashing metric scores 0 and is reported
             parts[name] = {"value": 0.0, "error": traceback.format_exc(limit=3)[-600:]}
     thresholds = {"anchor": 1.0, "diagnosed_2023": 1.0, "failures_persisted": 1.0,
-                  "skip_if_absent": 1.0}
+                  "skip_if_absent": 1.0, "datum_checked": 1.0}
     q_pass = {k: parts[k]["value"] >= t for k, t in thresholds.items()}
     try:
         syn = synthetic_axis()

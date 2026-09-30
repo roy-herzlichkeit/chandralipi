@@ -35,5 +35,5 @@ class Assignment:
 def assign(jobs: list[JobDescriptor], tiers: list[Tier]) -> Assignment
 ```
 - `planner.plan_jobs(..., fleet: list[WorkerCapacity] | None = None)` (new keyword): when given, jobs whose estimate exceeds every tier are listed as skipped `"unschedulable"` (never silently dropped).
-- A worker with `tiers_for_worker` reads its streams largest-first, so bigger GPUs also drain smaller-tier work and no small GPU ever receives a job that does not fit (no OOM by construction; any OOM is still classified).
+- `distributed plan --fleet` calls `queue.register_tiers(capacity_tiers(fleet))` before any `put(job, tier=tier_for(job, tiers).name)` (C27: tier streams registered with their `max_bytes`; review RC04). A worker started with `--max-bytes N` reads only tiers with `max_bytes <= N`, largest first (the same set `tiers_for_worker` returns), so bigger GPUs also drain smaller-tier work and no small GPU ever receives a job that does not fit (no OOM by construction; any OOM is still classified). No entry is ever skipped and re-added.
 Tests (`tests/test_scheduler.py`): fleet {4060 laptop 7.4 GiB free, 3060 5.5 GiB free} → 2 tiers; a job of 5 GiB goes to the larger tier only; a 9 GiB job is unschedulable; `tiers_for_worker` for the 3060 excludes the larger tier.

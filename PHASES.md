@@ -7,13 +7,13 @@ Order (G01): **0 → 1 → 2 → 1B → 3 → 4**. Each phase ends at a human re
 | phase | goal | TBDs | components (HLD) | prompts | depends on | contracts produced | contracts consumed | benchmark focus |
 |---|---|---|---|---|---|---|---|---|
 | 0 | Green reproducible baseline; fix every defect that changes stored numbers; freeze results schema v2 | 1.7 (dead code), 4.4 (seed) | K1–K4 | 13 (P0.00–P0.12) | — | C01–C07, C15 | — | suite green; count and ratio semantics on synthetic pairs with injected outliers; ECC model fidelity; determinism |
-| 1 | Real Chandrayaan-2 pipeline: downloads, catalog, NAC georeference, geometry grid, datum, preprocessing presets, sun geometry, agreement, SuperGlue, TMC-2/IIRS skip-if-absent, v2 re-run, 2023 diagnosis | 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8 exp-1/exp-2 | K5–K13, K20 | 24 (P1.00–P1.22 + P1.DL) | 0 | C08–C14, C20 | C01–C07, C15 | 2024 anchor registers (≥ 20 inliers, U ≥ 0.7, agreement < 1 px); every 2023 failure classified and diagnosed; SYNTHETIC axis separate |
+| 1 | Real Chandrayaan-2 pipeline: downloads, catalog, NAC georeference, geometry grid, datum, preprocessing presets, sun geometry, agreement, SuperGlue, TMC-2/IIRS skip-if-absent, v2 re-run, 2023 diagnosis | 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8 exp-1/exp-2 | K5–K13, K20 | 25 (P1.00–P1.23 + P1.DL) | 0 | C08–C14, C20 | C01–C07, C15 | 2024 anchor registers (≥ 20 inliers, U ≥ 0.7, agreement < 1 px); every 2023 failure classified and diagnosed; SYNTHETIC axis separate |
 | 2 | GPU integration: CUDA env, measured device profile, benchmark CLI, device/timing/VRAM/OOM in results, prior-driven tiling, native-GSD refinement, georeferenced warp, GPU end-to-end run | 2.1, 2.2, 2.3, 1.8 step 6 | K14–K16 | 12 (P2.00–P2.11) | 1 | C16–C19 | C01–C15 | measured VRAM profile; zero unclassified tile failures; native refinement within 1 coarse px of the 4 m transform |
 | 1B | Illumination bridge (gated by C20): DTM shaded-relief reference, pooled multi-matcher consensus, RIFT2 fixes and baseline | 1.8 steps 2–5, exp-3/4 | K17 | 7 (P1B.00–P1B.06) | 1, 2 | C21 | C04, C10–C14, C18–C20 | 2023 strips against the TBD 1.8 targets |
 | 3 | Single-host distributed: job descriptor, outcomes, planner, local queue, workers, reducer, fault injection, determinism | 3.1–3.5, 4.4 | K18 | 10 (P3.00–P3.09) | 2, 1B (built or skipped) | C22–C26 | C01–C06, C11, C15–C19 | 100 % correct classification under injected faults; reducer ≡ single-process within tolerance; order-independent transform |
 | 4 | Two hosts: Redis Streams transport, node cache, capacity routing, host config + runbook, idempotence, two-host run | 4.1–4.5 | K19 | 7 (P4.00–P4.06) | 3 | C27 | C15, C16, C22–C26 | WORKER_LOST reclaimed and counted; duplicate job → one result; bytes read per strip reported; heterogeneous fleet without OOM |
 
-Total prompts: **73** (13 + 24 + 12 + 7 + 10 + 7). P1.DL is out of sequence and never "next" in STATUS.
+Total prompts: **74** (13 + 25 + 12 + 7 + 10 + 7). P1.DL is out of sequence and never "next" in STATUS.
 
 ## 2. Phase gates and special prompts
 
@@ -24,7 +24,7 @@ Total prompts: **73** (13 + 24 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 | RUN prompts | P1.18, P1.19, P1.20, P2.04, P2.11, P1B.06, P3.09, P4.06 execute pipelines on real data (G22). Their checks validate `run_record.json` (C15) and artefacts, never wall-clock. |
 | GPU prompts | P2.04, P2.11, P3.09, P4.06 need CUDA. If `torch.cuda.is_available()` is False they write a BLOCKER and stop. |
 | data prompts | P1.18, P1.19 and P1.20 need the 4 OHRC `nrp` strips + NAC ortho + NAC DTM on disk (present 2026-09-29). Missing IIRS / TMC-2 / OHRC `ncp` never blocks (G24); tests needing them are `@pytest.mark.data` and skip with a reason. |
-| network | Only P1.DL, the P1.02 run step, P4.00's host probe (LAN), P4.01's `pip install` of the `cluster` extra, and P4.06 (LAN between the hosts) touch a network. |
+| network | Only P1.DL, the P1.02 run step, P1.11's `pip install` of the `spice` extra, P4.00's host probe (LAN), P4.01's `pip install` of the `cluster` extra, and P4.06 (LAN between the hosts) touch a network. |
 
 ## 3. Prompt list and file ownership
 
@@ -62,7 +62,7 @@ Total prompts: **73** (13 + 24 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 | P1.08 | nodata in radiometric + shadow | src/lunar_reg/preprocess/radiometric.py ~, src/lunar_reg/preprocess/shadow.py ~ |
 | P1.09 | preprocess geometry + StepStatus | src/lunar_reg/preprocess/pipeline.py ~, src/lunar_reg/preprocess/resample.py ~, src/lunar_reg/preprocess/georeference.py ~, src/lunar_reg/constants.py ~ |
 | P1.10 | presets inside register_pair | src/lunar_reg/preprocess/presets.py +, src/lunar_reg/pipeline.py ~ |
-| P1.11 | reference sun geometry | src/lunar_reg/ingest/sun.py +, scripts/fit_reference_sun.py + |
+| P1.11 | reference sun geometry (SPICE + cross-checks) | src/lunar_reg/ingest/sun.py +, scripts/fit_reference_sun.py +, pyproject.toml ~ (`spice` extra) |
 | P1.12 | cross-matcher agreement | src/lunar_reg/eval/agreement.py + |
 | P1.13 | window-pair preparation | src/lunar_reg/pairs.py + |
 | P1.14 | matcher registry + SuperGlue opt-in | src/lunar_reg/match/superglue.py ~, src/lunar_reg/match/__init__.py ~, src/lunar_reg/pipeline.py ~ (`_build_matcher` only) |
@@ -73,7 +73,8 @@ Total prompts: **73** (13 + 24 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 | P1.19 | RUN: apply preset default + anchor into live store | src/lunar_reg/pipeline.py ~, docs/PREPROCESS_ABLATION.md +, data/processed/** (artefacts only) |
 | P1.20 | RUN: 2023 diagnosis + exp-1 gate | data/processed/vikram/** +, docs/VIKRAM_2023_DIAGNOSIS.md + |
 | P1.21 | viewers | scripts/export_web_data.py ~, dashboard/app.py ~, src/lunar_reg/viz/figures.py ~, scripts/reindex_results.py ~, scripts/demo.py ~ |
-| P1.22 | docs + status refresh | README.md ~, CONTEXT.md ~, CONTEXT_HANDOFF.md ~, scripts/setup.sh ~, scripts/up.sh ~, scripts/run_dashboard.sh ~, docs/results/ +, .gitignore ~, src/lunar_reg/ingest/__init__.py ~, src/lunar_reg/ingest/fieldmap.py ~, src/lunar_reg/ingest/manifest.py ~, src/lunar_reg/preprocess/config.py ~ (docstrings/comments only in src) |
+| P1.22 | docs + status refresh | README.md ~, CONTEXT.md ~, CONTEXT_HANDOFF.md ~, docs/results/ + |
+| P1.23 | code docstrings + script hints | scripts/setup.sh ~, scripts/up.sh ~, scripts/run_dashboard.sh ~, .gitignore ~, src/lunar_reg/ingest/__init__.py ~, src/lunar_reg/ingest/fieldmap.py ~, src/lunar_reg/ingest/manifest.py ~, src/lunar_reg/preprocess/config.py ~ (docstrings/comments only) |
 
 ### Phase 2
 | id | title | files |
@@ -137,7 +138,7 @@ Total prompts: **73** (13 + 24 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 | 1.4 IIRS | P1.15 (skip-if-absent ingest), P1.DL (download) |
 | 1.5 datum | P1.07 |
 | 1.6 self-pair double count | P1.06 |
-| 1.7 decisions | SuperGlue → P1.14; PLACEHOLDER params → P1.18/P1.19 (measured preset choice); synthetic vs real → P1.21/P1.22 (real results lead, synthetic labelled); missing angles → P1.15 (reported as UNVERIFIED) |
+| 1.7 decisions | SuperGlue → P1.14; PLACEHOLDER params → P1.18/P1.19 (measured preset choice); synthetic vs real → P1.21/P1.22/P1.23 (real results lead, synthetic labelled); missing angles → P1.15 (reported as UNVERIFIED) |
 | 1.8 hybrid | exp-1 → P1.20; exp-2 → P1.11 + P1.20; step 1 prior → P1.06/P1.13; step 5 agreement → P1.12; steps 2–5, exp-3/4 → P1B; step 6 native → P2.08/P2.10 |
 | 2.1 CUDA | P2.01 (driver already live, FABLE_NOTES §9) |
 | 2.2 VRAM constants | P2.02–P2.04 |

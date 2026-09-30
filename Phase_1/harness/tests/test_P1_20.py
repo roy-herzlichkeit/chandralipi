@@ -17,11 +17,14 @@ def test_gate():
 
 
 def test_reference_sun():
-    doc = json.loads((REPO / "data/processed/vikram/reference_sun/reference_sun.json").read_text())
-    assert doc["sun"]["elevation_source"] == "documented"
-    assert doc["sun"]["azimuth_source"] == "inferred"
-    assert doc["sun"]["azimuth_frame"] == "grid_up_clockwise"
-    assert (REPO / "data/processed/vikram/reference_sun/ncc_curve.csv").exists()
+    d = REPO / "data/processed/vikram/reference_sun"
+    doc = json.loads((d / "reference_sun.json").read_text())
+    assert doc["sun"]["azimuth_source"] == "computed" and doc["sun"]["elevation_source"] == "computed"
+    assert doc["sun"]["azimuth_frame"] == "north_clockwise"
+    assert "ode_elevation_deg" in doc["cross_checks"] and "dtm_fit" in doc["cross_checks"]
+    assert (d / "ncc_curve.csv").exists()
+    conv = json.loads((d / "label_convention.json").read_text())
+    assert conv["convention"] in ("as_is", "plus_180", "mirror", "mirror_plus_180")
 
 
 def test_run_records():
@@ -35,9 +38,18 @@ def test_run_records():
 
 
 def test_diagnosis_doc():
+    """Review RC12: the class comes from diagnosis.json and appears as one exact line per strip."""
+    import re
+
+    diag = json.loads((REPO / "data/processed/vikram/exp1/diagnosis.json").read_text())
+    assert diag["schema"] == 1 and set(diag["strips"]) == set(TAGS_2023)
     text = (REPO / "docs/VIKRAM_2023_DIAGNOSIS.md").read_text()
     assert "data/processed/vikram/exp1_gate.json" in text
+    sections = re.split(r"^### ", text, flags=re.M)
     for tag in TAGS_2023:
-        assert tag in text
-        section = text.split(tag, 1)[1][:4000]
-        assert any(c in section for c in CLASSES), f"no cause class after {tag}"
+        cls = diag["strips"][tag]["class"]
+        assert cls in CLASSES
+        body = next((s for s in sections if s.startswith(tag)), None)
+        assert body is not None, f"no '### {tag}' heading"
+        lines = re.findall(r"^Classification: (\w+)\s*$", body, flags=re.M)
+        assert lines == [cls], f"{tag}: doc says {lines}, diagnosis.json says {cls}"

@@ -34,4 +34,4 @@ Turn the one-off script that registered one Chandrayaan-2 strip into a real pipe
 `data/processed/vikram/exp1_gate.json`: if all three 2023 strips register once the search window is corrected (≥ 20 inliers, uniformity ≥ 0.7, agreement < 1 px), Phase 1B (the shaded-relief "illumination bridge") is skipped; otherwise it is built after Phase 2.
 
 ## Honest limits
-No ground truth exists for real pairs; "accuracy" on real data is never claimed from the fit's own residual. The reference sun azimuth is a fit (INFERRED), not a documented value. TMC-2/IIRS fields are added only from a probe of a real product.
+No ground truth exists for real pairs; "accuracy" on real data is never claimed from the fit's own residual. The sun directions are computed with NASA's SPICE toolkit from public ephemeris files (COMPUTED); the NASA incidence angle and a terrain-shading fit are shown next to them as independent checks. TMC-2/IIRS fields are added only from a probe of a real product.

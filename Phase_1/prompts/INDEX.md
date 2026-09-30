@@ -28,3 +28,4 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 22 | P1.20 | RUN: 2023 diagnosis + exp-1 gate | P1.19 | harness/check_P1.20.sh | todo |
 | 23 | P1.21 | viewers | P1.20 | harness/check_P1.21.sh | todo |
 | 24 | P1.22 | docs + status refresh | P1.21 | harness/check_P1.22.sh | todo |
+| 25 | P1.23 | code docstrings + script hints | P1.22 | harness/check_P1.23.sh | todo |

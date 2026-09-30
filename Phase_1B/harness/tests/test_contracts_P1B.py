@@ -32,6 +32,15 @@ def test_C21_members():
         "status", "transform", "per_matcher", "pooled", "agreement", "contributing", "detail"]
 
 
+def test_C21_signature():
+    import inspect
+
+    from lunar_reg.consensus import pooled_consensus
+
+    p = inspect.signature(pooled_consensus).parameters
+    assert p["refit_threshold_px"].default == 1.0 and p["seed"].default == 0   # review RC26
+
+
 def test_C21_consensus_agree():
     from lunar_reg.consensus import ConsensusStatus, pooled_consensus
 

@@ -10,6 +10,7 @@ Produces: C16, C17. Closes: A073 (match-3), A074 (tooling-7), A126 (match-4), A0
 ## P2.02 — device profiles (C16)
 - `TileBudget` gains `fits: bool` and `source: ValueSource` (appended; defaults `True`, `ValueSource.INFERRED`).
 - `plan_dense_tile(device="cuda", precision="fp16", matcher="loftr", profile: DeviceProfile | None = None)`: when `profile` has an entry for `(matcher, precision)`, choose the largest multiple of 64 ≤ `MAX_DENSE_TILE_PX` with `fixed_bytes + bytes_per_px · tile² ≤ safety · free` → `source = MEASURED`; else today's analytic model → `source = INFERRED`. The `MIN_DENSE_TILE_PX` floor still applies but sets `fits = est_peak_bytes <= safety · free` (A126: no silent raise).
+- `DeviceProfile.plan_tile(matcher, precision, …)` for a `(matcher, precision)` the profile lacks → the analytic model with `source = INFERRED` (never `KeyError`, review RC23).
 - `DeviceProfile` per C16; `load_profile_for(device_name)` → the profile whose `device_name` equals the CUDA device name, searched in `configs/device_profiles/*.json`; None when absent.
 - `configs/device_profiles/README.md`: the C16 schema, how a profile is produced (`lunar-reg benchmark`, P2.04), and that a profile is MEASURED data (G19: never hand-edited).
 
@@ -25,4 +26,5 @@ Commands (in order, one GPU process at a time):
 1. `lunar-reg benchmark --matcher loftr --precision fp16 --device cuda --out data/processed/benchmarks/p2_04 --profile-out configs/device_profiles/rtx4060-laptop.json`
 2. same with `--precision fp32`
 3. `lunar-reg benchmark --matcher lightglue --precision fp16 --tile-sizes 512,768,1024,1536,2048 --device cuda --out data/processed/benchmarks/p2_04 --profile-out configs/device_profiles/rtx4060-laptop.json`
-Artefacts: the profile JSON (C16-valid, `source == "measured"`, ≥ 3 points per entry), three benchmark JSONs, run records. `tests/test_device.py`'s CPU pins are **not** changed (they pin CPU host-RSS measurements; the GPU profile is separate data).
+4. same as 3 with `--precision fp32` (review RC23: Phase 3 plans default to fp32).
+Artefacts: the profile JSON (C16-valid, `source == "measured"`, ≥ 3 points per entry, entries for loftr fp16/fp32 and lightglue fp16/fp32), three benchmark JSONs, run records. `tests/test_device.py`'s CPU pins are **not** changed (they pin CPU host-RSS measurements; the GPU profile is separate data).

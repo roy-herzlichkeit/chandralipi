@@ -58,6 +58,23 @@ def test_sun_from_label_stub():
 
 def test_script_exists_with_cli():
     text = (REPO / "scripts/fit_reference_sun.py").read_text()
-    for flag in ("--nac", "--half-size-m", "--out"):
+    for flag in ("--nac", "--half-size-m", "--out", "--kernels", "--label-convention"):
         assert flag in text
     assert "edrnac4_vikram_box.json" in text and "run_record" in text
+    assert "sun_from_spice" in text and "label_convention.json" in text
+
+
+def test_north_to_grid_on_central_meridian():
+    from lunar_reg.ingest.sun import north_to_grid_azimuth
+
+    proj = "+proj=stere +lat_0=-90 +lat_ts=-69.3 +lon_0=32.3 +R=1737400 +units=m +no_defs"
+    assert north_to_grid_azimuth(123.0, -69.37, 32.3, proj) == pytest.approx(123.0, abs=1e-6)
+    off = north_to_grid_azimuth(123.0, -69.37, 42.3, proj)
+    assert abs(((off - 123.0 + 180) % 360) - 180) > 1.0   # 10 deg off-meridian -> visible rotation
+
+
+def test_spice_extra_declared():
+    import tomllib
+
+    extras = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["optional-dependencies"]
+    assert any("spiceypy" in d for d in extras["spice"])

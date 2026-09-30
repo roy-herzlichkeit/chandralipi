@@ -16,12 +16,12 @@
 ## Phase folders (10)
 | phase | prompts | LLD files | harness tests (collected) | checks | contracts proved |
 |---|---|---|---|---|---|
-| Phase_0 | 13 | 11 | 113 | 13 + verify | C01–C07, C15 |
-| Phase_1 | 24 (incl. P1.DL) | 18 | 131 | 24 + verify | C03 (preprocess), C08–C14, C20 |
+| Phase_0 | 13 | 11 | 115 | 13 + verify | C01–C07, C15 |
+| Phase_1 | 25 (incl. P1.DL) | 18 | 141 | 25 + verify | C03 (preprocess), C08–C14, C20 |
 | Phase_2 | 12 | 5 | 43 | 12 + verify | C03 (device), C16–C19 |
-| Phase_1B | 7 | 5 | 17 | 7 + verify | C21 |
-| Phase_3 | 10 | 5 | 35 | 10 + verify | C22–C26 |
-| Phase_4 | 7 | 4 | 17 | 7 + verify | C27 |
+| Phase_1B | 7 | 5 | 19 | 7 + verify | C21 |
+| Phase_3 | 10 | 5 | 38 | 10 + verify | C22–C26 |
+| Phase_4 | 7 | 4 | 18 | 7 + verify | C27 |
 Each folder also has `benchmark/{RUBRIC.md,run.sh,score.py}`, `ASSUMPTIONS.md`, `DECISIONS.md`, `REVIEW_FOCUS.md`, `docs/{OVERVIEW.md,REVIEW_CHECKLIST.md}`, `QUESTIONS.md`, and `harness/MANIFEST.sha256`. Shared skills: `Phase_0/skills/{classified-outcomes,provenance-fields,atomic-writes,tests-and-checks}`, `Phase_1/skills/run-prompts`, `Phase_2/skills/gpu-safety`.
 
 ## Final consistency pass (11) — results of the B3 checks
@@ -41,6 +41,7 @@ Each folder also has `benchmark/{RUBRIC.md,run.sh,score.py}`, `ASSUMPTIONS.md`, 
 - CLARIFY R2 (ISRO SIS PDFs → `docs/external/`), R3b (second host details) — neither blocks Phases 0–3.
 - P1.DL tonight: product list and click-by-click steps in `Phase_1/LLD/downloads.md` §2–§3.
 - `redis-server` install (sudo) before P4.06.
+- Task D (external adversarial review): 38 items adjudicated in `REVIEW_DECISIONS_PLAN.md` (23 ACCEPT, 13 ACCEPT_MODIFIED, 2 REJECT, 0 NEEDS_HUMAN); how they were applied: `MERGE_PLAN_PLAN.md`. Harness now collects 374 tests.
 
 ## Fix log
 | session | fix |
@@ -52,3 +53,10 @@ Each folder also has `benchmark/{RUBRIC.md,run.sh,score.py}`, `ASSUMPTIONS.md`, 
 | B3 | Phase 1B skip made a one-commit branch approved like any phase (G02/G07); Phase 3 base is always `phase-1B-approved` |
 | B3 | `pytest` marker `weights` added (G15/G21); C23 `bytes_read`, C24 `claim(max_bytes)`, C25 `run_worker(max_bytes)` added before freeze |
 | B3 | CLAUDE.md: existing-test edits allowed when the prompt changes the behaviour they pin; network exceptions listed by prompt |
+| D | Review RC02/13/16 → G37: worker lifts with matrix products only; `job.prior` is patch→reference-window; Phase 3 fixtures use non-zero window offsets |
+| D | Review RC01/04/06/28/29 → G36: `run_local` closes unfinished jobs when all workers die; C24 `renew` + worker heartbeat; Redis tier streams with a registry, no skip/re-add; XDEL on ack/reclaim; `purge`; `distributed supervise` |
+| D | Review RC03/05/25/34 → `hosts.json` gains `results_dir`, `source_root`; `cluster_up.sh` passes cache/source/results dirs, `ssh -n` + `< /dev/null`, pid files, `--stop` |
+| D | Review RC17/15 → G14: sun geometry from SPICE generic kernels (COMPUTED); ODE incidence and DTM-hillshade fit kept as cross-checks; C13 +2 functions |
+| D | Review RC07 → G33 adaptive uniformity grid; RC14 → G39 ECC with both validity masks (C07); RC18 → G38 prior shift OHRC-only; RC21 → C10 keyword-only |
+| D | Review RC09/10/11/12/22/27/35/36 → stricter Phase 1/1B/2 checks and benchmarks (native bridge, real IIRS, cross-instrument run, structured diagnosis, datum ran, run records required, `ok > 0`) |
+| D | Review RC30 → P1.22 split into P1.22 (docs) + P1.23 (code text); total 74 prompts |

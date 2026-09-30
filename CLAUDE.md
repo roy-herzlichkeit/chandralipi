@@ -28,7 +28,7 @@ As an implementer you execute prompt files from `Phase_<i>/prompts/`, one prompt
 | editable process files | `STATUS.md`, `Phase_*/prompts/INDEX.md` (status column only), `Phase_*/QUESTIONS.md`, `Phase_*/REVIEW_PACK_<i>.md`. |
 | no scope creep | No refactors, renames, reformatting or "improvements" the prompt does not ask for. `ruff format` only files you modified in this prompt. |
 | contracts | Signatures, field names, enum members and file formats in `CONTRACTS.md` are frozen. Match them character for character. |
-| network | No network access except in prompts whose `DO:` explicitly runs a download script (P1.DL, the P1.02 run step, the P4.00 LAN host probe, the P4.01 `pip install` of the `cluster` extra, P4.06's LAN traffic between the two hosts). PRADAN (ISRO) pages are never automated: the human clicks. |
+| network | No network access except in prompts whose `DO:` explicitly runs a download script (P1.DL, the P1.02 run step, the P1.11 `pip install` of the `spice` extra, the P4.00 LAN host probe, the P4.01 `pip install` of the `cluster` extra, P4.06's LAN traffic between the two hosts). PRADAN (ISRO) pages are never automated: the human clicks. |
 | data | Never delete or overwrite anything under `data/raw/`. Under `data/processed/`, move (not delete) when a prompt says to archive. |
 | docs and numbers | Any number written into any doc must come from a run artefact whose path is cited in the same sentence or table row. Otherwise write `[INSERT RESULT]`. |
 

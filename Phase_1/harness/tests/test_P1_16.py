@@ -136,6 +136,12 @@ def test_exp1_gate(tmp_path):
     assert compute_exp1_gate(root, TAGS_2023, None, "rr.json")["decision"] == "SKIP_1B"
 
 
+def test_prior_shift_only_for_listed_instruments():
+    from lunar_reg.sites.runner import SiteConfig
+
+    assert SiteConfig().prior_shift_instruments == ("OHRC",)   # G38 / review RC18
+
+
 def test_run_vikram_is_thin():
     text = (REPO / "scripts/run_vikram.py").read_text()
     assert "run_site" in text and "SiteConfig" in text

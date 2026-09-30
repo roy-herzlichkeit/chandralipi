@@ -13,12 +13,12 @@ Produces: C07. Closes: A005 (S1), A018 (align-3), A019 (align-4), A020 (align-5)
 ## 2. `ecc_refine` (new, C07) — algorithm
 1. `prefilter` handling unchanged (`"auto"`, `"local_contrast"`, `"none"`), applied to **copies**.
 2. `src = np.array(source, dtype=np.float32, copy=True)`, same for `ref`; divide each by 255 when its max > 1. Caller arrays are never written.
-3. Validity mask (only when `nodata` is not None): `valid = source != nodata`, eroded with a square kernel of side `gaussian_blur + 2` (cv2.erode, uint8 0/255), passed as `inputMask`. With `nodata is None` pass `None`.
+3. Validity masks (G39, review RC14): input mask = `source_valid` when given, else `source != nodata` when `nodata` is not None, else none; template mask = `reference_valid` when given, else `reference != nodata` when `nodata` is not None, else none. Each mask is eroded with a square kernel of side `gaussian_blur + 2` (`cv2.erode`, uint8 0/255). When at least one mask exists, call `cv2.findTransformECCWithMask(ref, src, template_mask, input_mask, warp, motion, criteria, gaussian_blur)` (a missing side gets an all-255 mask); with no mask call `cv2.findTransformECC` exactly as today. `cv2.error` from either function → step 5.
 4. Singular input (`np.linalg.LinAlgError` on inversion) → `SKIPPED_SINGULAR`, return input transform, `cc = nan`.
 5. `cv2.error` from `findTransformECC` → `NOT_CONVERGED`, input transform, `cc = nan`, `detail` = first line of the error.
 6. Displacement gate: probes = 5×5 grid over the source image (`linspace(0, w-1, 5) × linspace(0, h-1, 5)`); `shift_px = max ‖T_ecc(p) − T_in(p)‖` in reference px. `shift_px > max_shift_px` → `REJECTED_DISPLACEMENT`, input transform returned, `cc = nan`, `shift_px` recorded, `detail = f"displacement {shift_px:.3f} px > gate {max_shift_px} px"`.
 7. Otherwise `APPLIED`, refined `Transform(matrix, model=transform.model, n_inliers, n_total, estimator=transform.estimator, seed=transform.seed)`, `cc` finite.
-`refine_transform_ecc(...)` becomes a wrapper with its current positional parameters plus `nodata=None, max_shift_px=3.0`, returning `(outcome.transform, outcome.cc)`.
+`refine_transform_ecc(...)` becomes a wrapper with its current positional parameters plus `nodata=None, max_shift_px=3.0, source_valid=None, reference_valid=None`, returning `(outcome.transform, outcome.cc)`. `refine_full`'s `ecc_kwargs` may also carry `source_valid` / `reference_valid`.
 
 `ECC_MAX_SHIFT_PX` constant as in C07 (a `Sourced`), used as the default via `ECC_MAX_SHIFT_PX.value`.
 
@@ -39,4 +39,5 @@ Detail keys exactly as C07. When `use_ecc` is False or an image is None → `ecc
 | no mutation | float32 and uint8 inputs byte-identical after the call |
 | gate | monkeypatch `cv2.findTransformECC` to return a warp shifted by 10 px → `REJECTED_DISPLACEMENT`, input returned |
 | nodata mask | with a 40 px zero border on source and `nodata=0`, APPLIED and error < 0.2 px |
+| explicit masks | `source_valid`/`reference_valid` given → `findTransformECCWithMask` is the function called (spy) and the template mask has zeros where `reference_valid` is False |
 | refine_full keys | all C07 detail keys present |

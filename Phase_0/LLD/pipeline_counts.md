@@ -13,7 +13,7 @@ Let `base = {source_id, reference_id, source_sensor, reference_sensor, matcher, 
 | 2 | `len(raw) < min_matches` | `TOO_FEW_MATCHES` | `match` | `n_raw_matches` | as today, plus `"; reason: <raw.meta['empty_reason']>"` when present |
 | 3 | `estimate_transform(raw_copy, model, ransac_threshold_px, seed=config.seed)` | `ValueError` → `ESTIMATION_FAILED` | `estimate` | `n_raw_matches` | str(exc) |
 | 4 | `n_ransac < min_inliers` | `TOO_FEW_INLIERS` | `estimate` | `n_raw_matches`, `n_ransac_inliers` | `"RANSAC kept <k> of <n> matches"` |
-| 5 | `refine_full(first_pass_inliers..., threshold_px=config.refit_threshold_px, seed=config.seed, ecc_kwargs={prefilter, nodata, max_shift_px=config.ecc_max_shift_px})` | any exception → `REFINEMENT_FAILED` | `refine` | + counts | `"<ExcType>: <msg>"` |
+| 5 | `refine_full(first_pass_inliers..., threshold_px=config.refit_threshold_px, seed=config.seed, ecc_kwargs={prefilter, nodata, max_shift_px=config.ecc_max_shift_px, source_valid, reference_valid})` | any exception → `REFINEMENT_FAILED` | `refine` | + counts | `"<ExcType>: <msg>"` |
 | 6 | `n_refit < min_inliers` | `TOO_FEW_INLIERS` | `refine` | + `n_refit_inliers` | `"after refit: <k> of <n_ransac> first-pass inliers at <thr> px"` |
 | 7 | metrics, uniformity, conditioning | any exception → `EVAL_FAILED` | `eval` | + counts | `"<ExcType>: <msg>"` |
 | 8 | OK | — | `done` | all counts | — |

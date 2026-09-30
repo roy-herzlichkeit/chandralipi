@@ -29,8 +29,8 @@ def _bootstrap_predictions(src_pts, dst_pts, probes, model, n_bootstrap, seed) -
 ## 3. Uniformity normalisation (A041, A100, G33)
 In `compute_uniformity(pts, shape, grid=8)`:
 - Out-of-frame points (x < 0, y < 0, x ≥ w, y ≥ h) are excluded from binning and counted in `n_out_of_frame`.
-- `k = min(n_in_frame, grid*grid)`; `coverage = occupied / k` (0 when k = 0); `entropy = H / log(k)` when k > 1, else 1.0 when k == 1, 0.0 when k == 0.
-- `UniformityMetrics` gains `n_out_of_frame: int = 0` and `max_occupiable_cells: int = 0` (appended fields).
+- Adaptive grid (G33 as revised by review RC07): `g_eff = min(grid, max(2, floor(sqrt(n_in_frame))))`; bin with `g_eff`; `coverage = occupied / g_eff²`; `entropy = H / log(g_eff²)`; `n_in_frame == 0` → coverage 0, entropy 0. `UniformityMetrics.grid` records `g_eff`, `total_cells = g_eff²`.
+- `UniformityMetrics` gains `n_out_of_frame: int = 0` (appended field). `uniformity_profile` keeps its fixed grids (4, 8, 16) — it is a diagnostic, not the gate.
 - `cell_counts` and `enforce_uniformity` share one binning helper `_bin(pts, shape, grid) -> (row, col, in_frame_mask)`; `cell_counts` drops out-of-frame points instead of clipping them into border cells.
 
 ## 4. Oracle fit uses the pipeline model (A101)
@@ -48,4 +48,4 @@ In `compute_uniformity(pts, shape, grid=8)`:
 `ConditioningMetrics.as_dict()` adds `"gate_source": EXTRAPOLATION_GATE_SOURCE.value`; `UniformityMetrics.as_dict()` adds `"gate_source": UNIFORMITY_GATE_SOURCE.value`. Fix the contradictory blob-case numbers in the `uniformity.py` docstring by deleting the unsourced one (`R=0.101` vs `R 0.20`: keep neither number; write "see tests/test_eval.py for the measured values").
 
 ## 7. Tests the prompt adds (`tests/test_eval_fixes.py`)
-dominant: three regimes (dist 0.35/fit 0.40 → corr 0.194 → "point distribution"; dist 0.10/fit 1.00 → corr 0.995 → "correspondence error"; dist 0.30/fit 0.40 → corr 0.265, ratio 1.13 → None); `conditioning_map(..., model="partial_affine")` runs, and for every model `conditioning_map(...).max()` equals `bootstrap_conditioning(...).max_px` within 1e-9 (same seed, same probe grid); 20 points one per cell in a 8×8 grid → coverage 1.0 and score ≥ 0.99; out-of-frame points counted, not binned; oracle fit with `model="affine"` yields a 2×3-compatible stage.
+dominant: three regimes (dist 0.35/fit 0.40 → corr 0.194 → "point distribution"; dist 0.10/fit 1.00 → corr 0.995 → "correspondence error"; dist 0.30/fit 0.40 → corr 0.265, ratio 1.13 → None); `conditioning_map(..., model="partial_affine")` runs, and for every model `conditioning_map(...).max()` equals `bootstrap_conditioning(...).max_px` within 1e-9 (same seed, same probe grid); 20 well-spread points → `grid == 4` and score ≥ 0.9 (architect check: 0.946); 20 points packed in one image quadrant → score < 0.5 (architect check: 0.336); out-of-frame points counted, not binned; oracle fit with `model="affine"` yields a 2×3-compatible stage.

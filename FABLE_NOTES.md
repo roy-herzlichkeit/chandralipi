@@ -219,3 +219,18 @@ Written: CONTRACTS.md (C01–C27), PHASES.md rewritten (73 prompts), DECISIONS G
 | Uniformity with log(g²) normalisation made U ≥ 0.7 unreachable for < 45 points → G33 min(n, g²) | I (arithmetic) |
 | 1B skip = one-commit branch + human tag, so the STATUS/branch flow never loops | design |
 Open: R2 (SIS PDFs), R3b (second host). Next session (FABLE review role): review Phase 0 once `phase-0-done` exists.
+
+## 13. Session D (2026-09-30) — external review adjudicated
+`REVIEW_DECISIONS_PLAN.md`: 38 items, 23 ACCEPT, 13 ACCEPT_MODIFIED, 2 REJECT (RC31 native upsampling, RC32 Ray), 0 NEEDS_HUMAN. New decisions G36–G39; G14, G33 revised.
+Patterns the reviewer caught that my own B3 consistency pass missed (check these explicitly in future plan passes):
+| pattern | instance | check to add |
+|---|---|---|
+| Fixture values that make a bug invisible | zero window offsets hid a double-added offset (RC13) | every coordinate test uses non-zero offsets and non-unit scales |
+| Prose that "calls" a matrix or composes an offset twice | `to_native_tile(p) + (col_off, row_off)` (RC02/16) | write coordinate lifts as `h(M, p)` with the frame of every matrix named |
+| A loop whose exit condition depends on processes that can die | `run_local`, P4 status poll (RC01/06) | every wait loop names its no-progress exit and the classified outcome |
+| Queue operations that re-insert to skip | Redis `max_bytes` skip (RC04) | routing never re-adds; unfit work is reported unschedulable at plan time |
+| Benchmarks that pass on absence | missing run records, skipped data tests, substring verdicts, zero OOMs with zero OKs (RC12/22/27/35/36) | every score requires the artefact to exist and a positive count of the thing measured |
+| Launch commands missing the paths the callee needs | `cluster_up.sh` worker line (RC03/05/25) | trace each CLI flag the callee requires back to a config key |
+| Contract text disagreeing with its own harness | C02 member timing (RC08), C21 consumers (RC19) | diff CONTRACTS comments against `test_contracts_*` after edits |
+| Treating a heuristic fit as primary when an exact computation is available | sun azimuth via NCC fit (RC17) | ask "is there a deterministic source?" before designing a fit |
+Measured this session (M): cv2 4.14 `findTransformECCWithMask` masked affine ECC error 0.022 px; adaptive uniformity spread 0.946 vs quadrant 0.336; NAIF LSK/PCK/DE440s URLs HTTP 200; spiceypy 8.2.0 on PyPI; fakeredis `XCLAIM … JUSTID` with min-idle 0 takes an entry back from another consumer (→ renew checks `XPENDING` owner first).

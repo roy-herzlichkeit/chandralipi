@@ -140,6 +140,36 @@ def test_C24_max_attempts(tmp_path):
     assert s.failed == 1 and s.pending == 0 and q.claim("w", 1.0) is None
 
 
+def test_C24_renew(tmp_path):
+    """Review RC29: a live lease can be extended; a reclaimed one cannot."""
+    from lunar_reg.distributed.queue import LocalJobQueue
+
+    now = [0.0]
+    q = LocalJobQueue(tmp_path / "q.sqlite", clock=lambda: now[0])
+    q.put(_job(3))
+    lease = q.claim("w", lease_s=10.0)
+    now[0] += 8.0
+    assert q.renew(lease, 10.0) is True
+    now[0] += 8.0                      # 16 s after claim, 8 s after renew: still live
+    assert q.reclaim_expired() == [] and q.stats().leased == 1
+    now[0] += 5.0
+    assert q.reclaim_expired() == [lease.job.job_id]
+    assert q.renew(lease, 10.0) is False
+
+
+def test_C24_close_unfinished(tmp_path):
+    from lunar_reg.distributed.outcome import JobStatus
+    from lunar_reg.distributed.queue import LocalJobQueue
+
+    q = LocalJobQueue(tmp_path / "q.sqlite")
+    for i in range(3):
+        q.put(_job(i))
+    q.claim("w", 60.0)
+    assert q.close_unfinished(JobStatus.WORKER_LOST) == 3
+    s = q.stats()
+    assert (s.pending, s.leased, s.failed) == (0, 0, 3)
+
+
 def test_C24_max_bytes(tmp_path):
     from lunar_reg.distributed.queue import LocalJobQueue
 

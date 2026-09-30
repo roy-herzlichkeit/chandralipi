@@ -78,13 +78,13 @@ sys.path.insert(0, str(REPO / "Phase_3" / "harness" / "tests"))
 
 
 def _plan(tmp):
-    from _h3 import T_TRUE, write_pair
+    from _h3 import REF_WIN, SRC_WIN, T_TRUE, write_pair
     from lunar_reg.distributed.planner import PlanInputs, plan_jobs
 
     write_pair(tmp)
     inputs = PlanInputs(run_id="bench", pair_id="bench", source_path="src.tif",
                         reference_path="ref.tif", reference_georef={},
-                        source_window=(0, 0, 1024, 1024), reference_window=(0, 0, 320, 320),
+                        source_window=SRC_WIN, reference_window=REF_WIN,
                         prior_native=tuple(T_TRUE.ravel()), source_native_gsd_m=0.25,
                         reference_native_gsd_m=1.0)
     return plan_jobs(inputs, tile_px=128)

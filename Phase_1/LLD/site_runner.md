@@ -26,7 +26,8 @@ class SiteConfig:
     coarse_gsd_m: float = 8.0
     coarse_margin_m: float = 4000.0
     coarse_matcher: str = "lightglue"
-    prior_shift_m: tuple[float, float] | None = (556.0, -2888.0)   # MEASURED on the 2024 strip (run_vikram DEFAULT_PRIOR_SHIFT)
+    prior_shift_m: tuple[float, float] | None = (556.0, -2888.0)   # MEASURED on the 2024 OHRC strip (run_vikram DEFAULT_PRIOR_SHIFT)
+    prior_shift_instruments: tuple[str, ...] = ("OHRC",)           # G38: the shift applies only to these instruments
     band_reduction: str = "pca"              # IIRS
     results_root: Path = Path("data/processed/results")
     out_dir: Path = Path("data/processed/vikram/runs/latest")
@@ -34,6 +35,7 @@ class SiteConfig:
     overwrite: bool = False
     dry_run: bool = False
     reference_sun_json: Path | None = Path("data/processed/vikram/reference_sun/reference_sun.json")
+    label_convention_json: Path | None = Path("data/processed/vikram/reference_sun/label_convention.json")
 
 @dataclass
 class ProductRun:
@@ -63,15 +65,15 @@ Test seam: `sites/runner.py` imports `build_catalog`, `georeference_from_label`,
 ## 2. `run_site` flow
 1. `catalog = build_catalog(cfg.raw_root)`; print nothing (the caller prints `report()`); instruments not PRESENT are counted in the report (G24) and skipped.
 2. `reference_geo = georeference_from_label(cfg.reference_label)`; failure → raise `LabelGeoreferenceError` (programmer/data-setup error, not a per-pair outcome).
-3. Reference sun: `json.load(cfg.reference_sun_json)["sun"]` when the file exists, else None.
+3. Reference sun: `json.load(cfg.reference_sun_json)["sun"]` when the file exists, else None. Label convention: `json.load(cfg.label_convention_json)["convention"]` when the file exists, else None; with a convention, each OHRC label azimuth is converted to `north_clockwise` (the four formulas of `Phase_1/LLD/sun_geometry.md` §2 step 4) and marked `ValueSource.COMPUTED` in the note.
 4. For each PRESENT product of each requested instrument whose level is in `cfg.levels` and id contains `cfg.only`:
    a. **Coarse** (when `cfg.coarse` and not `cfg.dry_run`): `prepare_window_pair(..., gsd_m=cfg.coarse_gsd_m, margin_m=cfg.coarse_margin_m)`; `register_pair(..., PipelineConfig(matcher=cfg.coarse_matcher, use_ecc=False, n_bootstrap=0, min_inliers=cfg.min_inliers))`; OK → shift = found window centre − prior window centre, converted to metres east/south; `coarse_note = f"{coarse_gsd_m:g} m/px {matcher}, {n_inliers} inliers, shift {e:+.3f},{s:+.3f} m (E,S)"`; not OK → `coarse_note = f"coarse pass failed ({status})"` (A112: no claim about which prior was used).
-   b. **Prior**: coarse OK → `search_prior = "coarse pass"`; else `cfg.prior_shift_m` not None → `search_prior = f"prior shift {e:g},{s:g} m (E,S)"`; else `"label corners"` (or `"geometry grid"` when the prep used one).
+   b. **Prior**: coarse OK → `search_prior = "coarse pass"`; else `cfg.prior_shift_m` not None **and the product's instrument is in `cfg.prior_shift_instruments`** (G38) → `search_prior = f"prior shift {e:g},{s:g} m (E,S)"`; else `"label corners"` (or `"geometry grid"` when the prep used one).
    c. **Fine prep** at `cfg.gsd_m`, `cfg.margin_m`, the chosen shift, `band_reduction=cfg.band_reduction`. Not OK → recorded in `ProductRun.prep`, no matching.
    d. `cfg.dry_run` → write `out_dir/preview/<tag>_src.png` and `_ref.png` (check `cv2.imwrite` return; False → prep_detail notes it) and continue (A110).
-   e. For each matcher: `register_pair(pair.source, pair.reference, pair_id, PipelineConfig(matcher, model, min_inliers, ransac_threshold_px, gsd_m, preprocess, ecc_prefilter, extra={...}), source_valid=pair.source_valid, reference_valid=pair.reference_valid, source_id, reference_id, source_sensor, reference_sensor, synthetic=False, notes=<run_vikram's note text>)`. `extra` = `pair.geometry_extra()` + `{"site", "level", "window_m", "margin_m", "coarse_pass", "search_prior"}` + sun keys: `source_sun_azimuth/elevation` from `sun_from_label` (A113: OHRC sun as **source** sun), `reference_sun_azimuth/elevation/source` from the reference sun JSON when present. `source_sun`/`reference_sun` arguments are passed **only** when both suns share the same `azimuth_frame` (they do not today: OHRC `label_unverified` vs NAC `grid_up_clockwise`), otherwise None.
+   e. For each matcher: `register_pair(pair.source, pair.reference, pair_id, PipelineConfig(matcher, model, min_inliers, ransac_threshold_px, gsd_m, preprocess, ecc_prefilter, extra={...}), source_valid=pair.source_valid, reference_valid=pair.reference_valid, source_id, reference_id, source_sensor, reference_sensor, synthetic=False, notes=<run_vikram's note text>)`. `extra` = `pair.geometry_extra()` + `{"site", "level", "window_m", "margin_m", "coarse_pass", "search_prior"}` + sun keys: `source_sun_azimuth/elevation` from `sun_from_label` (A113: OHRC sun as **source** sun), `reference_sun_azimuth/elevation/source` from the reference sun JSON when present. `source_sun`/`reference_sun` arguments are passed **only** when both suns share the same `azimuth_frame` (with the SPICE reference sun and a label convention both are `north_clockwise`, so `choose_ecc_prefilter` receives real geometry; without them, None).
    f. OK → `label_offset_m` (as `run_vikram.centre_offset_m`) into extra; registered GeoTIFF when `save_registered` (origin = `reference_geo.x0_m + c0·psx`, `reference_geo.y0_m − r0·psy`, pixel size `gsd_m`, crs `reference_geo.crs_proj4`), path into `extra["registered_geotiff"]`; save immediately with `save_results([r], results_root, overwrite=cfg.overwrite)`; `FileExistsError` → listed as not saved.
-5. After the loop: `save_failures(batch.failures, results_root)`; write `run_record.json` in `out_dir` (C15) with counts per `RunStatus`, per `PrepStatus`, per instrument status; artefacts = saved npz paths + GeoTIFFs + previews.
+5. After the loop: `save_failures(batch.failures, results_root)`; write `run_record.json` in `out_dir` (C15) with counts per `RunStatus`, per `PrepStatus`, one key `instrument_<INSTRUMENT>_<status>` = 1 for every requested instrument (review RC22), per instrument status; artefacts = saved npz paths + GeoTIFFs + previews.
 
 ## 3. `compute_exp1_gate` (C20)
 For each tag in `tags`: load every stored result whose `pair_id` contains the tag (live store); `best` = the OK result with the most `n_inliers` among those with `u_score ≥ 0.7` (else most inliers overall); agreement = `eval.agreement.agreement_for_stored` over that strip's OK results with `pre_ecc_transform`; `passes_targets = best.n_inliers ≥ 20 and best.u_score ≥ 0.7 and agreement.passes`. Tags with no result → `status = "no_result"`, `passes_targets = False`. `decision = "SKIP_1B"` iff every tag passes, else `"BUILD_1B"`. Output keys exactly C20.
