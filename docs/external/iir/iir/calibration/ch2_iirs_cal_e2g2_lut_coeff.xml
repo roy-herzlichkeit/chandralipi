@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><Product_Observational xmlns="http://pds.nasa.gov/pds4/pds/v1" xmlns:disp="http://pds.nasa.gov/pds4/disp/v1" xmlns:pds="http://pds.nasa.gov/pds4/pds/v1" xmlns:sp="http://pds.nasa.gov/pds4/sp/v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pds.nasa.gov/pds4/pds/v1 http://pds.nasa.gov/pds4/pds/v1/PDS4_PDS_1B00.xsd       http://pds.nasa.gov/pds4/disp/v1 http://pds.nasa.gov/pds4/disp/v1/PDS4_DISP_1301.xsd      http://pds.nasa.gov/pds4/sp/v1 http://pds.nasa.gov/pds4/sp/v1/PDS4_SP_1100.xsd">
+    <Identification_Area>
+        <logical_identifier>urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e2g2_lut_coeff</logical_identifier>
+        <version_id>1.0</version_id>
+        <title>IIRS lookup table coefficients file</title>
+        <information_model_version>1.11.0.0</information_model_version>
+        <product_class>Product_Observational</product_class>
+    </Identification_Area>
+    <Observation_Area>
+	 <Time_Coordinates>
+            <start_date_time>2020-12-25T00:00:00.0000Z</start_date_time>
+            <stop_date_time>2020-12-25T00:00:00.0000Z</stop_date_time>
+        </Time_Coordinates>
+	<Investigation_Area>
+            <name>Chandrayaan-2</name>
+            <type>Mission</type>
+            <Internal_Reference>
+                <lidvid_reference>urn:isro:isda:context:investigation:mission.chandrayaan2::1.0</lidvid_reference>
+                <reference_type>data_to_investigation</reference_type>
+            </Internal_Reference>
+        </Investigation_Area>
+        <Observing_System>
+            <Observing_System_Component>
+                <name>Chandrayaan 2 Orbiter</name>
+                <type>Spacecraft</type>
+                <description>
+                    Chandrayaan-2 Orbiter is an Orbiter craft under the Chandrayaan-2 Spacecraft 
+                    consists of various scientific instruments.
+                </description>
+            </Observing_System_Component>
+            <Observing_System_Component>
+                <name>imaging infrared spectrometer</name>
+                <type>Instrument</type>
+                <description>
+	            IIRS (Imaging InfraRed Spectrometer) is one of the scientific instrument hosted 
+                    on the Chandrayaan-2 Orbiter. The instrument is a grating based spectrometer 
+                    covering the spectral region between 0.8 um to 5.0 um.
+                </description>
+            </Observing_System_Component>
+        </Observing_System>
+         <Target_Identification>
+            <name>Moon</name>
+            <type>Satellite</type>
+            <description>Moon is a natural satellite of Earth</description>
+        </Target_Identification>
+     </Observation_Area>
+    <File_Area_Observational>
+        <File>
+            <file_name>ch2_iirs_cal_e2g2_lut_coeff.csv</file_name>
+            <local_identifier>STREAM_DELIMITED_CSV_FILE_ID</local_identifier>
+            <creation_date_time>2020-12-25T16:20:18</creation_date_time>
+            <file_size unit="byte">1760220</file_size>
+            <records>64000</records>
+            <md5_checksum>62a26fbddfebf70c1653d502ca84187a</md5_checksum>
+            <comment>
+		This file contains a lut coefficient with 
+                fields Multiplicative factor, and Offset. 
+		Every 250 number of lines corresponds to each bands
+                As there are 256 bands, hence 250*256 is 64000 number
+                of records. md5_checksum is provided for ensuring data 
+		integrity when users are downloading the data.
+            </comment>
+        </File>
+        <Table_Delimited>
+            <local_identifier>STREAM_CSV_ID</local_identifier>
+            <offset unit="byte">0</offset>
+            <parsing_standard_id>PDS DSV 1</parsing_standard_id>
+            <records>64000</records>
+            <record_delimiter>Carriage-Return Line-Feed</record_delimiter>
+            <field_delimiter>Comma</field_delimiter>
+            <Record_Delimited>
+                <fields>2</fields>
+                <groups>0</groups>
+                <Field_Delimited>
+                    <name>Multiplicative_Factor</name>
+                    <field_number>1</field_number>
+                    <data_type>ASCII_Real</data_type>
+                    <description>Multiplicative_Factor which is to be multiplied to raw image digital count values</description>
+                </Field_Delimited>
+                <Field_Delimited>
+                    <name>Offset</name>
+                    <field_number>2</field_number>
+                    <data_type>ASCII_Real</data_type>
+                    <description>Offset is required to be added to the raw image digital count value multiply with multiplicative factor</description>
+                </Field_Delimited>
+            </Record_Delimited>
+        </Table_Delimited>
+    </File_Area_Observational>
+</Product_Observational>

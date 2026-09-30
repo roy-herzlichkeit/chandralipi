@@ -1,0 +1,12 @@
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_lsb_raw_m_tdi128_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_lsb_raw_m_tdi192_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_lsb_raw_m_tdi256_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_lsb_raw_m_tdi64_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_mid_raw_m_tdi128_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_mid_raw_m_tdi192_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_mid_raw_m_tdi256_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_mid_raw_m_tdi64_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_msb_raw_m_tdi128_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_msb_raw_m_tdi192_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_msb_raw_m_tdi256_gbfile.txt::1.0
+P,urn:isro:isda:ch2_cho.ohr:calibration:ch2ohrc_msb_raw_m_tdi64_gbfile.txt::1.0

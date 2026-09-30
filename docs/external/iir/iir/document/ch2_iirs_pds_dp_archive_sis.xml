@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Product_Document xmlns="http://pds.nasa.gov/pds4/pds/v1" xmlns:disp="http://pds.nasa.gov/pds4/disp/v1" xmlns:pds="http://pds.nasa.gov/pds4/pds/v1" xmlns:sp="http://pds.nasa.gov/pds4/sp/v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pds.nasa.gov/pds4/pds/v1 http://pds.nasa.gov/pds4/pds/v1/PDS4_PDS_1B00.xsd       http://pds.nasa.gov/pds4/disp/v1 http://pds.nasa.gov/pds4/disp/v1/PDS4_DISP_1301.xsd      http://pds.nasa.gov/pds4/sp/v1 http://pds.nasa.gov/pds4/sp/v1/PDS4_SP_1100.xsd">
+
+    <Identification_Area>
+        <logical_identifier>urn:isro:isda:ch2_cho.iir:document:ch2_iirs_pds_dp_archive_sis.pdf</logical_identifier>
+        <version_id>1.0</version_id>
+        <title>Chandrayaan-2 Orbiter Mission Imaging Infrared Spectrometer (IIRS) PDS4 Data Products and Archive Software Interface Specifications</title>
+        <information_model_version>1.11.0.0</information_model_version>
+        <product_class>Product_Document</product_class>
+	<Citation_Information>
+            <author_list>Ajay Kumar Prashar</author_list>
+            <publication_year>2020</publication_year>
+            <description>This document provides the PDS4 Data Products and Archive Software Interface Specifications of IIRS instrument of Chandrayaan-2</description>
+        </Citation_Information>
+        <Modification_History>
+            <Modification_Detail>
+                <modification_date>2020-07-22</modification_date>
+		<version_id>1.0</version_id>
+                <description>Initial creation of PDS4 product label by SAC Optical DP Team for this document</description>
+            </Modification_Detail>
+        </Modification_History>
+    </Identification_Area>
+	<Context_Area>
+        <Investigation_Area>
+            <name>chandrayaan-2</name>
+            <type>Mission</type>
+            <Internal_Reference>
+                <lidvid_reference>urn:isro:isda:context:investigation:mission.chandrayaan2::1.0</lidvid_reference>
+                <reference_type>document_to_investigation</reference_type>
+            </Internal_Reference>
+        </Investigation_Area>
+        <Observing_System>
+            <Observing_System_Component>
+                <name>Chandrayaan 2 Orbiter</name>
+                <type>Spacecraft</type>
+                <description>
+                    Chandrayaan-2 Orbiter is an Orbiter craft under the Chandrayaan-2 Spacecraft 
+                    consists of various scientific instruments.
+                </description>
+            </Observing_System_Component>
+            <Observing_System_Component>
+                <name>imaging infrared spectrometer</name>
+                <type>Instrument</type>
+                <description>
+                     IIRS (Imaging InfraRed Spectrometer) is one of the scientific instrument hosted 
+                     on the Chandrayaan-2 Orbiter. The instrument is a grating based spectrometer 
+                     covering the spectral region between 0.8 um to 5.0 um.
+                </description>
+            </Observing_System_Component>
+        </Observing_System>
+    </Context_Area>
+	<Document>
+    <copyright>Space Applications Centre</copyright>
+    <publication_date>2020-07-22</publication_date>
+    <Document_Edition>
+      <edition_name>PDF version</edition_name>
+      <language>English</language>
+      <files>1</files>
+      <Document_File>
+        <file_name>ch2_iirs_pds_dp_archive_sis.pdf</file_name>
+        <document_standard_id>PDF/A</document_standard_id>
+      </Document_File>
+    </Document_Edition>
+  </Document>
+</Product_Document>

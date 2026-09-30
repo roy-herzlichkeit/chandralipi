@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><Product_Observational xmlns="http://pds.nasa.gov/pds4/pds/v1" xmlns:disp="http://pds.nasa.gov/pds4/disp/v1" xmlns:pds="http://pds.nasa.gov/pds4/pds/v1" xmlns:sp="http://pds.nasa.gov/pds4/sp/v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pds.nasa.gov/pds4/pds/v1 http://pds.nasa.gov/pds4/pds/v1/PDS4_PDS_1B00.xsd       http://pds.nasa.gov/pds4/disp/v1 http://pds.nasa.gov/pds4/disp/v1/PDS4_DISP_1301.xsd      http://pds.nasa.gov/pds4/sp/v1 http://pds.nasa.gov/pds4/sp/v1/PDS4_SP_1100.xsd">
+    <Identification_Area>
+        <logical_identifier>urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e2g2_saturations_radiance.csv</logical_identifier>
+        <version_id>1.0</version_id>
+        <title>IIRS Saturation Radiance file</title>
+        <information_model_version>1.11.0.0</information_model_version>
+        <product_class>Product_Observational</product_class>
+    </Identification_Area>
+    <Observation_Area>
+	 <Time_Coordinates>
+            <start_date_time>2020-12-25T00:00:00.0000Z</start_date_time>
+            <stop_date_time>2020-12-25T00:00:00.0000Z</stop_date_time>
+        </Time_Coordinates>
+	<Investigation_Area>
+            <name>Chandrayaan-2</name>
+            <type>Mission</type>
+            <Internal_Reference>
+                <lidvid_reference>urn:isro:isda:context:investigation:mission.chandrayaan2::1.0</lidvid_reference>
+                <reference_type>data_to_investigation</reference_type>
+            </Internal_Reference>
+        </Investigation_Area>
+        <Observing_System>
+            <Observing_System_Component>
+                <name>Chandrayaan 2 Orbiter</name>
+                <type>Spacecraft</type>
+                <description>
+                    Chandrayaan-2 Orbiter is an Orbiter craft under the Chandrayaan-2 Spacecraft 
+                    consists of various scientific instruments.
+                </description>
+            </Observing_System_Component>
+            <Observing_System_Component>
+                <name>imaging infrared spectrometer</name>
+                <type>Instrument</type>
+                <description>
+	            IIRS (Imaging InfraRed Spectrometer) is one of the scientific instrument hosted 
+                    on the Chandrayaan-2 Orbiter. The instrument is a grating based spectrometer 
+                    covering the spectral region between 0.8 um to 5.0 um.
+                </description>
+            </Observing_System_Component>
+        </Observing_System>
+         <Target_Identification>
+            <name>Moon</name>
+            <type>Satellite</type>
+            <description>Moon is a natural satellite of Earth</description>
+        </Target_Identification>
+     </Observation_Area>
+    <File_Area_Observational>
+        <File>
+            <file_name>ch2_iirs_cal_e2g2_saturations_radiance.csv</file_name>
+            <local_identifier>STREAM_DELIMITED_CSV_FILE_ID</local_identifier>
+            <creation_date_time>2020-12-25T16:20:18</creation_date_time>
+            <file_size unit="byte">5674</file_size>
+            <records>256</records>
+            <md5_checksum>44ffa693ee0f65b1d59b4eddd7528967</md5_checksum>
+            <comment>
+		This file contains a saturation radiance with 
+                fields Band Number, saturation, and dynamic_range. 
+		Every single line corresponds to each bands of records. 
+                md5_checksum is provided for ensuring data integrity 
+                when users are downloading the data.
+            </comment>
+        </File>
+        <Table_Delimited>
+            <local_identifier>STREAM_CSV_ID</local_identifier>
+            <offset unit="byte">0</offset>
+            <parsing_standard_id>PDS DSV 1</parsing_standard_id>
+            <records>256</records>
+            <record_delimiter>Carriage-Return Line-Feed</record_delimiter>
+            <field_delimiter>Comma</field_delimiter>
+            <Record_Delimited>
+                <fields>3</fields>
+                <groups>0</groups>
+                <Field_Delimited>
+                    <name>Band_Index</name>
+                    <field_number>1</field_number>
+                    <data_type>ASCII_Integer</data_type>
+                    <description>Band Index starts from location 0</description>
+                </Field_Delimited>
+                <Field_Delimited>
+                    <name>Saturation</name>
+                    <field_number>2</field_number>
+                    <data_type>ASCII_Real</data_type>
+		    <unit>µW/cm**2/sr/µm</unit>
+                    <description>Saturation Radiance</description>
+                </Field_Delimited>
+		<Field_Delimited>
+                    <name>Dynamic_Range</name>
+                    <field_number>3</field_number>
+                    <data_type>ASCII_Real</data_type>
+		    <unit>count</unit>
+                    <description>Dynamic Range</description>
+                </Field_Delimited>
+            </Record_Delimited>
+        </Table_Delimited>
+    </File_Area_Observational>
+</Product_Observational>

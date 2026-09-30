@@ -1,0 +1,8 @@
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e1g2_lut_coeff.csv::1.0
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e1g2_saturations_radiance.csv::1.0
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e2g2_lut_coeff.csv::1.0
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e2g2_saturations_radiance.csv::1.0
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e3g2_lut_coeff.csv::1.0
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e3g2_saturations_radiance.csv::1.0
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e4g2_lut_coeff.csv::1.0
+P,urn:isro:isda:ch2_cho.iir:calibration:ch2_iirs_cal_e4g2_saturations_radiance.csv::1.0
