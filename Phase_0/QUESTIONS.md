@@ -31,3 +31,9 @@ what I did meanwhile: nothing; check_P0.09 passes as written (exit 0).
 context: CONTRACTS.md C04/C05 (`save_results(..., overwrite=False)`); scripts/run_vikram.py:391, scripts/build_demo_results.py:115 (changed only as LLD §6 lists)
 question: With refuse-to-overwrite as the default, a second run of either script into a store that already holds the same pair ids raises FileExistsError (checked for the whole batch before anything is written, so nothing is half-saved). Should those scripts gain an `--overwrite` flag or write to a fresh root per run? Not in P0.10's DO, so left as is.
 what I did meanwhile: save_results checks every target before writing any (a clash stops the batch cleanly); live store untouched (13 v1 pairs load read-only under the v2 reader).
+
+## Q-P0.12-1  Prompt names `max_occupiable_cells`; LLD §3 / G33 do not define it
+context: Phase_0/prompts/P0.12_eval_correctness.md DO 3; Phase_0/LLD/eval_fixes.md §3; DECISIONS.md G33
+question: DO 3 lists `max_occupiable_cells` but LLD §3 and G33 (revised, RC07) fix coverage = occupied / g_eff² with no such term. Was it meant to survive from the superseded min(n, g²) rule?
+what I did meanwhile: added `UniformityMetrics.max_occupiable_cells` as a read-only property (= min(n_points, total_cells)), not used in coverage/score and not in as_dict; the score follows LLD §3 exactly (20 spread points -> 0.946, quadrant-packed -> 0.336). Removing the property is a one-line revert.
+also noted: with the adaptive grid, coverage is a fraction of g_eff², so thinning can raise `coverage` (300 corner points -> 5 points: 1/64 -> 1/4). tests/test_eval.py::test_enforce_uniformity_cannot_create_coverage now asserts on fixed-8x8 occupied cells instead. Q-P0.08-1 (error_budget ecc_cc None) is fixed in this prompt, since error_budget.py is in P0.12's file list.

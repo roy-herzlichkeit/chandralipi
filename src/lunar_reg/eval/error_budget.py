@@ -22,7 +22,8 @@ Final error is the transform's, not any individual point's, so it is measured as
 the RMS displacement the estimated transform induces against the true one over
 the image grid. Attribution then uses an oracle:
 
-``distribution``  Fit a transform to the inlier source points paired with their
+``distribution``  Fit a transform -- the pipeline's own ``model``, by least
+                  squares -- to the inlier source points paired with their
                   *true* reference positions. Correspondence error is removed,
                   so whatever remains is caused purely by where the points sit
                   -- a matcher that clusters its matches in one corner fits a
@@ -33,12 +34,15 @@ the image grid. Attribution then uses an oracle:
                   over it.
 
 These are not additive in general; RANSAC can suppress correspondence noise, and
-the numbers show whether it did.
+the numbers show whether it did. :attr:`ErrorBudget.shares` treats them as
+independent in quadrature -- ``correspondence = sqrt(fit**2 - distribution**2)``
+-- which is the decomposition :attr:`ErrorBudget.dominant` compares.
 """
 
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -97,8 +101,9 @@ class ErrorBudget:
     stages: list[StageError] = field(default_factory=list)
     failed: str | None = None
 
-    def add(self, stage: str, rmse_px: float | None, n_points: int | None = None,
-            note: str = "") -> None:
+    def add(
+        self, stage: str, rmse_px: float | None, n_points: int | None = None, note: str = ""
+    ) -> None:
         self.stages.append(StageError(stage, rmse_px, n_points, note))
 
     def get(self, stage: str) -> float | None:
@@ -108,24 +113,40 @@ class ErrorBudget:
         return None
 
     @property
-    def dominant(self) -> str | None:
-        """Which stage contributes most, or ``None`` when it is not separable.
+    def shares(self) -> dict[str, float | None]:
+        """The fit error split into its two causes, in pixels.
 
-        Returns ``None`` rather than guessing when the two candidate causes are
-        within 20% of each other -- picking one on a coin-flip margin and then
-        "fixing" it is worse than reporting that the experiment did not resolve
-        it.
+        ``distribution_px`` is the oracle fit (points where they are, true
+        targets); ``correspondence_px = sqrt(fit**2 - distribution**2)`` is what
+        the matcher's localisation error adds on top, assuming the two are
+        independent. ``None`` when either stage is missing.
         """
-        distribution = self.get("transform: distribution only")
-        correspondence = self.get("transform: RANSAC fit")
-        if distribution is None or correspondence is None:
+        dist = self.get("transform: distribution only")
+        fit = self.get("transform: RANSAC fit")
+        if dist is None or fit is None:
+            return {"distribution_px": dist, "correspondence_px": None}
+        return {"distribution_px": dist, "correspondence_px": math.sqrt(max(fit**2 - dist**2, 0.0))}
+
+    @property
+    def dominant(self) -> str | None:
+        """Which cause contributes most, or ``None`` when it is not separable.
+
+        Compares the two :attr:`shares`. Returns ``None`` rather than guessing
+        when the larger is within 25% of the smaller (the not-resolved band) --
+        picking one on a coin-flip margin and then "fixing" it is worse than
+        reporting that the experiment did not resolve it.
+        """
+        dist = self.get("transform: distribution only")
+        fit = self.get("transform: RANSAC fit")
+        if dist is None or fit is None or fit <= 0:
             return None
-        if correspondence <= 0:
+        corr = math.sqrt(max(fit**2 - dist**2, 0.0))
+        if corr == 0 and dist == 0:
             return None
-        share = distribution / correspondence
-        if 0.8 <= share <= 1.25:
+        larger, smaller = max(dist, corr), min(dist, corr)
+        if smaller > 0 and larger / smaller <= 1.25:
             return None
-        return "point distribution" if share > 1.0 else "correspondence error"
+        return "point distribution" if dist > corr else "correspondence error"
 
     def report(self) -> str:
         lines = [f"error budget: {self.matcher} on {self.shape[0]}x{self.shape[1]}"]
@@ -134,11 +155,20 @@ class ErrorBudget:
             return "\n".join(lines)
         lines += [str(s) for s in self.stages]
 
+        shares = self.shares
+
+        def px(value: float | None) -> str:
+            return "n/a" if value is None else f"{value:.3f} px"
+
+        lines.append(
+            f"  shares: distribution {px(shares['distribution_px'])}, "
+            f"correspondence {px(shares['correspondence_px'])} (in quadrature)"
+        )
         dominant = self.dominant
         if dominant is None:
             lines.append(
-                "  dominant stage: NOT RESOLVED -- the distribution-only and full "
-                "fits are within 20% of each other"
+                "  dominant stage: NOT RESOLVED -- distribution and correspondence "
+                "shares are within 25% of each other (or a stage is missing)"
             )
         else:
             lines.append(f"  dominant stage: {dominant}")
@@ -155,8 +185,9 @@ def attribute_error(
     use_ecc: bool = True,
 ) -> ErrorBudget:
     """Run one pair through the pipeline, measuring error at every stage."""
-    from lunar_reg.align.estimate import estimate_transform
+    from lunar_reg.align.estimate import _MIN_POINTS, estimate_transform
     from lunar_reg.align.refine import refine_full
+    from lunar_reg.eval.conditioning import fit_lsq
     from lunar_reg.match.classical import build_classical
 
     budget = ErrorBudget(matcher=matcher_name, shape=source.shape[:2])
@@ -175,14 +206,14 @@ def attribute_error(
     predicted = _apply(truth, result.src_pts)
     raw_errors = np.linalg.norm(predicted - result.dst_pts, axis=1)
     budget.add(
-        "matches: raw (pre-RANSAC)", float(np.sqrt(np.mean(raw_errors**2))), len(result),
+        "matches: raw (pre-RANSAC)",
+        float(np.sqrt(np.mean(raw_errors**2))),
+        len(result),
         f"median {np.median(raw_errors):.2f} px",
     )
 
     try:
-        transform, result = estimate_transform(
-            result, model=model, threshold_px=threshold_px
-        )
+        transform, result = estimate_transform(result, model=model, threshold_px=threshold_px)
     except ValueError as exc:
         budget.failed = f"estimation failed: {exc}"
         return budget
@@ -194,24 +225,23 @@ def attribute_error(
 
     inlier_errors = raw_errors[mask]
     budget.add(
-        "matches: RANSAC inliers", float(np.sqrt(np.mean(inlier_errors**2))),
+        "matches: RANSAC inliers",
+        float(np.sqrt(np.mean(inlier_errors**2))),
         int(mask.sum()),
-        f"ratio {mask.mean():.2f}; RANSAC discarded "
-        f"{100 * (1 - mask.mean()):.0f}% of matches",
+        f"ratio {mask.mean():.2f}; RANSAC discarded {100 * (1 - mask.mean()):.0f}% of matches",
     )
 
     # --- oracle: same points, true targets ---------------------------------
-    # Isolates what the point *distribution* alone costs.
-    import cv2
-
-    src_in = result.src_pts[mask].astype(np.float32)
-    true_dst = _apply(truth, src_in).astype(np.float32)
-    oracle, _ = cv2.findHomography(src_in, true_dst, method=0)
+    # Isolates what the point *distribution* alone costs, fitted with the same
+    # model the pipeline uses so the comparison with the RANSAC fit is fair.
+    src_in = result.src_pts[mask]
+    true_dst = _apply(truth, src_in)
+    oracle = fit_lsq(src_in, true_dst, model) if len(src_in) >= _MIN_POINTS[model] else None
     budget.add(
         "transform: distribution only",
         transform_rms_px(oracle, truth, source.shape[:2]) if oracle is not None else None,
         int(mask.sum()),
-        "oracle correspondences; error here is conditioning, not matching",
+        f"oracle fit: {model} least squares",
     )
 
     budget.add(
@@ -223,18 +253,23 @@ def attribute_error(
 
     # --- refinement --------------------------------------------------------
     refined, result, detail = refine_full(
-        result, source=source, reference=reference, model=model,
-        threshold_px=threshold_px, use_ecc=use_ecc,
+        result,
+        source=source,
+        reference=reference,
+        model=model,
+        threshold_px=threshold_px,
+        use_ecc=use_ecc,
     )
     note = "+".join(detail.get("stages", [])) or "no stage ran"
-    if "ecc_cc" in detail:
+    if detail.get("ecc_cc") is not None:
         note += f", cc={detail['ecc_cc']:.3f}"
-    if "ecc_skipped" in detail:
-        note += f", ecc skipped ({detail['ecc_skipped']})"
+    elif detail.get("ecc_status"):
+        note += f", ecc {detail['ecc_status']}"
     budget.add(
         "transform: after refinement",
         transform_rms_px(refined.matrix, truth, source.shape[:2]),
-        refined.n_inliers, note,
+        refined.n_inliers,
+        note,
     )
     return budget
 
@@ -258,7 +293,12 @@ def preprocessing_sweep(
     an unchanged ``truth`` would silently measure the resampling instead of the
     matcher.
     """
-    from lunar_reg.preprocess.radiometric import apply_clahe, match_histogram, normalize_intensity
+    from lunar_reg.preprocess.radiometric import (
+        apply_clahe,
+        match_histogram,
+        normalize_intensity,
+        to_uint8,
+    )
     from lunar_reg.preprocess.shadow import normalize_shadows
 
     def _identity(image, _other):
@@ -268,11 +308,11 @@ def preprocessing_sweep(
         return apply_clahe(image)
 
     def _normalize(image, _other):
-        return (normalize_intensity(image) * 255).astype(np.uint8)
+        # normalize_intensity is zero-mean/unit-variance: stretch it, never * 255.
+        return to_uint8(normalize_intensity(image))
 
     def _shadow(image, _other):
-        out = normalize_shadows(image, method="gamma")
-        return out if out.dtype == np.uint8 else (np.clip(out, 0, 1) * 255).astype(np.uint8)
+        return to_uint8(normalize_shadows(image))
 
     def _hist(image, other):
         return match_histogram(image, other)

@@ -55,11 +55,12 @@ of the rest gives ``C = 1.0``, which looks perfect. ``H = 0.03`` catches it.
 which is unalarming, while ``C = 0.06`` is emphatic. The two respond sharply to
 different failures, which is why the score multiplies them.
 
-*Both grid metrics are blind to arrangement inside a cell.* Measured here: 512
-points arranged as 64 tight blobs, one per cell, score ``C = 1.00``, ``H = 1.00``,
-``U = 1.00`` -- indistinguishable from an ideal spread -- while Clark-Evans gives
-``R = 0.101``, correctly reporting severe clustering. ``R`` is the check the grid
-cannot perform, so it is reported alongside rather than folded into ``U``.
+*Both grid metrics are blind to arrangement inside a cell.* 512 points arranged
+as 64 tight blobs, one per cell, score ``C = 1.00``, ``H = 1.00``, ``U = 1.00``
+-- indistinguishable from an ideal spread -- while Clark-Evans correctly reports
+severe clustering (see tests/test_eval.py for the measured values). ``R`` is the
+check the grid cannot perform, so it is reported alongside rather than folded
+into ``U``.
 
 ``R`` is deliberately **not** gated on. Real detectors always clump at fine scale
 -- inlier sets from SIFT/ASIFT/AKAZE/RIFT2 measured 0.63/0.29/0.32/0.24 here,
@@ -78,6 +79,14 @@ The point of the metric is transform conditioning, so the cell count should
 comfortably exceed the parameter count being constrained; much finer and
 per-cell counts become sampling noise rather than signal.
 
+Small point sets (DECISIONS G33): with ``n`` in-frame points the grid shrinks to
+``g_eff = min(g, max(2, floor(sqrt(n))))``, and coverage and entropy are
+normalised by ``g_eff**2``. Twenty points cannot occupy 64 cells, so a fixed
+8x8 grid would fail every small set however well spread; the adaptive grid
+keeps the gate reachable for a spread set while a set packed into one quadrant
+still scores low. :attr:`UniformityMetrics.grid` records the ``g_eff`` used.
+Points outside the frame are not binned; they are counted in ``n_out_of_frame``.
+
 Validation
 ----------
 ``U`` ranks the six layouts above in the same order as their worst-case error,
@@ -86,9 +95,12 @@ Spearman ``-0.83``. That is the evidence for using it as a gate.
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass
 
 import numpy as np
+
+from lunar_reg.provenance import ValueSource
 
 #: Default grid resolution. See "Choice of default grid" above.
 DEFAULT_GRID = 8
@@ -100,11 +112,13 @@ PROFILE_GRIDS = (4, 8, 16)
 #: sub-pixel claim. Calibrated against the benchmark: the layouts scoring under
 #: it had worst-case errors of 0.77 px and up, versus 0.14 px for those above.
 UNIFORMITY_GATE = 0.7
+UNIFORMITY_GATE_SOURCE = ValueSource.INFERRED
 
 #: Clark-Evans value below which fine-scale clumping is worth a second look.
 #: This is a **diagnostic, not a gate** -- see :attr:`UniformityMetrics.is_clustered`.
 #: Real detector output routinely sits below it, so failing it is not a defect.
 CLUSTERED_R = 0.25
+CLUSTERED_R_SOURCE = ValueSource.INFERRED
 
 
 @dataclass
@@ -115,10 +129,22 @@ class UniformityMetrics:
     entropy: float
     cv: float
     clark_evans: float
+    #: Grid side actually used (``g_eff``, G33), not the requested one.
     grid: int
+    #: In-frame points that were binned.
     n_points: int
     occupied_cells: int
     total_cells: int
+    #: Points outside the frame, excluded from binning.
+    n_out_of_frame: int = 0
+
+    @property
+    def max_occupiable_cells(self) -> int:
+        """Most cells ``n_points`` could occupy: ``min(n_points, total_cells)``.
+
+        Informational only; coverage is normalised by ``total_cells`` (G33).
+        """
+        return min(self.n_points, self.total_cells)
 
     @property
     def score(self) -> float:
@@ -144,7 +170,7 @@ class UniformityMetrics:
         investigation is a high :attr:`score` with a low ``R``: the grid claims an
         excellent spread while the nearest-neighbour statistic says the points
         are tightly clumped inside their cells. That is the 64-tight-blobs case
-        (``score`` 1.00, ``R`` 0.20), which the grid metrics genuinely cannot see.
+        (``score`` 1.00 with a low ``R``), which the grid metrics genuinely cannot see.
         """
         return bool(np.isfinite(self.clark_evans)) and self.clark_evans < CLUSTERED_R
 
@@ -177,6 +203,7 @@ class UniformityMetrics:
             "is_clustered": self.is_clustered,
             "grid_contradicted_by_neighbours": self.grid_contradicted_by_neighbours,
             "passes_gate": self.passes_gate,
+            "gate_source": UNIFORMITY_GATE_SOURCE.value,
         }
 
     def __str__(self) -> str:
@@ -189,16 +216,34 @@ class UniformityMetrics:
         )
 
 
-def cell_counts(pts: np.ndarray, shape: tuple[int, int], grid: int = DEFAULT_GRID) -> np.ndarray:
-    """Histogram ``(N, 2)`` ``(x, y)`` points into a ``grid x grid`` cell grid."""
+def _bin(
+    pts: np.ndarray, shape: tuple[int, int], grid: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """``(row, col, in_frame)`` cell indices for ``(N, 2)`` ``(x, y)`` points.
+
+    ``in_frame`` is ``0 <= x < w and 0 <= y < h``; ``row``/``col`` are only
+    meaningful where it is True.
+    """
     h, w = shape
     pts = np.asarray(pts, dtype=np.float64).reshape(-1, 2)
+    x, y = pts[:, 0], pts[:, 1]
+    in_frame = (x >= 0) & (y >= 0) & (x < w) & (y < h)
+    col = np.clip((x / max(w, 1) * grid).astype(int), 0, grid - 1)
+    row = np.clip((y / max(h, 1) * grid).astype(int), 0, grid - 1)
+    return row, col, in_frame
+
+
+def cell_counts(pts: np.ndarray, shape: tuple[int, int], grid: int = DEFAULT_GRID) -> np.ndarray:
+    """Histogram ``(N, 2)`` ``(x, y)`` points into a ``grid x grid`` cell grid.
+
+    Points outside the frame are dropped, not clipped into border cells.
+    """
     counts = np.zeros((grid, grid), dtype=np.int64)
+    pts = np.asarray(pts, dtype=np.float64).reshape(-1, 2)
     if len(pts) == 0:
         return counts
-    col = np.clip((pts[:, 0] / max(w, 1) * grid).astype(int), 0, grid - 1)
-    row = np.clip((pts[:, 1] / max(h, 1) * grid).astype(int), 0, grid - 1)
-    np.add.at(counts, (row, col), 1)
+    row, col, in_frame = _bin(pts, shape, grid)
+    np.add.at(counts, (row[in_frame], col[in_frame]), 1)
     return counts
 
 
@@ -230,16 +275,34 @@ def clark_evans_index(pts: np.ndarray, shape: tuple[int, int]) -> float:
 def compute_uniformity(
     pts: np.ndarray, shape: tuple[int, int], grid: int = DEFAULT_GRID
 ) -> UniformityMetrics:
-    """Measure how evenly ``pts`` cover an image of the given ``shape``."""
-    counts = cell_counts(pts, shape, grid)
-    total = int(counts.sum())
+    """Measure how evenly ``pts`` cover an image of the given ``shape``.
+
+    Bins on the adaptive grid ``g_eff = min(grid, max(2, floor(sqrt(n))))`` for
+    ``n`` in-frame points (G33); out-of-frame points are counted, not binned.
+    """
+    pts = np.asarray(pts, dtype=np.float64).reshape(-1, 2)
+    _, _, in_frame = _bin(pts, shape, grid)
+    n_in = int(in_frame.sum())
+    g_eff = min(grid, max(2, math.isqrt(n_in)))
+    return _uniformity_on_grid(pts, shape, g_eff)
+
+
+def _uniformity_on_grid(pts: np.ndarray, shape: tuple[int, int], grid: int) -> UniformityMetrics:
+    """Uniformity on exactly ``grid x grid`` cells (no adaptation)."""
+    pts = np.asarray(pts, dtype=np.float64).reshape(-1, 2)
+    _, _, in_frame = _bin(pts, shape, grid)
+    inside = pts[in_frame]
+    n_out = int(len(pts) - len(inside))
+    n_in = len(inside)
     n_cells = grid * grid
+    if n_in == 0:
+        return UniformityMetrics(
+            0.0, 0.0, float("inf"), float("nan"), grid, 0, 0, n_cells, n_out_of_frame=n_out
+        )
+
+    counts = cell_counts(inside, shape, grid)
     occupied = int((counts > 0).sum())
-
-    if total == 0:
-        return UniformityMetrics(0.0, 0.0, float("inf"), float("nan"), grid, 0, 0, n_cells)
-
-    p = counts.ravel() / total
+    p = counts.ravel() / n_in
     nonzero = p[p > 0]
     entropy = float(-(nonzero * np.log(nonzero)).sum() / np.log(n_cells)) if n_cells > 1 else 1.0
     mean = counts.mean()
@@ -249,11 +312,12 @@ def compute_uniformity(
         coverage=occupied / n_cells,
         entropy=entropy,
         cv=cv,
-        clark_evans=clark_evans_index(pts, shape),
+        clark_evans=clark_evans_index(inside, shape),
         grid=grid,
-        n_points=total,
+        n_points=n_in,
         occupied_cells=occupied,
         total_cells=n_cells,
+        n_out_of_frame=n_out,
     )
 
 
@@ -263,9 +327,10 @@ def uniformity_profile(
     """Uniformity at several grid scales.
 
     A set even at 4x4 may be clustered at 16x16. Reporting one grid size hides
-    that; the profile makes the scale dependence visible.
+    that; the profile makes the scale dependence visible. A diagnostic, not the
+    gate, so it keeps these fixed grids rather than the adaptive one (G33).
     """
-    return {g: compute_uniformity(pts, shape, g) for g in grids}
+    return {g: _uniformity_on_grid(pts, shape, g) for g in grids}
 
 
 def enforce_uniformity(
@@ -287,9 +352,7 @@ def enforce_uniformity(
     if len(pts) == 0:
         return np.empty(0, dtype=int)
 
-    h, w = shape
-    col = np.clip((pts[:, 0] / max(w, 1) * grid).astype(int), 0, grid - 1)
-    row = np.clip((pts[:, 1] / max(h, 1) * grid).astype(int), 0, grid - 1)
+    row, col, _ = _bin(pts, shape, grid)
     cell = row * grid + col
 
     keep: list[int] = []

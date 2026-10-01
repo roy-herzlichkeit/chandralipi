@@ -43,8 +43,9 @@ sub-pixel requirement is already written in.
 
 The method
 ----------
-Resample the correspondences with replacement, refit the transform, and see how
-far the predictions wander across the image. Where the points constrain the
+Resample the correspondences with replacement, refit the transform by least
+squares (all three models; see :func:`fit_lsq`), and see how far the
+predictions wander across the image. Where the points constrain the
 model, every refit agrees; where they do not, the refits fan out. That fan is
 the extrapolation uncertainty, and it is exactly what a clustered set hides.
 
@@ -68,6 +69,9 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 
+from lunar_reg.align.estimate import _MIN_POINTS
+from lunar_reg.provenance import ValueSource
+
 logger = logging.getLogger(__name__)
 
 #: Bootstrap resamples. 40 is enough for a p95 to be stable to a few percent
@@ -84,6 +88,8 @@ DEFAULT_PROBE_GRID = 24
 #: chosen: in the table above it admits every layout whose true worst-case error
 #: is under 0.51 px and rejects every layout at 1.87 px and above.
 EXTRAPOLATION_GATE_PX = 1.0
+#: Calibrated on synthetic layouts only (the table above), never on real pairs.
+EXTRAPOLATION_GATE_SOURCE = ValueSource.INFERRED
 
 
 def _apply(matrix: np.ndarray, pts: np.ndarray) -> np.ndarray:
@@ -114,6 +120,8 @@ class ConditioningMetrics:
     n_bootstrap: int
     n_failed_refits: int
     model: str
+    #: How each bootstrap refit is estimated; "lsq" = plain least squares.
+    estimator: str = "lsq"
 
     @property
     def passes_gate(self) -> bool:
@@ -121,7 +129,11 @@ class ConditioningMetrics:
         return bool(np.isfinite(self.p95_px) and self.p95_px <= EXTRAPOLATION_GATE_PX)
 
     def as_dict(self) -> dict:
-        return {**asdict(self), "passes_gate": self.passes_gate}
+        return {
+            **asdict(self),
+            "passes_gate": self.passes_gate,
+            "gate_source": EXTRAPOLATION_GATE_SOURCE.value,
+        }
 
     def __str__(self) -> str:
         verdict = "ok" if self.passes_gate else "UNDER-CONSTRAINED"
@@ -131,6 +143,96 @@ class ConditioningMetrics:
             f"(median {self.median_px:.3f}, max {self.max_px:.3f}) "
             f"n={self.n_points} -> {verdict}{failed}"
         )
+
+
+def fit_lsq(src: np.ndarray, dst: np.ndarray, model: str) -> np.ndarray | None:
+    """Plain least-squares fit of ``model`` to every point; ``None`` when degenerate.
+
+    homography: ``cv2.findHomography(method=0)`` (3x3); affine: ``lstsq`` on
+    ``[x y 1]`` for x' and y' (2x3); partial_affine: ``lstsq`` on the 4-parameter
+    similarity system ``[x -y 1 0; y x 0 1]`` (2x3). A rank-deficient system, a
+    ``cv2.error``/``LinAlgError`` or a non-finite result is a failed fit.
+    """
+    import cv2
+
+    src = np.asarray(src, dtype=np.float64).reshape(-1, 2)
+    dst = np.asarray(dst, dtype=np.float64).reshape(-1, 2)
+    if len(src) < _MIN_POINTS[model]:
+        return None
+    try:
+        if model == "homography":
+            matrix, _ = cv2.findHomography(src, dst, method=0)
+            if matrix is None:
+                return None
+        elif model == "affine":
+            design = np.column_stack([src, np.ones(len(src))])
+            coeffs, _, rank, _ = np.linalg.lstsq(design, dst, rcond=None)
+            if rank < 3:
+                return None
+            matrix = coeffs.T  # (2, 3)
+        elif model == "partial_affine":
+            x, y = src[:, 0], src[:, 1]
+            one, zero = np.ones(len(src)), np.zeros(len(src))
+            design = np.vstack(
+                [
+                    np.column_stack([x, -y, one, zero]),
+                    np.column_stack([y, x, zero, one]),
+                ]
+            )
+            target = np.concatenate([dst[:, 0], dst[:, 1]])
+            (a, b, tx, ty), _, rank, _ = np.linalg.lstsq(design, target, rcond=None)
+            if rank < 4:
+                return None
+            matrix = np.array([[a, -b, tx], [b, a, ty]])
+        else:
+            raise ValueError(f"unknown model {model!r}")
+    except (cv2.error, np.linalg.LinAlgError):
+        return None
+    matrix = np.asarray(matrix, dtype=np.float64)
+    return matrix if np.all(np.isfinite(matrix)) else None
+
+
+def _bootstrap_predictions(
+    src_pts: np.ndarray,
+    dst_pts: np.ndarray,
+    probes: np.ndarray,
+    model: str,
+    n_bootstrap: int,
+    seed: int,
+) -> tuple[np.ndarray, int]:
+    """(n_ok, n_probes, 2) predictions and the number of failed refits.
+
+    The one bootstrap core behind :func:`bootstrap_conditioning` and
+    :func:`conditioning_map`, so the headline and the map are the same numbers.
+    """
+    src = np.asarray(src_pts, dtype=np.float64).reshape(-1, 2)
+    dst = np.asarray(dst_pts, dtype=np.float64).reshape(-1, 2)
+    rng = np.random.default_rng(seed)
+    predictions, n_failed = [], 0
+    for _ in range(n_bootstrap):
+        idx = rng.integers(0, len(src), len(src))
+        matrix = fit_lsq(src[idx], dst[idx], model)
+        if matrix is None:
+            n_failed += 1
+            continue
+        mapped = _apply(matrix, probes)
+        if not np.all(np.isfinite(mapped)):
+            n_failed += 1
+            continue
+        predictions.append(mapped)
+    if not predictions:
+        return np.empty((0, len(probes), 2)), n_failed
+    return np.stack(predictions), n_failed
+
+
+#: Fewer successful refits than this and the spread is not measured.
+_MIN_SUCCESSFUL_REFITS = 5
+
+
+def _deviation(stacked: np.ndarray) -> np.ndarray:
+    """``(B, P)`` distance of every refit's prediction from the mean prediction."""
+    centre = stacked.mean(axis=0)
+    return np.linalg.norm(stacked - centre, axis=2)
 
 
 def bootstrap_conditioning(
@@ -151,74 +253,70 @@ def bootstrap_conditioning(
     reported rather than dropped, because a set that produces many of them is
     itself badly conditioned and the count is the evidence for that.
     """
-    import cv2
-
     src = np.asarray(src_pts, dtype=np.float64).reshape(-1, 2)
     dst = np.asarray(dst_pts, dtype=np.float64).reshape(-1, 2)
     if len(src) != len(dst):
         raise ValueError(f"src has {len(src)} points but dst has {len(dst)}")
 
-    minimum = {"homography": 4, "affine": 3, "partial_affine": 2}[model]
+    if len(src) < _MIN_POINTS[model]:
+        return ConditioningMetrics(float("inf"), float("inf"), float("inf"), len(src), 0, 0, model)
+
     probes = probe_grid(shape, probe_n)
+    stacked, n_failed = _bootstrap_predictions(src, dst, probes, model, n_bootstrap, seed)
 
-    if len(src) < minimum:
-        return ConditioningMetrics(
-            float("inf"), float("inf"), float("inf"), len(src), 0, 0, model
-        )
-
-    rng = np.random.default_rng(seed)
-    predictions, n_failed = [], 0
-    for _ in range(n_bootstrap):
-        idx = rng.integers(0, len(src), len(src))
-        sample_src = src[idx].astype(np.float32)
-        sample_dst = dst[idx].astype(np.float32)
-        try:
-            if model == "homography":
-                matrix, _ = cv2.findHomography(sample_src, sample_dst, method=0)
-            elif model == "affine":
-                matrix, _ = cv2.estimateAffine2D(sample_src, sample_dst, method=cv2.LMEDS)
-            else:
-                matrix, _ = cv2.estimateAffinePartial2D(
-                    sample_src, sample_dst, method=cv2.LMEDS
-                )
-        except cv2.error:
-            matrix = None
-        if matrix is None:
-            n_failed += 1
-            continue
-        mapped = _apply(matrix, probes)
-        if not np.all(np.isfinite(mapped)):
-            n_failed += 1
-            continue
-        predictions.append(mapped)
-
-    if len(predictions) < 5:
+    if len(stacked) < _MIN_SUCCESSFUL_REFITS:
         logger.warning(
             "conditioning: only %d of %d refits succeeded on %d point(s); the set is "
             "too degenerate to measure",
-            len(predictions), n_bootstrap, len(src),
+            len(stacked),
+            n_bootstrap,
+            len(src),
         )
         return ConditioningMetrics(
-            float("inf"), float("inf"), float("inf"), len(src),
-            len(predictions), n_failed, model,
+            float("inf"),
+            float("inf"),
+            float("inf"),
+            len(src),
+            len(stacked),
+            n_failed,
+            model,
         )
 
-    stacked = np.stack(predictions)                       # (B, P, 2)
-    centre = stacked.mean(axis=0)                         # (P, 2)
-    deviation = np.linalg.norm(stacked - centre, axis=2)  # (B, P)
     # Per resample, how far off is the worst probe? The distribution of that is
     # the extrapolation risk; its p95 is the headline.
-    worst_per_sample = deviation.max(axis=1)
+    worst_per_sample = _deviation(stacked).max(axis=1)
 
     return ConditioningMetrics(
         median_px=float(np.median(worst_per_sample)),
         p95_px=float(np.percentile(worst_per_sample, 95)),
         max_px=float(worst_per_sample.max()),
         n_points=len(src),
-        n_bootstrap=len(predictions),
+        n_bootstrap=len(stacked),
         n_failed_refits=n_failed,
         model=model,
     )
+
+
+def conditioning_map_with_failures(
+    src_pts: np.ndarray,
+    dst_pts: np.ndarray,
+    shape: tuple[int, int],
+    model: str = "homography",
+    n_bootstrap: int = DEFAULT_N_BOOTSTRAP,
+    probe_n: int = DEFAULT_PROBE_GRID,
+    seed: int = 0,
+) -> tuple[np.ndarray, int]:
+    """:func:`conditioning_map` plus the number of failed bootstrap refits."""
+    src = np.asarray(src_pts, dtype=np.float64).reshape(-1, 2)
+    dst = np.asarray(dst_pts, dtype=np.float64).reshape(-1, 2)
+    probes = probe_grid(shape, probe_n)
+    if len(src) < _MIN_POINTS[model]:
+        return np.full((probe_n, probe_n), np.inf), 0
+    stacked, n_failed = _bootstrap_predictions(src, dst, probes, model, n_bootstrap, seed)
+    if len(stacked) < _MIN_SUCCESSFUL_REFITS:
+        return np.full((probe_n, probe_n), np.inf), n_failed
+    # Max over refits per probe: the same statistic as the headline, kept spatial.
+    return _deviation(stacked).max(axis=0).reshape(probe_n, probe_n), n_failed
 
 
 def conditioning_map(
@@ -232,46 +330,31 @@ def conditioning_map(
 ) -> np.ndarray:
     """Per-probe uncertainty as a ``(probe_n, probe_n)`` image, in pixels.
 
-    Same computation as :func:`bootstrap_conditioning` but kept spatial, so a
-    dashboard can show *where* the registration is untrustworthy rather than
-    only that it is. Regions far from any correspondence light up.
+    Same bootstrap as :func:`bootstrap_conditioning` (same seed and probe grid
+    give the same refits), kept spatial so a dashboard can show *where* the
+    registration is untrustworthy rather than only that it is. Each cell is the
+    largest deviation of any refit at that probe, so the map's maximum equals the
+    headline ``max_px``. Regions far from any correspondence light up.
     """
-    import cv2
-
-    src = np.asarray(src_pts, dtype=np.float64).reshape(-1, 2)
-    dst = np.asarray(dst_pts, dtype=np.float64).reshape(-1, 2)
-    probes = probe_grid(shape, probe_n)
-    rng = np.random.default_rng(seed)
-
-    predictions = []
-    for _ in range(n_bootstrap):
-        idx = rng.integers(0, len(src), len(src))
-        matrix, _ = cv2.findHomography(
-            src[idx].astype(np.float32), dst[idx].astype(np.float32), method=0
-        ) if model == "homography" else cv2.estimateAffine2D(
-            src[idx].astype(np.float32), dst[idx].astype(np.float32), method=cv2.LMEDS
+    cmap, n_failed = conditioning_map_with_failures(
+        src_pts, dst_pts, shape, model, n_bootstrap, probe_n, seed
+    )
+    if n_failed:
+        logger.warning(
+            "conditioning map: %d of %d bootstrap refit(s) failed", n_failed, n_bootstrap
         )
-        if matrix is None:
-            continue
-        mapped = _apply(matrix, probes)
-        if np.all(np.isfinite(mapped)):
-            predictions.append(mapped)
-
-    if len(predictions) < 5:
-        return np.full((probe_n, probe_n), np.inf)
-
-    stacked = np.stack(predictions)
-    centre = stacked.mean(axis=0)
-    spread = np.linalg.norm(stacked - centre, axis=2).mean(axis=0)
-    return spread.reshape(probe_n, probe_n)
+    return cmap
 
 
 __all__ = [
     "DEFAULT_N_BOOTSTRAP",
     "DEFAULT_PROBE_GRID",
     "EXTRAPOLATION_GATE_PX",
+    "EXTRAPOLATION_GATE_SOURCE",
     "ConditioningMetrics",
     "bootstrap_conditioning",
     "conditioning_map",
+    "conditioning_map_with_failures",
+    "fit_lsq",
     "probe_grid",
 ]

@@ -7,7 +7,7 @@ import pytest
 
 from lunar_reg.align.estimate import Transform
 from lunar_reg.eval.metrics import compute_metrics, rmse
-from lunar_reg.eval.uniformity import compute_uniformity, enforce_uniformity
+from lunar_reg.eval.uniformity import cell_counts, compute_uniformity, enforce_uniformity
 from lunar_reg.match.base import MatchResult
 
 IDENTITY = np.eye(3)
@@ -113,8 +113,12 @@ def test_enforce_uniformity_caps_dense_cells():
 
 
 def test_enforce_uniformity_cannot_create_coverage():
-    """A documented limitation -- thinning never fills an empty cell."""
+    """A documented limitation -- thinning never fills an empty cell.
+
+    Counted as occupied cells on the fixed 8x8 grid: ``coverage`` itself is a
+    fraction of the adaptive grid (G33), which shrinks as thinning removes points.
+    """
     pts = np.random.default_rng(0).uniform(0, 100, (300, 2))
-    before = compute_uniformity(pts, (1000, 1000), grid=8).coverage
+    before = int((cell_counts(pts, (1000, 1000), 8) > 0).sum())
     keep = enforce_uniformity(pts, (1000, 1000), grid=8, max_per_cell=5)
-    assert compute_uniformity(pts[keep], (1000, 1000), grid=8).coverage <= before
+    assert int((cell_counts(pts[keep], (1000, 1000), 8) > 0).sum()) <= before
