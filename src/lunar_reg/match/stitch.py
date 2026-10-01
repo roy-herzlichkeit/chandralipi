@@ -24,7 +24,9 @@ Which duplicate survives
 ------------------------
 The copy from the tile where the feature sat **furthest from the tile edge**.
 That copy had the most complete descriptor support and the least truncated
-receptive field, so it is the better measurement. Score breaks ties.
+receptive field, so it is the better measurement. Equal priorities keep the
+copy with the highest original index; when no priority is passed, the match
+score is the priority (zeros when there are no scores).
 """
 
 from __future__ import annotations
@@ -79,12 +81,14 @@ def edge_distance(points: np.ndarray, tile_height: int, tile_width: int) -> np.n
     points = np.asarray(points, dtype=np.float64).reshape(-1, 2)
     if len(points) == 0:
         return np.empty(0)
-    return np.minimum.reduce([
-        points[:, 0],
-        points[:, 1],
-        tile_width - 1 - points[:, 0],
-        tile_height - 1 - points[:, 1],
-    ])
+    return np.minimum.reduce(
+        [
+            points[:, 0],
+            points[:, 1],
+            tile_width - 1 - points[:, 0],
+            tile_height - 1 - points[:, 1],
+        ]
+    )
 
 
 def deduplicate(
@@ -178,8 +182,7 @@ def stitch_tiles(
     if priorities is not None:
         chosen = [priorities[i] for i, _ in non_empty]
         aligned = all(
-            p is not None and len(p) == len(r)
-            for p, (_, r) in zip(chosen, non_empty, strict=True)
+            p is not None and len(p) == len(r) for p, (_, r) in zip(chosen, non_empty, strict=True)
         )
         if aligned:
             priority = np.concatenate(chosen)

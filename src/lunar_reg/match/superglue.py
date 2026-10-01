@@ -27,7 +27,7 @@ straightforward licence breach.
 
 The Apache-2.0 route
 --------------------
-:class:`LightGlueMatcher` is the recommended default. LightGlue is by
+:class:`lunar_reg.match.learned.LightGlueMatcher` is the recommended default. LightGlue is by
 substantially the same authors as SuperGlue, is its acknowledged successor, is
 faster and more accurate on published benchmarks, and both ``cvg/LightGlue`` and
 the kornia packaging are Apache-2.0. It fills the same role in the pipeline with
@@ -73,86 +73,6 @@ You must also install the weights yourself; this project does not vendor them,
 because redistribution is exactly what the licence forbids."""
 
 
-class LightGlueMatcher:
-    """Sparse DISK + LightGlue matching. Apache-2.0, and the default choice.
-
-    Memory scales with keypoint count rather than image area, so this tolerates
-    far larger tiles than LoFTR at the same budget. Correspondences are sparser
-    and concentrate on textured structure, which on smooth mare can leave gaps
-    that the uniformity metric will flag.
-    """
-
-    def __init__(
-        self,
-        device: str | None = None,
-        max_keypoints: int | None = None,
-        features: str = "disk",
-    ) -> None:
-        self.device = device or get_device()
-        self.max_keypoints = max_keypoints or plan_keypoint_budget(self.device)
-        self.features = features
-        self.name = f"lightglue/{features}"
-        self._extractor = None
-        self._matcher = None
-
-    def _get_models(self):
-        if self._extractor is None:
-            import kornia.feature as KF
-
-            logger.info("loading DISK + LightGlue onto %s", self.device)
-            self._extractor = KF.DISK.from_pretrained("depth").to(self.device).eval()
-            self._matcher = KF.LightGlue(self.features).to(self.device).eval()
-        return self._extractor, self._matcher
-
-    def match(self, source: np.ndarray, reference: np.ndarray) -> MatchResult:
-        import torch
-
-        from lunar_reg.match.loftr import to_tensor
-
-        extractor, matcher = self._get_models()
-        autocast = (
-            torch.autocast("cuda", dtype=torch.float16)
-            if self.device == "cuda"
-            else torch.autocast("cpu", enabled=False)
-        )
-
-        with torch.inference_mode(), autocast:
-            # DISK expects 3-channel input; repeat the single band.
-            t0 = to_tensor(source, self.device).repeat(1, 3, 1, 1)
-            t1 = to_tensor(reference, self.device).repeat(1, 3, 1, 1)
-            f0 = extractor(t0, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
-            f1 = extractor(t1, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
-
-            size0 = torch.tensor(source.shape[:2][::-1], device=self.device)[None]
-            size1 = torch.tensor(reference.shape[:2][::-1], device=self.device)[None]
-            output = matcher({
-                "image0": {"keypoints": f0.keypoints[None],
-                           "descriptors": f0.descriptors[None], "image_size": size0},
-                "image1": {"keypoints": f1.keypoints[None],
-                           "descriptors": f1.descriptors[None], "image_size": size1},
-            })
-            indices = output["matches"][0].cpu().numpy()
-            src = f0.keypoints.float().cpu().numpy()
-            dst = f1.keypoints.float().cpu().numpy()
-
-        if self.device == "cuda":
-            torch.cuda.empty_cache()
-
-        if indices.size == 0:
-            return MatchResult.empty(self.name)
-        return MatchResult(
-            src_pts=src[indices[:, 0]],
-            dst_pts=dst[indices[:, 1]],
-            matcher=self.name,
-            meta={
-                "detector": "lightglue",
-                "max_keypoints": self.max_keypoints,
-                "device": self.device,
-                "licence": "Apache-2.0",
-            },
-        )
-
-
 class SuperGlueMatcher:
     """SuperPoint + SuperGlue. **Licence-gated; not for anything distributed.**
 
@@ -160,8 +80,9 @@ class SuperGlueMatcher:
     never vendors the weights -- the licence forbids redistribution, so the
     weights must be obtained separately and pointed at with ``weights_dir``.
 
-    Prefer :class:`LightGlueMatcher` unless you specifically need a SuperGlue row
-    for a local research comparison against the Makharia et al. benchmark.
+    Prefer :class:`lunar_reg.match.learned.LightGlueMatcher` unless you
+    specifically need a SuperGlue row for a local research comparison against
+    the Makharia et al. benchmark.
     """
 
     def __init__(
@@ -237,14 +158,16 @@ class SuperGlueMatcher:
     def match(self, source: np.ndarray, reference: np.ndarray) -> MatchResult:
         import torch
 
-        from lunar_reg.match.loftr import to_tensor
+        from lunar_reg.match.learned import _to_tensor
 
         model = self._get_model()
         with torch.inference_mode():
-            output = model({
-                "image0": to_tensor(source, self.device),
-                "image1": to_tensor(reference, self.device),
-            })
+            output = model(
+                {
+                    "image0": _to_tensor(source, self.device),
+                    "image1": _to_tensor(reference, self.device),
+                }
+            )
             keypoints0 = output["keypoints0"][0].cpu().numpy()
             keypoints1 = output["keypoints1"][0].cpu().numpy()
             matches = output["matches0"][0].cpu().numpy()
@@ -275,8 +198,12 @@ def licence_report() -> str:
     rows = [
         ("LoFTR (kornia)", "Apache-2.0", "yes", "dense; best on low-texture terrain"),
         ("LightGlue + DISK (kornia)", "Apache-2.0", "yes", "sparse; SuperGlue's successor"),
-        ("SuperGlue (magicleap)", "Noncommercial research only", "NO",
-         "distribution forbidden; derivatives owned by Magic Leap"),
+        (
+            "SuperGlue (magicleap)",
+            "Noncommercial research only",
+            "NO",
+            "distribution forbidden; derivatives owned by Magic Leap",
+        ),
     ]
     width = max(len(r[0]) for r in rows)
     lines = [f"{'matcher'.ljust(width)}  {'licence':<28} {'shippable':<9} notes", "-" * 100]

@@ -40,7 +40,8 @@ DEFAULT_RATIO = 0.75
 #: installed OpenCV -- always check :func:`available_detectors`.
 DETECTORS = ("sift", "asift", "akaze", "kaze", "orb", "brisk")
 
-#: The four classical baselines in Makharia et al. RIFT2 is not buildable here.
+#: The four classical baselines in Makharia et al. RIFT2 is available as the
+#: clean-room implementation in `lunar_reg.match.rift2`.
 PAPER_BASELINES = ("sift", "asift", "akaze", "rift2")
 
 
@@ -69,12 +70,14 @@ class DetectorInfo:
 DETECTOR_INFO: dict[str, DetectorInfo] = {
     "sift": DetectorInfo("sift", False, "128-d float; the reference baseline."),
     "asift": DetectorInfo(
-        "asift", False,
+        "asift",
+        False,
         "SIFT re-run over simulated affine warps (Yu & Morel). Far more robust to "
         "viewpoint change, several times slower, and yields many more keypoints.",
     ),
     "akaze": DetectorInfo(
-        "akaze", True,
+        "akaze",
+        True,
         "61-byte binary M-LDB descriptor on a nonlinear scale space; edges survive "
         "smoothing better than in SIFT's Gaussian pyramid.",
     ),
@@ -162,6 +165,16 @@ class ClassicalMatcher:
         arr = image if image.dtype == np.uint8 else to_uint8(image)
         return self._get_detector().detectAndCompute(arr, None)
 
+    def _meta(self, **extra) -> dict:
+        """Parameters every returned result carries, empty or not."""
+        return {
+            "detector": self.detector_name,
+            "ratio": self.ratio,
+            "max_features": self.max_features,
+            "cross_check": self.cross_check,
+            **extra,
+        }
+
     def match(self, source: np.ndarray, reference: np.ndarray) -> MatchResult:
         import cv2
 
@@ -172,7 +185,9 @@ class ClassicalMatcher:
             logger.debug(
                 "%s: too few keypoints (%d, %d)", self.name, len(kp1 or []), len(kp2 or [])
             )
-            return MatchResult.empty(self.name)
+            empty = MatchResult.empty(self.name)
+            empty.meta = self._meta()
+            return empty
 
         matcher = cv2.BFMatcher(self.info.norm)
         forward = self._ratio_test(matcher, des1, des2)
@@ -185,23 +200,21 @@ class ClassicalMatcher:
             forward = [m for m in forward if (m[0], m[1]) in backward]
 
         if not forward:
-            return MatchResult.empty(self.name)
+            empty = MatchResult.empty(self.name)
+            empty.meta = self._meta(n_keypoints=(len(kp1), len(kp2)))
+            return empty
 
         src = np.array([kp1[i].pt for i, _, _ in forward])
         dst = np.array([kp2[j].pt for _, j, _ in forward])
         scores = np.array([s for _, _, s in forward])
 
-        logger.debug(
-            "%s: %d matches from %d/%d keypoints", self.name, len(src), len(kp1), len(kp2)
-        )
+        logger.debug("%s: %d matches from %d/%d keypoints", self.name, len(src), len(kp1), len(kp2))
         return MatchResult(
-            src_pts=src, dst_pts=dst, scores=scores, matcher=self.name,
-            meta={
-                "detector": self.detector_name,
-                "ratio": self.ratio,
-                "cross_check": self.cross_check,
-                "n_keypoints": (len(kp1), len(kp2)),
-            },
+            src_pts=src,
+            dst_pts=dst,
+            scores=scores,
+            matcher=self.name,
+            meta=self._meta(n_keypoints=(len(kp1), len(kp2))),
         )
 
     def _ratio_test(self, matcher, query, train) -> list[tuple[int, int, float]]:
@@ -237,8 +250,12 @@ def paper_baseline_status() -> dict[str, str]:
     """Which of the paper's four classical baselines this project can actually run."""
     have = set(available_detectors())
     return {
-        name: ("available (clean-room implementation)" if name == "rift2" else
-               "available" if name in have else
-               "unavailable in this OpenCV build")
+        name: (
+            "available (clean-room implementation)"
+            if name == "rift2"
+            else "available"
+            if name in have
+            else "unavailable in this OpenCV build"
+        )
         for name in PAPER_BASELINES
     }
