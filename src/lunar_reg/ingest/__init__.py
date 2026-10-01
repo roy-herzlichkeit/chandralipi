@@ -15,13 +15,13 @@ declares its columns, so that geometry is read rather than guessed. Prefer it
 over the four-corner footprint wherever it is available.
 """
 
+from lunar_reg.constants import moon_datum
 from lunar_reg.ingest.fieldmap import (
     ALL_FIELDS,
     UNVERIFIED_FIELD_NAMES,
     Field,
     Provenance,
 )
-from lunar_reg.ingest.footprint import Footprint, moon_datum, overlap
 from lunar_reg.ingest.geometry_grid import (
     GEOMETRY_FIELD_NAMES,
     GeometryGrid,
@@ -67,7 +67,6 @@ from lunar_reg.ingest.tiling import Tile, iter_tiles, plan_tiles
 __all__ = [
     "ALL_FIELDS",
     "Field",
-    "Footprint",
     "FootprintPolygon",
     "GEOMETRY_FIELD_NAMES",
     "GeometryGrid",
@@ -97,7 +96,6 @@ __all__ = [
     "moon_datum",
     "open_lro_product",
     "open_product",
-    "overlap",
     "pixel_to_lonlat",
     "plan_tiles",
     "polygon_to_wkt",

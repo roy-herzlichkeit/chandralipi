@@ -9,6 +9,7 @@ footprint intersections off by roughly a factor of 3.7 in ground distance.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 
 # --- Lunar reference frame -------------------------------------------------
 # IAU 2000/2009 mean radius. The Moon is treated as a sphere for PDS products;
@@ -16,8 +17,30 @@ from dataclasses import dataclass
 MOON_RADIUS_M: float = 1_737_400.0
 MOON_FLATTENING: float = 0.0
 
-#: Name registered into pygeodesy's datum table by :func:`lunar_reg.ingest.footprint.moon_datum`.
+#: Name registered into pygeodesy's datum table by :func:`moon_datum`.
 MOON_DATUM_NAME = "Moon2000"
+
+
+@lru_cache(maxsize=1)
+def moon_datum():
+    """Return (and memoise) a pygeodesy datum for the IAU mean-radius lunar sphere.
+
+    Registered once per process; pygeodesy raises on duplicate registration, so
+    the cache is load-bearing rather than a micro-optimisation.
+    """
+    from pygeodesy.datums import Datum, Datums, Transform
+    from pygeodesy.ellipsoids import Ellipsoid
+
+    existing = getattr(Datums, MOON_DATUM_NAME, None)
+    if existing is not None:
+        return existing
+
+    ellipsoid = Ellipsoid(
+        MOON_RADIUS_M,
+        MOON_RADIUS_M * (1.0 - MOON_FLATTENING),
+        name=MOON_DATUM_NAME,
+    )
+    return Datum(ellipsoid, transform=Transform(), name=MOON_DATUM_NAME)
 
 
 @dataclass(frozen=True)

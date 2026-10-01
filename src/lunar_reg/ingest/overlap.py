@@ -175,7 +175,7 @@ def _equidistant(pole_lat: float):
     """
     from pygeodesy.azimuthal import Equidistant
 
-    from lunar_reg.ingest.footprint import moon_datum
+    from lunar_reg.constants import moon_datum
 
     return Equidistant(pole_lat, 0.0, datum=moon_datum())
 

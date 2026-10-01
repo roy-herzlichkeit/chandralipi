@@ -70,7 +70,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-#: IAU mean lunar radius, metres. Matches ``ingest.footprint.moon_datum``.
+#: IAU mean lunar radius, metres. Matches ``lunar_reg.constants.moon_datum``.
 MOON_RADIUS_M = 1737400.0
 
 #: ISSDC GeoServer CRS codes, confirmed from live GetCapabilities 2026-09-28.

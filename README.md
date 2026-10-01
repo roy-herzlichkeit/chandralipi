@@ -44,7 +44,6 @@ src/lunar_reg/
   eval/            RMSE, inlier count/ratio, and the spatial-uniformity metric
   viz/             match, residual, uniformity, and overlay figures
 tests/             synthetic-data suite; no GPU or PDS4 products required
-configs/           default.yaml — the validated defaults
 data/{raw,processed}/   git-ignored
 notebooks/
 ```

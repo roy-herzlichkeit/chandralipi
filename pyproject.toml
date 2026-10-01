@@ -33,7 +33,6 @@ dependencies = [
     "torch>=2.2",             # kornia's backend; install the CUDA build explicitly (see README)
     # --- supporting ---
     "matplotlib>=3.8",        # viz/
-    "PyYAML>=6.0",            # configs/
     "tqdm>=4.66",
 ]
 
