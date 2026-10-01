@@ -60,7 +60,8 @@ def test_probe_outputs_or_question():
     if present:
         assert probes, f"{present} on disk but no docs/probes/*.txt"
     else:
-        assert "Q-P1.15" in questions, "no probe possible: a non-blocking QUESTIONS entry is required"
+        assert "Q-P1.15" in questions, \
+            "no probe possible: a non-blocking QUESTIONS entry is required"
 
 
 @pytest.mark.data
@@ -128,8 +129,9 @@ def test_real_derived_tmc2_probed():
         assert probe.exists(), f"missing {probe.relative_to(REPO)}"
         doc = json.loads(probe.read_text())
         assert set(doc) >= PROBE_KEYS, PROBE_KEYS - set(doc)
-        assert doc["width"] * doc["height"] > 0 and max(doc["width"], doc["height"]) / doc["decimation"] <= 2048
+        assert doc["width"] * doc["height"] > 0
+        assert max(doc["width"], doc["height"]) / doc["decimation"] <= 2048
         assert doc["peak_rss_bytes"] < 2 * 2**30, "probe read too much of the raster (G40)"
-    if any(json.loads((REPO / "docs/probes" / f"{t.stem}_raster.json").read_text())["nodata_declared"] is None
-           for t in tifs):
+    docs = [json.loads((REPO / "docs/probes" / f"{t.stem}_raster.json").read_text()) for t in tifs]
+    if any(d["nodata_declared"] is None for d in docs):
         assert "fill" in (REPO / "Phase_1/QUESTIONS.md").read_text().lower()
