@@ -83,19 +83,21 @@ if [ -n "$DATA_SRC" ]; then
     info "copying $DATA_SRC/ -> data/"
     mkdir -p data
     if command -v rsync >/dev/null 2>&1; then
-      rsync -a --info=progress2 "$DATA_SRC"/ data/
+      rsync -a --ignore-existing --info=progress2 "$DATA_SRC"/ data/
     else
-      cp -a "$DATA_SRC"/. data/
+      cp -an "$DATA_SRC"/. data/
     fi
   else
     # An archive produced by pack_data.sh; it stores paths as data/...
     info "unpacking data bundle $DATA_SRC"
-    case "$DATA_SRC" in
-      *.tar.zst|*.tzst) tar --zstd -xf "$DATA_SRC" ;;
-      *.tar.gz|*.tgz)   tar -xzf "$DATA_SRC" ;;
-      *.tar)            tar -xf "$DATA_SRC" ;;
-      *) die "unrecognised archive: $DATA_SRC (expected .tar.zst / .tar.gz)" ;;
-    esac
+    "$VPY" scripts/untar_data.py "$DATA_SRC" --dest . || die "data bundle refused or failed: $DATA_SRC"
+  fi
+
+  # Rebuild the results index from the .npz files on disk rather than trusting
+  # an unpacked index.parquet.
+  if [ -d data/processed/results/pairs ]; then
+    info "reindexing data/processed/results"
+    "$VPY" scripts/reindex_results.py
   fi
 
   if [ -f data/processed/results/index.parquet ]; then

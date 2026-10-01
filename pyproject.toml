@@ -53,10 +53,12 @@ packages = ["src/lunar_reg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+addopts = "-ra --strict-markers"
+pythonpath = ["."]
 markers = [
     "gpu: requires a working CUDA device",
-    "data: requires real PDS4 products under data/raw",
+    "data: requires real products under data/raw",
+    "weights: requires pretrained matcher weights in ~/.cache/torch/hub/checkpoints",
 ]
 
 [tool.ruff]
@@ -67,6 +69,6 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.mypy]
-python_version = "3.10"
-packages = ["lunar_reg"]
+python_version = "3.12"
+files = ["src/lunar_reg"]
 ignore_missing_imports = true
