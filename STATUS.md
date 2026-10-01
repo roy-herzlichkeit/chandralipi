@@ -1,12 +1,12 @@
 # STATUS
 
-current: P0.07
+current: P0.08
 phase: 0
 state: READY
 branch: phase-0
-last_done: P0.06
+last_done: P0.07
 notes:
-- P0.06: fetch_catalogue ISSDC rows write corner* = None + footprint_wkt (polygon_to_wkt of the ring); _corner_columns deleted. overlap.polygon_from_wkt added; footprint_from_row prefers corners > footprint_wkt > bbox.
-- Q-P0.06-1 (non-blocking): removed `from __future__ import annotations` from scripts/fetch_catalogue.py so importlib-loaded @dataclass works (py3.12 dataclasses needs sys.modules entry). Same trap likely for run_vikram in P0.11.
-- scripts/ci.sh: 471 passed, 6 deselected. Catalogue NOT re-fetched (no network).
+- P0.07: new lunar_reg/provenance.py (C01 ValueSource, Sourced) and lunar_reg/runrecord.py (C15; atomic write, git/device/versions). estimate_transform gains seed=0 (cv2.setRNGSeed before the fit), float64 centroid centring, Transform.estimator/seed.
+- scripts/ci.sh: 482 passed, 6 deselected.
+- Open non-blocking questions: Q-P0.04-1, Q-P0.05-1, Q-P0.06-1 (Phase_0/QUESTIONS.md).
 - P1.DL may run before Phase 0 approval (Phase_1/prompts/P1.DL_download_session.md).
