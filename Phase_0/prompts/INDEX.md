@@ -4,7 +4,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 
 | order | id | title | depends | check | status |
 |---|---|---|---|---|---|
-| 1 | P0.00 | preflight | — | harness/check_P0.00.sh | todo |
+| 1 | P0.00 | preflight | — | harness/check_P0.00.sh | done |
 | 2 | P0.01 | test runner + CI baseline | P0.00 | harness/check_P0.01.sh | todo |
 | 3 | P0.02 | learned matchers merge | P0.01 | harness/check_P0.02.sh | todo |
 | 4 | P0.03 | dedupe shadow_mask and scale_ratio | P0.01 | harness/check_P0.03.sh | todo |
