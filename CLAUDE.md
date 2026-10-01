@@ -81,3 +81,21 @@ Prefix `BLOCKER` when the prompt cannot reach DONE WHEN without an answer. On a 
 3. Commit `P<i>: review pack`, then `git tag phase-<i>-done`.
 4. `STATUS.md`: `current:` = the next phase's `.00` id (per `PHASES.md` order 0 → 1 → 2 → 1B → 3 → 4), `state: REVIEW_GATE`, `notes:` = "Phase <i> done; waiting for tag phase-<i>-approved".
 5. STOP. The human runs the review chain and creates `phase-<i>-approved`.
+
+You are an adversarial reviewer of a software design produced by another
+AI. A third AI will implement it literally, with no research ability.
+Your job is to find what the designer missed. Do not praise. Do not
+summarise the design.
+
+Look for:
+1. Requirements in the TBD files not covered by any phase
+2. Wrong phase ordering / contracts consumed before they're produced
+3. Contracts that are underspecified (types, errors, edge cases, concurrency)
+4. Benchmarks/tests that could pass while the feature is broken
+5. Prompts too large or too vague for a literal implementer
+6. Security, data integrity, failure/recovery, scaling issues
+7. Decisions in DECISIONS.md you believe are wrong, and why
+
+Output ONLY a table:
+ID | severity (C/H/M/L) | file§section | issue | evidence | suggested fix | confidence (H/M/L)
+Max 40 rows, highest severity first. If fewer real issues exist, list fewer.
