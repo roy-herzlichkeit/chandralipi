@@ -15,5 +15,5 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 9 | P0.08 | ECC model fidelity, no mutation, gate, mask | P0.07 | harness/check_P0.08.sh | done |
 | 10 | P0.09 | counts, refit threshold, classification | P0.02, P0.08 | harness/check_P0.09.sh | done |
 | 11 | P0.10 | results schema v2 + persisted failures | P0.09 | harness/check_P0.10.sh | done |
-| 12 | P0.11 | run_vikram numeric crop geometry | P0.10 | harness/check_P0.11.sh | todo |
+| 12 | P0.11 | run_vikram numeric crop geometry | P0.10 | harness/check_P0.11.sh | done |
 | 13 | P0.12 | eval correctness | P0.09 | harness/check_P0.12.sh | todo |

@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import glob
 import logging
+from enum import Enum
 from pathlib import Path
 
 import cv2
@@ -163,8 +164,32 @@ def prepare_pair(label_path: str, nac, gsd: float, window_m: float, margin_m: fl
     prior = cv2.getPerspectiveTransform(src_quad, dst_quad)
 
     geo = {"c0": c0, "r0": r0, "ref_factor": ref_factor,
+           "shift_e_m": float(dc), "shift_s_m": float(dr),
+           "src_win_l0": int(l0), "src_win_s0": int(s0),
+           "src_win_lines": int(win), "src_win_samples": int(win_s),
            "label_centre": (float(cols.mean()), float(rows.mean()))}
     return product, stretch_u8(source), stretch_u8(reference), prior, ref_valid, geo
+
+
+def geometry_extra(geo: dict, gsd_m: float) -> dict:
+    """The crop geometry a result was produced with, as reserved C04 ``extra`` keys.
+
+    Recorded numerically at run time so a registered GeoTIFF can later be rebuilt
+    from exactly these numbers -- never from defaults or a parsed note.
+    """
+    return {
+        "ref_crop_c0": int(geo["c0"]),
+        "ref_crop_r0": int(geo["r0"]),
+        "ref_factor": float(geo["ref_factor"]),
+        "shift_e_m": float(geo["shift_e_m"]),
+        "shift_s_m": float(geo["shift_s_m"]),
+        "src_win_l0": int(geo["src_win_l0"]),
+        "src_win_s0": int(geo["src_win_s0"]),
+        "src_win_lines": int(geo["src_win_lines"]),
+        "src_win_samples": int(geo["src_win_samples"]),
+        "gsd_m": float(gsd_m),
+        "crop_geometry_source": "recorded",
+    }
 
 
 def centre_offset_m(found: np.ndarray, prior: np.ndarray, shape, gsd: float) -> float:
@@ -197,30 +222,58 @@ def coarse_shift(label: str, nac, args) -> tuple[tuple[float, float], str]:
     found = (geo["c0"] + x * geo["ref_factor"], geo["r0"] + y * geo["ref_factor"])
     shift = (found[0] - geo["label_centre"][0], found[1] - geo["label_centre"][1])
     n = outcome.result.metrics["n_inliers"]
-    note = f"8 m/px LightGlue, {n} inliers, shift {shift[0]:+.0f},{shift[1]:+.0f} m (E,S)"
+    note = f"8 m/px LightGlue, {n} inliers, shift {shift[0]:+.3f},{shift[1]:+.3f} m (E,S)"
     print(f"   coarse     {note}")
     return shift, note
 
 
-def _stored_shift(extra: dict) -> tuple[float, float]:
-    """Reference-crop shift a stored result was produced with, from its provenance."""
+def _stored_shift(extra: dict) -> tuple[float, float] | None:
+    """Reference-crop shift parsed from a legacy result's provenance note.
+
+    For results stored before the crop geometry was recorded numerically.
+    ``None`` when neither note carries a shift -- never a silent ``(0, 0)``.
+    """
     import re
 
-    for key, pattern in (("coarse_pass", r"shift ([+-]?\d+),([+-]?\d+)"),
+    for key, pattern in (("coarse_pass", r"shift ([+-]?[\d.]+),([+-]?[\d.]+)"),
                          ("search_prior", r"prior shift ([+-]?[\d.]+),([+-]?[\d.]+)")):
         match = re.search(pattern, str(extra.get(key, "")))
         if match:
             return float(match.group(1)), float(match.group(2))
-    return 0.0, 0.0
+    return None
+
+
+class ExportStatus(str, Enum):
+    EXPORTED = "exported"
+    #: no ref_crop_c0/r0 and no parsable legacy note
+    RECORDED_GEOMETRY_MISSING = "recorded_geometry_missing"
+    #: window_m or margin_m or gsd_m absent
+    SETTINGS_UNRECORDED = "settings_unrecorded"
+    #: OHRC label or NAC label not on disk
+    INPUT_MISSING = "input_missing"
+    WRITE_FAILED = "write_failed"
+
+
+def _export_report(n_results: int, counts: dict, samples: dict) -> str:
+    lines = [f"{n_results} stored OHRC result(s):"]
+    for status in ExportStatus:
+        if counts.get(status):
+            lines.append(f"  {status.value}: {counts[status]}  e.g. {samples[status]}")
+    if not counts:
+        lines.append("  (none)")
+    return "\n".join(lines)
 
 
 def export_stored(only: str = "") -> int:
     """Write registered GeoTIFFs for stored OHRC results without re-matching.
 
-    Each result's crop is rebuilt from the settings recorded in its ``extra``
-    (window, margin, search shift, working resolution), then warped with its
-    stored transform. Results whose settings cannot be recovered are reported,
-    not skipped silently.
+    Each result's crop origin comes from the geometry recorded in its ``extra``
+    (``ref_crop_c0``/``ref_crop_r0``, tagged ``crop_geometry_source=recorded``),
+    or, for results stored before that, from the shift in its legacy provenance
+    note (tagged ``regex_legacy``). Window, margin and working resolution must
+    be recorded; nothing falls back to a default. Every result gets an
+    :class:`ExportStatus`, reported per status on every run. Returns 0 only when
+    every result was exported.
     """
     import rasterio
 
@@ -229,39 +282,76 @@ def export_stored(only: str = "") -> int:
 
     index = load_index(RESULTS_ROOT)
     ids = [i for i in index["pair_id"] if i.startswith(SOURCE_SENSOR) and only in i]
-    written, problems = [], []
+    counts: dict[ExportStatus, int] = {}
+    samples: dict[ExportStatus, str] = {}
+
+    def record(status: ExportStatus, pair_id: str, why: str = "") -> None:
+        counts[status] = counts.get(status, 0) + 1
+        samples.setdefault(status, f"{pair_id}: {why}" if why else pair_id)
+        if status is not ExportStatus.EXPORTED:
+            print(f"  NOT exported {pair_id}: {status.value}{f' ({why})' if why else ''}")
+
     for pair_id in ids:
         r = load_pair(pair_id, RESULTS_ROOT)
-        extra, metrics = r.extra, r.metrics
-        gsd = extra.get("gsd_m")
-        if gsd is None and metrics.get("rmse_px"):
-            gsd = round(metrics["rmse_m"] / metrics["rmse_px"], 3)
+        extra = r.extra
+
+        missing = [k for k in ("window_m", "margin_m", "gsd_m") if extra.get(k) is None]
+        if missing:
+            record(ExportStatus.SETTINGS_UNRECORDED, pair_id, f"no {', '.join(missing)}")
+            continue
+        gsd = float(extra["gsd_m"])
+
+        recorded = ("ref_crop_c0", "ref_crop_r0", "shift_e_m", "shift_s_m")
+        if all(extra.get(k) is not None for k in recorded):
+            source_kind = "recorded"
+            # The shift sets the reference crop's integer extent, hence the output shape.
+            shift = (float(extra["shift_e_m"]), float(extra["shift_s_m"]))
+        else:
+            shift = _stored_shift(extra)
+            if shift is None:
+                record(ExportStatus.RECORDED_GEOMETRY_MISSING, pair_id,
+                       "no ref_crop_c0/r0 and no shift in coarse_pass/search_prior")
+                continue
+            source_kind = "regex_legacy"
+
         tag = pair_id[len(SOURCE_SENSOR) + 1:].split("-")[0]
         labels = glob.glob(f"data/raw/ohrc_vikram/*{tag}*/data/raw/*/*_d_img_*.xml")
         nac_label = f"{NAC_DIR}/{r.reference_id}.xml"
-        if not gsd or not labels or not Path(nac_label).exists():
-            problems.append((pair_id, f"gsd={gsd}, ohrc label found={bool(labels)}, "
-                                      f"nac label exists={Path(nac_label).exists()}"))
+        if not labels or not Path(nac_label).exists():
+            record(ExportStatus.INPUT_MISSING, pair_id,
+                   f"ohrc label found={bool(labels)}, nac label exists={Path(nac_label).exists()}")
             continue
-        with rasterio.open(nac_label) as nac:
-            _, src, ref, _, _, geo = prepare_pair(
-                labels[0], nac, float(gsd), float(extra.get("window_m", 3000.0)),
-                float(extra.get("margin_m", 1000.0)), _stored_shift(extra))
-        out = save_registered_geotiff(
-            src, np.asarray(r.transform), ref.shape[:2], f"{REGISTERED_DIR}/{pair_id}.tif",
-            crs=NAC_PROJ,
-            origin_xy=(NAC_X0 + geo["c0"] * NAC_PX_M, NAC_Y0 - geo["r0"] * NAC_PX_M),
-            pixel_size=float(gsd),
-            tags={"pair_id": pair_id, "source": r.source_id, "reference": r.reference_id,
-                  "matcher": r.matcher, "model": extra.get("model", "homography"),
-                  "min_inliers": extra.get("min_inliers", 8),
-                  "georeference": "corrected NAC transform, see PROVENANCE.json (~1 km absolute)"})
-        written.append(out["path"])
-        print(f"  wrote {out['path']}  ({out['valid_fraction']:.0%} of grid covered)")
-    print(f"{len(ids)} stored OHRC result(s): {len(written)} exported, {len(problems)} not")
-    for pair_id, why in problems:
-        print(f"  NOT exported {pair_id}: {why}")
-    return 0 if not problems else 1
+
+        try:
+            with rasterio.open(nac_label) as nac:
+                _, src, ref, _, _, geo = prepare_pair(
+                    labels[0], nac, gsd, float(extra["window_m"]), float(extra["margin_m"]),
+                    shift)
+            if source_kind == "recorded":
+                c0, r0 = int(extra["ref_crop_c0"]), int(extra["ref_crop_r0"])
+            else:
+                c0, r0 = int(geo["c0"]), int(geo["r0"])
+            out = save_registered_geotiff(
+                src, np.asarray(r.transform), ref.shape[:2], f"{REGISTERED_DIR}/{pair_id}.tif",
+                crs=NAC_PROJ,
+                origin_xy=(NAC_X0 + c0 * NAC_PX_M, NAC_Y0 - r0 * NAC_PX_M),
+                pixel_size=gsd,
+                tags={"pair_id": pair_id, "source": r.source_id, "reference": r.reference_id,
+                      "matcher": r.matcher,
+                      "model": extra.get("model", "unrecorded"),
+                      "min_inliers": extra.get("min_inliers", "unrecorded"),
+                      "crop_geometry_source": source_kind,
+                      "georeference": "corrected NAC transform, see PROVENANCE.json "
+                                      "(~1 km absolute)"})
+        except Exception as exc:  # noqa: BLE001 - GDAL/rasterio raise many types on a bad write
+            record(ExportStatus.WRITE_FAILED, pair_id, f"{type(exc).__name__}: {exc}"[:200])
+            continue
+        record(ExportStatus.EXPORTED, pair_id)
+        print(f"  wrote {out['path']}  ({out['valid_fraction']:.0%} of grid covered, "
+              f"{source_kind} crop geometry)")
+
+    print(_export_report(len(ids), counts, samples))
+    return 0 if counts.get(ExportStatus.EXPORTED, 0) == len(ids) else 1
 
 
 def main(argv=None) -> int:
@@ -291,6 +381,8 @@ def main(argv=None) -> int:
                     help="no matching: write registered GeoTIFFs for results already in the "
                          "store, using their stored transforms")
     ap.add_argument("--dry-run", action="store_true", help="prepare and report, do not match")
+    ap.add_argument("--overwrite", action="store_true",
+                    help="replace results already stored under the same pair id")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING)
     if args.export_only:
@@ -299,8 +391,8 @@ def main(argv=None) -> int:
     import rasterio
 
     from lunar_reg.align.warp import save_registered_geotiff
-    from lunar_reg.pipeline import PipelineConfig, RunStatus, register_pair
-    from lunar_reg.results import save_results
+    from lunar_reg.pipeline import BatchReport, PipelineConfig, RunStatus, register_pair
+    from lunar_reg.results import save_failures, save_results
 
     nac_id = NAC_IDS[args.nac]
     ref_sensor = REFERENCE_SENSOR if args.nac == 1 else f"{REFERENCE_SENSOR}_E2"
@@ -311,7 +403,11 @@ def main(argv=None) -> int:
         print("no OHRC labels under data/raw/ohrc_vikram")
         return 1
 
-    results, outcomes = [], []
+    def fmt(v) -> str:
+        return "n/a" if v is None else f"{v:.1f}"
+
+    report = BatchReport()
+    outcomes, saved, not_saved = [], [], []
     with rasterio.open(f"{NAC_DIR}/{nac_id}.xml") as nac:
         for label in labels:
             shift, coarse_note = (0.0, 0.0), "none"
@@ -327,7 +423,7 @@ def main(argv=None) -> int:
             sun = (product["sun_azimuth_deg"], product["sun_elevation_deg"])
             print(f"\n{tag}: source {src.shape[1]}x{src.shape[0]}"
                   f"  reference {ref.shape[1]}x{ref.shape[0]}"
-                  f"  ref valid {ref_valid:.0%}  sun az {sun[0]:.1f} el {sun[1]:.1f}")
+                  f"  ref valid {ref_valid:.0%}  sun az {fmt(sun[0])} el {fmt(sun[1])}")
             if args.dry_run:
                 cv2.imwrite(f"/tmp/vikram_{tag}_src.png", src)
                 cv2.imwrite(f"/tmp/vikram_{tag}_ref.png", ref)
@@ -355,6 +451,7 @@ def main(argv=None) -> int:
                            "label_offset_m compares the matched transform with the "
                            "label-corner + corrected-NAC-georeference prior."),
                 )
+                report.outcomes.append(outcome)
                 row = {"tag": tag, "matcher": matcher, "status": outcome.status.value,
                        "detail": outcome.detail}
                 if outcome.status is RunStatus.OK:
@@ -362,6 +459,7 @@ def main(argv=None) -> int:
                     offset = centre_offset_m(r.transform, prior, src.shape, args.gsd)
                     r.extra.update({"label_offset_m": offset,
                                     "ohrc_sun_azimuth": sun[0], "ohrc_sun_elevation": sun[1]})
+                    r.extra.update(geometry_extra(geo, args.gsd))
                     if args.save_registered:
                         out = save_registered_geotiff(
                             src, np.asarray(r.transform), ref.shape[:2],
@@ -376,7 +474,13 @@ def main(argv=None) -> int:
                                   "georeference": "corrected NAC transform, see "
                                                   "PROVENANCE.json (~1 km absolute)"})
                         r.extra["registered_geotiff"] = out["path"]
-                    results.append(r)
+                    # Saved now, one by one: a crash on a later pair loses nothing.
+                    try:
+                        save_results([r], RESULTS_ROOT, overwrite=args.overwrite)
+                        saved.append(pair_id)
+                    except FileExistsError:
+                        not_saved.append(pair_id)
+                        print(f"   NOT saved (exists; pass --overwrite): {pair_id}")
                     m = r.metrics
                     row.update(inliers=m.get("n_inliers"), matches=m.get("n_matches"),
                                rmse=m.get("rmse_px"), uni=r.uniformity.get("score"),
@@ -387,15 +491,17 @@ def main(argv=None) -> int:
                          f"  uniformity {row['uni']:.2f}  label offset {row['offset']:.0f} m"
                          if row["status"] == "ok" else str(row["detail"])[:90]))
 
-    if results:
-        store = save_results(results, RESULTS_ROOT)
-        print()
-        print(store.report())
+    if args.dry_run:
+        return 0
+    save_failures(report.failures, RESULTS_ROOT)
+    print()
+    print(report.report())
     failed = [o for o in outcomes if o["status"] != "ok"]
-    print(f"{len(outcomes)} run(s): {len(outcomes) - len(failed)} ok, {len(failed)} not ok")
+    print(f"{len(outcomes)} run(s): {len(outcomes) - len(failed)} ok, {len(failed)} not ok; "
+          f"{len(saved)} saved, {len(not_saved)} NOT saved (already stored)")
     for o in failed:
         print(f"   {o['tag']} {o['matcher']}: {o['status']} -- {str(o['detail'])[:120]}")
-    return 0
+    return 0 if report.results else 1
 
 
 if __name__ == "__main__":
