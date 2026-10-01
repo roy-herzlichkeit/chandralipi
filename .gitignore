@@ -42,3 +42,7 @@ web/node_modules/
 
 # Phase benchmark scratch output (score.json is kept; junit XML is not)
 Phase_*/benchmark/out/
+
+# Local agent & tooling
+.agy/
+uv.lock
