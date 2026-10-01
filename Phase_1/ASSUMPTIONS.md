@@ -23,4 +23,5 @@ Environment / data (each row checked by P1.00 with the command shown):
 | A1-4 | JAXA/WAC inputs of the v1 results on disk | `ls data/raw/reference/jaxa_selene_tc_pair2 data/raw/reference/jaxa_selene_tc data/raw/reference/lro_wac` | three listings | non-blocking (P1.17/P1.18 report INPUT_MISSING) |
 | A1-5 | calibrated OHRC `ncp`, TMC-2, IIRS | `ls data/raw/ch2` | may be absent | non-blocking (G24); `data` tests skip with a reason |
 | A1-6 | free disk ≥ 20 GB | `df -h data/` | ≥ 20 GB avail | non-blocking warning |
+| A1-6b | `data/raw/` total within the revised budget (CLARIFY Q17, 2026-10-01) | `du -sb data/raw` | ≤ 60 000 000 000 B | non-blocking warning; any new download that would cross it needs the human first |
 | A1-7 | network is not needed except P1.02's run step (and P1.DL) | — | — | — |

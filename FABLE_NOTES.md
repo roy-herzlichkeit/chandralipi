@@ -234,3 +234,7 @@ Patterns the reviewer caught that my own B3 consistency pass missed (check these
 | Contract text disagreeing with its own harness | C02 member timing (RC08), C21 consumers (RC19) | diff CONTRACTS comments against `test_contracts_*` after edits |
 | Treating a heuristic fit as primary when an exact computation is available | sun azimuth via NCC fit (RC17) | ask "is there a deterministic source?" before designing a fit |
 Measured this session (M): cv2 4.14 `findTransformECCWithMask` masked affine ECC error 0.022 px; adaptive uniformity spread 0.946 vs quadrant 0.336; NAIF LSK/PCK/DE440s URLs HTTP 200; spiceypy 8.2.0 on PyPI; fakeredis `XCLAIM … JUSTID` with min-idle 0 takes an entry back from another consumer (→ renew checks `XPENDING` owner first).
+
+## 14. 2026-10-01 — P1.DL disk overrun resolved
+P1.DL added 47.3 GB under `data/raw/` against the 20 GB budget of CLARIFY Q17 (implementer's report: `.fable/inbox_P1DL_20260930.md`). The human raised the budget to 60 GB and kept everything. Architect measurement (M): `du -sb data/raw` = 56 849 815 846 B. A decimated nearest read (`f = 87`, 479 × 2030) of the 14.7 GB TMC-2 derived ortho took 16.1 s with 234 MiB peak RSS, so the G40 probe is feasible inside the RAM budget.
+Pattern: a download procedure needs a running total compared with the budget, not only a free-space check; per-row pick limits need an explicit human override step. Now in downloads LLD §3 step 1.

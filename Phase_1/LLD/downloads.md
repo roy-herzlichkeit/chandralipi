@@ -16,6 +16,8 @@ Produces: C08. Decisions: G12, G32. Sources for every URL: `.fable/research_2026
 | SELENE TC Ortho Map tiles | `data/raw/reference/selene_tc_ortho/<NAME>.img` + `.lbl` | as fetched |
 | SELENE TC DTM / morning / evening tiles | `data/raw/reference/selene_tc_dtm/`, `.../selene_tc_morning/`, `.../selene_tc_evening/` | as fetched |
 | ISRO SIS documents | `docs/external/<zip stem>/` | `unzip -n` (R2) |
+| PRADAN footprint shapefiles ("Other Downloads") | `data/raw/catalogue/shapefiles/<TMC2\|IIRS>_ShapeFiles/` | `unzip -n`; recorded in the manifest (added after P1.DL, which used them instead of §2.3's GeoJSON) |
+| PRADAN keep-alive page | `data/raw/ch2/_pradan/payload.xhtml` | written by PRADAN's own script; not data; P1.01's scan reports it UNRECORDED (expected, never deleted) |
 Never delete or overwrite anything already under `data/raw/` (CLAUDE.md).
 
 ## 2. Products
@@ -26,8 +28,8 @@ Never delete or overwrite anything already under `data/raw/` (CLAUDE.md).
 | 2 | `ch2_ohr_ncp_20230823T1450475804_d_img_n18.zip` | OHRC | twin of a failing 2023 strip | ~1.2 GB |
 | 3 | `ch2_ohr_ncp_20230823T1647285085_d_img_n18.zip` | OHRC | same | ~1.2 GB |
 | 4 | `ch2_ohr_ncp_20230823T1647285315_d_img_n18.zip` | OHRC | same | ~1.2 GB |
-| 5 | TMC-2 products whose footprint intersects the Vikram box (§2.3) — at most 2, calibrated level first | TMC2 | Q5 scope | unknown until the catalogue is read |
-| 6 | IIRS products whose footprint intersects the Vikram box — at most 1, calibrated level first | IIRS | Q5 scope | unknown |
+| 5 | TMC-2 products whose footprint intersects the Vikram box (§2.3) — at most 2, calibrated level first (P1.DL took 4; accepted, §2.4) | TMC2 | Q5 scope | unknown until the catalogue is read |
+| 6 | IIRS products whose footprint intersects the Vikram box — at most 1, calibrated level first (P1.DL took 2; accepted, §2.4) | IIRS | Q5 scope | unknown |
 | 7 | SIS documents `OHR.zip`, `TMC.zip`, `IIR.zip` under PRADAN "Other Downloads" | DOC | datum and field definitions (R2) | small |
 The four OHRC ids are rows 10–12 and 20 of `data/processed/ohrc_vikram_product_ids.txt` (from the ISSDC catalogue on disk).
 
@@ -64,8 +66,22 @@ PY
 ```
 Products are listed newest first per instrument; the human picks from that list.
 
+### 2.4 What P1.DL fetched (2026-09-30; accepted by the human 2026-10-01)
+Source: the implementer's measurements (`du -sb`, rasterio metadata) in `.fable/inbox_P1DL_20260930.md`, M. The manifest records 206 files, 0 failures; `check_P1.DL.sh` passed.
+| product / path | bytes on disk (unpacked) | note |
+|---|---|---|
+| 4 OHRC `ncp` (§2.1 rows 1–4) | 4 501 254 471 total | ≈ 1.1 GB each; zips 0.64–0.88 GB |
+| TMC-2 `ch2_tmc_ncn_20230521T0857294318_d_img_d32` | 2 503 368 021 | calibrated nadir; covers ≈ 90 % of the Vikram box (no calibrated nadir strip covers all of it) |
+| TMC-2 `ch2_tmc_ncf_20231026T0943001971_d_img_d18` | 1 538 596 989 | calibrated fore view, 100 % cover |
+| TMC-2 `ch2_tmc_ndn_20231027T1315134884_d_oth_d18` | 14 725 094 611 | derived ortho: one GeoTIFF 176 604 × 41 628 px, uint16, 1-row strips, uncompressed, **no declared nodata**, 5 m — read only per G40 |
+| TMC-2 `ch2_tmc_ndn_20231027T1315134884_d_dtm_d18` | 3 694 054 398 | derived DTM: 88 302 × 20 813 px, int16, 1-row strips, nodata −32768, 10 m — read only per G40 |
+| IIRS `ch2_iir_nci_20230125T1944138897_d_img_d32`, `ch2_iir_nci_20221226T0416479474_d_img_d32` | 3 330 518 673 + 4 204 408 890 | calibrated, both 100 % cover |
+| `data/raw/ch2/_zips/` | 10 912 061 125 | every PRADAN zip (§1 rule) |
+| SELENE TC tiles, shapefiles, ODE JSON, EDR labels | 1 811 960 315 + 38 037 528 + 1 811 724 | §2.2 / §1 |
+Other P1.DL deviations (for the Phase 1 review pack): products were found from PRADAN's footprint shapefiles rather than §2.3's GeoJSON; the session drove PRADAN's logged-in pages and generated PRADAN's bulk-download scripts, which the human ran — beyond CLARIFY R6, chosen by the human in that session; CLARIFY R7's further NAC ortho/DTM search was not run.
+
 ## 3. P1.DL session procedure (human-in-the-loop, no code changes, no git)
-1. Print §2.1 and ask the human to confirm free disk ≥ 20 GB (`df -h data/raw`).
+1. Print §2.1 and ask the human to confirm free disk ≥ 20 GB (`df -h data/raw`). Print `du -sb data/raw`. **Budget (CLARIFY Q17, revised 2026-10-01):** `data/raw/` total ≤ 60 000 000 000 B. Before each download, state its zip size; after each unpack, print `du -sb data/raw`; if the total exceeds the budget, or the next download would make it exceed, stop and ask the human before continuing. A pick outside §2.1's per-row limits also needs the human's explicit yes, recorded in the session summary.
 2. PRADAN: tell the human, step by step: open `https://pradan.issdc.gov.in/ch2/` → log in → "Browse" → OHRC (`https://pradan.issdc.gov.in/ch2/protected/browse.xhtml?id=ohrc`) → search each zip name of §2.1 rows 1–4 → download → move the zip to `data/raw/ch2/_zips/`. The session never uses the human's login and never automates the page; it reads only what the human pastes or shows.
 3. For TMC-2/IIRS: ask the human to save the catalogue GeoJSON layers (§2.3), run the snippet, show the list, and name at most 2 TMC-2 and 1 IIRS product to download the same way.
 4. Unpack every zip per §1 (`unzip -n`).

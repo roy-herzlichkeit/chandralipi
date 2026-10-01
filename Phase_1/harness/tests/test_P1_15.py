@@ -80,3 +80,56 @@ def test_real_iirs_band_reduction():
         cube = ds.read(window=Window(0, 0, w, h)).astype(np.float32)
     plane, detail = reduce_bands(cube, method="pca", n_components=1)
     assert plane.shape == (h, w) and np.isfinite(plane).mean() > 0.5
+
+
+PROBE_KEYS = {"path", "width", "height", "count", "dtype", "block_shapes", "compression",
+              "nodata_declared", "crs_wkt", "res", "decimation", "border_values",
+              "fill_candidate", "fill_candidate_source", "fill_fraction", "peak_rss_bytes"}
+
+
+def test_probe_raster_synthetic(tmp_path):
+    """G40: the raster probe finds an undeclared 0 fill on a decimated read."""
+    import json
+    import subprocess
+    import sys
+
+    import rasterio
+
+    h, w = 3000, 5000
+    arr = np.zeros((h, w), np.uint16)
+    arr[300:2700, 500:4500] = np.random.default_rng(0).integers(100, 4000, (2400, 4000))
+    tif = tmp_path / "big.tif"
+    with rasterio.open(tif, "w", driver="GTiff", width=w, height=h, count=1,
+                       dtype="uint16") as ds:
+        ds.write(arr, 1)
+    out = tmp_path / "probe.json"
+    res = subprocess.run([sys.executable, str(REPO / "scripts/probe_raster.py"), str(tif),
+                          "--out", str(out)], cwd=REPO, capture_output=True, text=True,
+                         timeout=120)
+    assert res.returncode == 0, res.stdout + res.stderr
+    doc = json.loads(out.read_text())
+    assert set(doc) >= PROBE_KEYS, PROBE_KEYS - set(doc)
+    assert doc["nodata_declared"] is None and doc["fill_candidate"] == 0
+    assert doc["decimation"] == 3 and doc["fill_candidate_source"] == "inferred"
+    assert 0.3 < doc["fill_fraction"] < 0.5   # true fill share = 1 - 0.64 = 0.36
+
+
+@pytest.mark.data
+def test_real_derived_tmc2_probed():
+    """G40: every derived TMC-2 raster on disk has a probe JSON, read with bounded memory."""
+    import json
+
+    tifs = sorted(REPO.glob("data/raw/ch2/tmc2/*_d_oth_*/data/**/*.tif")) + \
+        sorted(REPO.glob("data/raw/ch2/tmc2/*_d_dtm_*/data/**/*.tif"))
+    if not tifs:
+        pytest.skip("no derived TMC-2 raster under data/raw/ch2/tmc2")
+    for tif in tifs:
+        probe = REPO / "docs/probes" / f"{tif.stem}_raster.json"
+        assert probe.exists(), f"missing {probe.relative_to(REPO)}"
+        doc = json.loads(probe.read_text())
+        assert set(doc) >= PROBE_KEYS, PROBE_KEYS - set(doc)
+        assert doc["width"] * doc["height"] > 0 and max(doc["width"], doc["height"]) / doc["decimation"] <= 2048
+        assert doc["peak_rss_bytes"] < 2 * 2**30, "probe read too much of the raster (G40)"
+    if any(json.loads((REPO / "docs/probes" / f"{t.stem}_raster.json").read_text())["nodata_declared"] is None
+           for t in tifs):
+        assert "fill" in (REPO / "Phase_1/QUESTIONS.md").read_text().lower()
