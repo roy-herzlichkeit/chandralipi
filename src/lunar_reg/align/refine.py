@@ -48,13 +48,17 @@ integer-output corner detectors such as FAST or Harris, which is what
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
+from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 
 from lunar_reg.align.estimate import Transform, estimate_transform
 from lunar_reg.match.base import MatchResult
+from lunar_reg.provenance import Sourced, ValueSource
 
 logger = logging.getLogger(__name__)
 
@@ -130,17 +134,22 @@ def refine_matches(
 
 
 def reestimate_on_inliers(
-    result: MatchResult, model: str = "homography", threshold_px: float = 1.0
+    result: MatchResult, model: str = "homography", threshold_px: float = 1.0, seed: int = 0
 ):
     """Re-fit the transform on inliers alone at a tighter threshold.
 
     The first robust fit rejects gross outliers at a permissive threshold; this
     second pass, on a clean point set, is what delivers the sub-pixel residual.
     Reporting RMSE from the first fit understates achievable accuracy.
+
+    ``result`` is not modified: the refit's inlier mask lands on a new
+    :class:`MatchResult`, which is what is returned.
     """
     inliers = result.inliers()
+    if inliers is result:  # no mask yet: inliers() hands back the same object
+        inliers = dataclasses.replace(result)
     logger.info("re-estimating on %d inliers at %.1f px", len(inliers), threshold_px)
-    return estimate_transform(inliers, model=model, threshold_px=threshold_px)
+    return estimate_transform(inliers, model=model, threshold_px=threshold_px, seed=seed)
 
 
 #: Gaussian sigma for the local-contrast prefilter, in pixels. Chosen to sit
@@ -148,6 +157,7 @@ def reestimate_on_inliers(
 #: broad illumination gradient without flattening the landforms ECC aligns to.
 #: PLACEHOLDER to tune -- 8 px was the only value swept.
 ECC_PREFILTER_SIGMA: float = 8.0
+ECC_PREFILTER_SIGMA_SOURCE = ValueSource.INFERRED
 
 ECC_PREFILTERS = ("auto", "local_contrast", "none")
 
@@ -164,6 +174,35 @@ ECC_PREFILTERS = ("auto", "local_contrast", "none")
 #: Deciding from the images alone cannot separate the two causes; the sun angles
 #: can, which is what :func:`choose_ecc_prefilter` uses.
 ECC_SAME_ILLUMINATION_NCC: float = 0.97
+#: Measured on synthetic scenes only (see above), not on real pairs.
+ECC_SAME_ILLUMINATION_NCC_SOURCE = ValueSource.MEASURED
+
+#: Largest probe displacement ECC may introduce relative to the feature fit
+#: before its result is rejected as a jump to a wrong correlation peak.
+ECC_MAX_SHIFT_PX = Sourced(3.0, ValueSource.INFERRED, "equals the default RANSAC threshold")
+
+
+class EccStatus(str, Enum):
+    APPLIED = "applied"
+    SKIPPED_NO_SIMILARITY_MOTION = "skipped_no_similarity_motion"  # partial_affine (G35)
+    SKIPPED_SINGULAR = "skipped_singular"
+    SKIPPED_DISABLED = "skipped_disabled"  # use_ecc False or images missing
+    NOT_CONVERGED = "not_converged"
+    REJECTED_DISPLACEMENT = "rejected_displacement"
+
+    @property
+    def is_failure(self) -> bool:
+        return self in (EccStatus.NOT_CONVERGED, EccStatus.REJECTED_DISPLACEMENT)
+
+
+@dataclass
+class EccOutcome:
+    transform: Transform  # refined when APPLIED, else the input transform unchanged
+    status: EccStatus
+    cc: float  # nan unless APPLIED
+    motion: str | None  # "homography" | "affine" | None
+    shift_px: float | None  # max probe displacement between input and ECC result
+    detail: str = ""
 
 
 def choose_ecc_prefilter(
@@ -202,7 +241,8 @@ def _aligned_ncc(transform_matrix: np.ndarray, source: np.ndarray, reference: np
 
     rows, cols = reference.shape[:2]
     warped = cv2.warpPerspective(
-        np.asarray(source, dtype=np.float32), np.asarray(transform_matrix, dtype=np.float64),
+        np.asarray(source, dtype=np.float32),
+        np.asarray(transform_matrix, dtype=np.float64),
         (cols, rows),
     )
     mask = warped > 0
@@ -238,15 +278,20 @@ def local_contrast_normalize(image: np.ndarray, sigma: float = ECC_PREFILTER_SIG
     return np.clip(128.0 + 40.0 * (f - mean) / std, 0, 255).astype(np.uint8)
 
 
-def refine_transform_ecc(
+def ecc_refine(
     transform: Transform,
     source: np.ndarray,
     reference: np.ndarray,
+    *,
     max_iterations: int = 200,
     epsilon: float = 1e-7,
     gaussian_blur: int = 5,
     prefilter: str = "none",
-) -> tuple[Transform, float]:
+    nodata: float | None = None,
+    max_shift_px: float = ECC_MAX_SHIFT_PX.value,
+    source_valid: np.ndarray | None = None,
+    reference_valid: np.ndarray | None = None,
+) -> EccOutcome:
     """Refine a transform against image intensities (Enhanced Correlation Coefficient).
 
     Not limited by keypoint localisation, so it improves on a feature-only fit:
@@ -266,8 +311,8 @@ def refine_transform_ecc(
     ``inv(src_to_ref)``, and the returned matrix inverted. That is what this
     function does; do not rearrange it without re-running the check.
 
-    The prefilter, and why it defaults on
-    -------------------------------------
+    The prefilter, and why it is off by default
+    -------------------------------------------
     MEASURED on synthetic illumination pairs (lunar_reg.eval.scenes), 6 seeds x
     2 matchers, error against a known homography in reference pixels:
 
@@ -295,66 +340,184 @@ def refine_transform_ecc(
     contrast inversion but not lunar photometry, detector noise, or pushbroom
     geometry; re-measure on real pairs before quoting them.
 
-    Returns ``(refined_transform, correlation_coefficient)``. On failure to
-    converge the original transform is returned with ``cc = nan`` -- ECC
-    diverges on low-texture pairs, and silently returning a diverged warp would
-    be worse than not refining.
+    The fit's own motion model is kept: a homography is refined with
+    ``MOTION_HOMOGRAPHY`` and stays 3x3, an affine with ``MOTION_AFFINE`` and
+    stays 2x3. ``partial_affine`` has no ECC equivalent (OpenCV's similarity
+    motion is not exposed for ECC) and is returned unchanged. Input arrays are
+    never modified. Pixels outside ``source_valid``/``reference_valid`` (or equal
+    to ``nodata``) are excluded through ``cv2.findTransformECCWithMask``. A
+    result that moves any of a 5x5 grid of source probes by more than
+    ``max_shift_px`` from the input transform is rejected: ECC converging to a
+    different correlation peak is a jump, not a refinement.
+
+    Returns an :class:`EccOutcome`. On anything but ``APPLIED`` the input
+    transform comes back with ``cc = nan`` -- ECC diverges on low-texture pairs,
+    and silently returning a diverged warp would be worse than not refining.
     """
     import cv2
-
-    if transform.matrix.shape != (3, 3):
-        full = np.vstack([transform.matrix, [0.0, 0.0, 1.0]])
-    else:
-        full = transform.matrix
 
     if prefilter not in ECC_PREFILTERS:
         raise ValueError(f"prefilter must be one of {ECC_PREFILTERS}, got {prefilter!r}")
 
+    def unchanged(status: EccStatus, motion: str | None, detail: str, shift=None) -> EccOutcome:
+        return EccOutcome(transform, status, float("nan"), motion, shift, detail)
+
+    if transform.model == "partial_affine":
+        return unchanged(
+            EccStatus.SKIPPED_NO_SIMILARITY_MOTION,
+            None,
+            "partial_affine has no ECC motion model; transform kept",
+        )
+    motion_name = "affine" if transform.matrix.shape == (2, 3) else "homography"
+    motion = cv2.MOTION_AFFINE if motion_name == "affine" else cv2.MOTION_HOMOGRAPHY
+    full = (
+        np.vstack([transform.matrix, [0.0, 0.0, 1.0]])
+        if transform.matrix.shape == (2, 3)
+        else np.asarray(transform.matrix, dtype=np.float64)
+    )
+
     if prefilter == "auto":
         ncc = _aligned_ncc(full, source, reference)
         prefilter = (
-            "none" if (math.isfinite(ncc) and ncc >= ECC_SAME_ILLUMINATION_NCC)
+            "none"
+            if (math.isfinite(ncc) and ncc >= ECC_SAME_ILLUMINATION_NCC)
             else "local_contrast"
         )
         logger.debug("ECC prefilter chosen automatically: %s (aligned NCC %.4f)", prefilter, ncc)
 
-    if prefilter == "local_contrast":
-        source = local_contrast_normalize(source)
-        reference = local_contrast_normalize(reference)
+    # Validity masks come from the caller's images, before any prefilter.
+    input_mask = _validity_mask(source, source_valid, nodata, gaussian_blur)
+    template_mask = _validity_mask(reference, reference_valid, nodata, gaussian_blur)
 
-    src = np.asarray(source, dtype=np.float32)
-    ref = np.asarray(reference, dtype=np.float32)
+    # Work on copies: the caller's arrays are never written (no in-place /= 255).
+    if prefilter == "local_contrast":
+        src = local_contrast_normalize(source).astype(np.float32)
+        ref = local_contrast_normalize(reference).astype(np.float32)
+    else:
+        src = np.array(source, dtype=np.float32, copy=True)
+        ref = np.array(reference, dtype=np.float32, copy=True)
     for arr in (src, ref):
         if arr.max() > 1.0:
             arr /= 255.0
 
     try:
-        initial = np.linalg.inv(full)
+        inverse = np.linalg.inv(full)
     except np.linalg.LinAlgError:
         logger.warning("transform is singular; skipping ECC refinement")
-        return transform, float("nan")
-    initial = (initial / initial[2, 2]).astype(np.float32)
+        return unchanged(EccStatus.SKIPPED_SINGULAR, motion_name, "input transform is singular")
+    if motion_name == "homography":
+        initial = (inverse / inverse[2, 2]).astype(np.float32)
+    else:
+        initial = inverse[:2].astype(np.float32)
 
     criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, max_iterations, epsilon)
     try:
-        cc, warp = cv2.findTransformECC(
-            ref, src, initial.copy(), cv2.MOTION_HOMOGRAPHY, criteria, None, gaussian_blur
-        )
+        if input_mask is None and template_mask is None:
+            cc, warp = cv2.findTransformECC(
+                ref, src, initial.copy(), motion, criteria, None, gaussian_blur
+            )
+        else:
+            full_mask = np.full(ref.shape[:2], 255, np.uint8)
+            cc, warp = cv2.findTransformECCWithMask(
+                ref,
+                src,
+                template_mask if template_mask is not None else full_mask,
+                input_mask if input_mask is not None else np.full(src.shape[:2], 255, np.uint8),
+                initial.copy(),
+                motion,
+                criteria,
+                gaussian_blur,
+            )
     except cv2.error as exc:
-        logger.warning("ECC did not converge (%s); keeping the feature-based transform", exc)
-        return transform, float("nan")
+        first = (str(exc).strip().splitlines() or ["cv2.error"])[0]
+        logger.warning("ECC did not converge (%s); keeping the feature-based transform", first)
+        return unchanged(EccStatus.NOT_CONVERGED, motion_name, first)
+    if not math.isfinite(float(cc)):
+        return unchanged(EccStatus.NOT_CONVERGED, motion_name, f"non-finite cc {cc}")
 
-    refined = np.linalg.inv(warp.astype(np.float64))
-    refined = refined / refined[2, 2]
-    return (
-        Transform(
-            matrix=refined,
-            model=transform.model,
-            n_inliers=transform.n_inliers,
-            n_total=transform.n_total,
-        ),
-        float(cc),
+    warp3 = np.asarray(warp, dtype=np.float64)
+    if warp3.shape == (2, 3):
+        warp3 = np.vstack([warp3, [0.0, 0.0, 1.0]])
+    try:
+        refined = np.linalg.inv(warp3)
+    except np.linalg.LinAlgError:
+        return unchanged(EccStatus.NOT_CONVERGED, motion_name, "ECC returned a singular warp")
+    refined = refined / refined[2, 2] if motion_name == "homography" else refined[:2]
+    candidate = Transform(
+        matrix=refined,
+        model=transform.model,
+        n_inliers=transform.n_inliers,
+        n_total=transform.n_total,
+        estimator=transform.estimator,
+        seed=transform.seed,
     )
+
+    h, w = np.asarray(source).shape[:2]
+    gx, gy = np.meshgrid(np.linspace(0, w - 1, 5), np.linspace(0, h - 1, 5))
+    probes = np.column_stack([gx.ravel(), gy.ravel()])
+    shift = float(np.linalg.norm(candidate.apply(probes) - transform.apply(probes), axis=1).max())
+    if shift > max_shift_px:
+        detail = f"displacement {shift:.3f} px > gate {max_shift_px} px"
+        logger.warning("ECC result rejected: %s", detail)
+        return unchanged(EccStatus.REJECTED_DISPLACEMENT, motion_name, detail, shift)
+
+    return EccOutcome(candidate, EccStatus.APPLIED, float(cc), motion_name, shift)
+
+
+def _validity_mask(
+    image: np.ndarray, valid: np.ndarray | None, nodata: float | None, gaussian_blur: int
+) -> np.ndarray | None:
+    """uint8 0/255 ECC mask, eroded by ``gaussian_blur + 2``; ``None`` when nothing is masked.
+
+    An explicit ``valid`` wins; otherwise ``image != nodata`` when ``nodata`` is
+    set (NaN nodata means "not NaN").
+    """
+    import cv2
+
+    if valid is not None:
+        keep = np.asarray(valid, dtype=bool)
+    elif nodata is not None:
+        arr = np.asarray(image)
+        keep = (
+            ~np.isnan(arr)
+            if (isinstance(nodata, float) and math.isnan(nodata))
+            else (arr != nodata)
+        )
+    else:
+        return None
+    mask = keep.astype(np.uint8) * 255
+    side = gaussian_blur + 2
+    return cv2.erode(mask, np.ones((side, side), np.uint8))
+
+
+def refine_transform_ecc(
+    transform: Transform,
+    source: np.ndarray,
+    reference: np.ndarray,
+    max_iterations: int = 200,
+    epsilon: float = 1e-7,
+    gaussian_blur: int = 5,
+    prefilter: str = "none",
+    nodata: float | None = None,
+    max_shift_px: float = ECC_MAX_SHIFT_PX.value,
+    source_valid: np.ndarray | None = None,
+    reference_valid: np.ndarray | None = None,
+) -> tuple[Transform, float]:
+    """Thin wrapper over :func:`ecc_refine`: ``(outcome.transform, outcome.cc)``."""
+    outcome = ecc_refine(
+        transform,
+        source,
+        reference,
+        max_iterations=max_iterations,
+        epsilon=epsilon,
+        gaussian_blur=gaussian_blur,
+        prefilter=prefilter,
+        nodata=nodata,
+        max_shift_px=max_shift_px,
+        source_valid=source_valid,
+        reference_valid=reference_valid,
+    )
+    return outcome.transform, outcome.cc
 
 
 def refine_full(
@@ -365,31 +528,44 @@ def refine_full(
     threshold_px: float = 1.0,
     use_ecc: bool = True,
     ecc_kwargs: dict | None = None,
+    seed: int = 0,
 ) -> tuple[Transform, MatchResult, dict]:
     """The recommended refinement chain: refit on inliers, then ECC.
 
     Deliberately does **not** call ``cornerSubPix`` -- see the module docstring.
 
-    ``ecc_kwargs`` is forwarded to :func:`refine_transform_ecc` -- in practice
+    ``ecc_kwargs`` is forwarded to :func:`ecc_refine` -- in practice
     ``{"prefilter": ...}``, which for a cross-illumination pair is the single
-    most consequential setting in this chain.
+    most consequential setting in this chain; ``nodata``, ``max_shift_px``,
+    ``source_valid`` and ``reference_valid`` also pass through.
 
-    Returns ``(transform, result, detail)`` where ``detail`` records which
-    stages ran and the ECC correlation coefficient if it did.
+    Returns ``(transform, result, detail)``. ``detail`` always carries
+    ``stages``, ``inliers_after_refit``, ``pre_ecc_matrix``, ``ecc_status``
+    (an :class:`EccStatus` value), ``ecc_motion``, ``ecc_cc`` and
+    ``ecc_shift_px`` (CONTRACTS C07). The input ``result`` is not modified, and
+    the returned matrix has the shape of ``model``.
     """
     detail: dict = {"stages": []}
 
-    transform, result = reestimate_on_inliers(result, model=model, threshold_px=threshold_px)
+    transform, result = reestimate_on_inliers(
+        result, model=model, threshold_px=threshold_px, seed=seed
+    )
     detail["stages"].append("reestimate_on_inliers")
     detail["inliers_after_refit"] = transform.n_inliers
+    detail["pre_ecc_matrix"] = transform.matrix.copy()
+    detail["ecc_status"] = EccStatus.SKIPPED_DISABLED.value
+    detail["ecc_motion"] = None
+    detail["ecc_cc"] = None
+    detail["ecc_shift_px"] = None
 
     if use_ecc and source is not None and reference is not None:
-        refined, cc = refine_transform_ecc(transform, source, reference, **(ecc_kwargs or {}))
-        if np.isfinite(cc):
-            transform = refined
+        outcome = ecc_refine(transform, source, reference, **(ecc_kwargs or {}))
+        detail["ecc_status"] = outcome.status.value
+        detail["ecc_motion"] = outcome.motion
+        detail["ecc_shift_px"] = outcome.shift_px
+        if outcome.status is EccStatus.APPLIED:
+            transform = outcome.transform
             detail["stages"].append("ecc")
-            detail["ecc_cc"] = cc
-        else:
-            detail["ecc_skipped"] = "did not converge"
+            detail["ecc_cc"] = outcome.cc
 
     return transform, result, detail
