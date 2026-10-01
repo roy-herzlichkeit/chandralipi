@@ -101,6 +101,16 @@ class PipelineConfig:
     ecc_max_shift_px: float = 3.0
     #: Value marking invalid pixels in both images; masked out of ECC.
     nodata: float | None = None
+    #: Preprocessing preset run before matching, one of
+    #: :data:`lunar_reg.preprocess.presets.PRESET_NAMES` (CONTRACTS C12). The
+    #: default changes only from the P1.18 ablation (P1.19, DECISIONS G09).
+    preprocess: str = "none"
+
+    def __post_init__(self) -> None:
+        from lunar_reg.preprocess.presets import PRESET_NAMES
+
+        if self.preprocess not in PRESET_NAMES:
+            raise ValueError(f"unknown preset {self.preprocess!r}; choose one of {PRESET_NAMES}")
 
 
 #: Matcher names routed to the learned (torch) implementations rather than OpenCV.
@@ -148,7 +158,8 @@ def register_pair(
 ) -> RunOutcome:
     """Register one pair and package everything it produced.
 
-    Stages: match -> ``min_matches`` -> robust fit (``seed``) -> ``min_inliers``
+    Stages: preprocess preset (``config.preprocess``, skipped for ``"none"``)
+    -> match -> ``min_matches`` -> robust fit (``seed``) -> ``min_inliers``
     -> :func:`~lunar_reg.align.refine.refine_full` at ``refit_threshold_px`` ->
     ``min_inliers`` again ("after refit") -> metrics, uniformity, conditioning.
     Every failure after the call starts is a classified :class:`RunOutcome`;
@@ -164,6 +175,14 @@ def register_pair(
     signal for that choice -- see the measurements in that module.
     ``source_valid`` / ``reference_valid`` are boolean validity masks (True =
     valid pixel) passed to ECC, as is ``config.nodata``.
+
+    With a preset other than ``"none"`` the preprocessed images feed matching,
+    the fits, ECC and uniformity, while ``PairResult.source_image`` /
+    ``reference_image`` keep the input images. Presets encode nodata as 0, so
+    ECC then gets ``nodata=0`` whenever a mask or ``config.nodata`` was given
+    or a float input has non-finite pixels.
+    A preset that fails is ``RunStatus.PREPROCESS_FAILED`` at stage
+    ``"preprocess"`` (Phase_1/LLD/preprocess_presets.md §2).
     """
     # Imported here, not at module level, so tests can monkeypatch the stages.
     from lunar_reg.align.estimate import estimate_transform
@@ -182,12 +201,49 @@ def register_pair(
         "reference_sensor": reference_sensor,
         "matcher": config.matcher,
         "model": config.model,
+        "preprocess": config.preprocess,
         **config.extra,
     }
     counts: dict[str, int] = {}
 
     def fail(status: RunStatus, stage: str, detail: str) -> RunOutcome:
         return RunOutcome(pair_id, status, detail=detail, extra={**base, "stage": stage, **counts})
+
+    # 0. preprocess preset; the inputs are kept for PairResult (thumbnails)
+    inputs = (source, reference)
+    ecc_nodata = config.nodata
+    placeholders = ""
+    if config.preprocess != "none":
+        # Module attribute, not a name import, so tests can monkeypatch it.
+        from lunar_reg.preprocess import presets
+
+        try:
+            pre = presets.apply_preset(
+                config.preprocess,
+                source,
+                reference,
+                source_valid=source_valid,
+                reference_valid=reference_valid,
+                nodata=config.nodata,
+            )
+        except Exception as exc:  # noqa: BLE001 - a preset raising (bad mask, bad input) is an outcome
+            return fail(RunStatus.PREPROCESS_FAILED, "preprocess", _describe(exc))
+        if not pre.ok:
+            return fail(RunStatus.PREPROCESS_FAILED, "preprocess", pre.detail)
+        source, reference = pre.source, pre.reference
+        placeholders = ",".join(sorted(pre.uses_placeholders))
+        has_nonfinite = any(
+            np.issubdtype(np.asarray(img).dtype, np.inexact)
+            and not np.isfinite(np.asarray(img)).all()
+            for img in inputs
+        )
+        if (
+            source_valid is not None
+            or reference_valid is not None
+            or config.nodata is not None
+            or has_nonfinite
+        ):
+            ecc_nodata = 0  # presets encode nodata (incl. NaN/inf input pixels) as 0
 
     # 1-2. match
     try:
@@ -237,7 +293,7 @@ def register_pair(
             use_ecc=config.use_ecc,
             ecc_kwargs={
                 "prefilter": prefilter,
-                "nodata": config.nodata,
+                "nodata": ecc_nodata,
                 "max_shift_px": config.ecc_max_shift_px,
                 "source_valid": source_valid,
                 "reference_valid": reference_valid,
@@ -298,12 +354,14 @@ def register_pair(
             metrics=metrics.as_dict(),
             uniformity=uniformity.as_dict(),
             conditioning=conditioning,
-            source_image=source,
-            reference_image=reference,
+            source_image=inputs[0],
+            reference_image=inputs[1],
             synthetic=synthetic,
             notes=notes,
             extra={
                 **config.extra,
+                "preprocess": config.preprocess,
+                "preprocess_placeholders": placeholders,
                 "ecc_prefilter": prefilter,
                 "refine_stages": "+".join(detail.get("stages", [])),
                 "ecc_status": detail.get("ecc_status"),
