@@ -51,7 +51,7 @@ def test_subpixel_flag_requires_both_rmse_and_p95():
     r = MatchResult(pts, pts + offsets, matcher="test")
     r.inlier_mask = np.ones(100, dtype=bool)
     m = compute_metrics(r, Transform(IDENTITY, "homography", 100, 100))
-    assert not m.is_subpixel
+    assert not m.self_residual_subpixel
 
 
 def test_rmse_converts_to_ground_metres():

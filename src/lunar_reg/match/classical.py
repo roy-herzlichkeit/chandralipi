@@ -186,7 +186,11 @@ class ClassicalMatcher:
                 "%s: too few keypoints (%d, %d)", self.name, len(kp1 or []), len(kp2 or [])
             )
             empty = MatchResult.empty(self.name)
-            empty.meta = self._meta()
+            empty.meta = self._meta(
+                empty_reason="too_few_keypoints",
+                n_keypoints_src=len(kp1 or []),
+                n_keypoints_ref=len(kp2 or []),
+            )
             return empty
 
         matcher = cv2.BFMatcher(self.info.norm)
@@ -201,7 +205,12 @@ class ClassicalMatcher:
 
         if not forward:
             empty = MatchResult.empty(self.name)
-            empty.meta = self._meta(n_keypoints=(len(kp1), len(kp2)))
+            empty.meta = self._meta(
+                n_keypoints=(len(kp1), len(kp2)),
+                empty_reason="no_ratio_survivors",
+                n_keypoints_src=len(kp1),
+                n_keypoints_ref=len(kp2),
+            )
             return empty
 
         src = np.array([kp1[i].pt for i, _, _ in forward])

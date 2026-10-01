@@ -147,9 +147,7 @@ class RIFT2Matcher:
         from lunar_reg.preprocess.radiometric import to_uint8
 
         arr = image if image.dtype == np.uint8 else to_uint8(image)
-        phase = compute_phase_congruency(
-            arr.astype(np.float64), self.n_scales, self.n_orientations
-        )
+        phase = compute_phase_congruency(arr.astype(np.float64), self.n_scales, self.n_orientations)
         mim = build_mim(phase.amplitude_by_orientation)
 
         budget = self.max_keypoints // (2 if (self.use_edges and self.use_corners) else 1)
@@ -164,13 +162,31 @@ class RIFT2Matcher:
             return np.empty((0, 2)), np.empty((0, self.descriptor_size), np.float32)
 
         return describe_keypoints(
-            mim, keypoints, self.n_orientations,
-            self.patch_size, self.n_grids, self.dominant_ratio,
+            mim,
+            keypoints,
+            self.n_orientations,
+            self.patch_size,
+            self.n_grids,
+            self.dominant_ratio,
         )
 
     @property
     def descriptor_size(self) -> int:
         return self.n_grids * self.n_grids * self.n_orientations
+
+    def _empty(self, reason: str, n_src: int, n_ref: int) -> MatchResult:
+        """An empty result that says why it is empty."""
+        empty = MatchResult.empty(self.name)
+        empty.meta = {
+            "detector": "rift2",
+            "ratio": self.ratio,
+            "n_scales": self.n_scales,
+            "n_orientations": self.n_orientations,
+            "empty_reason": reason,
+            "n_keypoints_src": int(n_src),
+            "n_keypoints_ref": int(n_ref),
+        }
+        return empty
 
     def match(self, source: np.ndarray, reference: np.ndarray) -> MatchResult:
         import cv2
@@ -182,7 +198,7 @@ class RIFT2Matcher:
             logger.debug(
                 "%s: too few descriptors (%d, %d)", self.name, len(src_desc), len(ref_desc)
             )
-            return MatchResult.empty(self.name)
+            return self._empty("too_few_keypoints", len(src_desc), len(ref_desc))
 
         matcher = cv2.BFMatcher(cv2.NORM_L2)
         pairs = matcher.knnMatch(src_desc, ref_desc, k=2)
@@ -198,14 +214,19 @@ class RIFT2Matcher:
                 scores.append(1.0 - best.distance / max(second.distance, 1e-9))
 
         if not src:
-            return MatchResult.empty(self.name)
+            return self._empty("no_ratio_survivors", len(src_desc), len(ref_desc))
 
         logger.debug(
             "%s: %d matches from %d/%d descriptors",
-            self.name, len(src), len(src_desc), len(ref_desc),
+            self.name,
+            len(src),
+            len(src_desc),
+            len(ref_desc),
         )
         return MatchResult(
-            src_pts=np.array(src), dst_pts=np.array(dst), scores=np.array(scores),
+            src_pts=np.array(src),
+            dst_pts=np.array(dst),
+            scores=np.array(scores),
             matcher=self.name,
             meta={
                 "detector": "rift2",

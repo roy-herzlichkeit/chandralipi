@@ -19,8 +19,12 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from lunar_reg.results import PairResult
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +37,18 @@ class RunStatus(str, Enum):
     TOO_FEW_MATCHES = "too_few_matches"
     #: Enough correspondences, but the robust fit did not converge.
     ESTIMATION_FAILED = "estimation_failed"
-    #: RANSAC kept too few inliers for the result to mean anything.
+    #: RANSAC (or the refit after it) kept too few inliers to mean anything.
     TOO_FEW_INLIERS = "too_few_inliers"
     #: The matcher itself raised.
     MATCHER_ERROR = "matcher_error"
+    #: The refit or ECC stage raised.
+    REFINEMENT_FAILED = "refinement_failed"
+    #: Metrics, uniformity or conditioning raised.
+    EVAL_FAILED = "eval_failed"
+    #: Preprocessing raised (first produced by P1.10).
+    PREPROCESS_FAILED = "preprocess_failed"
+    #: Out of device memory (first produced by P2.05).
+    OOM = "oom"
 
     @property
     def is_failure(self) -> bool:
@@ -45,12 +57,19 @@ class RunStatus(str, Enum):
 
 @dataclass
 class RunOutcome:
-    """One pair's outcome: a result, or a classified reason there is none."""
+    """One pair's outcome: a result, or a classified reason there is none.
+
+    ``extra`` always carries ``source_id``, ``reference_id``, ``source_sensor``,
+    ``reference_sensor``, ``matcher``, ``model``, ``stage`` and every key of
+    ``PipelineConfig.extra``; failures after matching add ``n_raw_matches``,
+    failures after RANSAC add ``n_ransac_inliers`` (CONTRACTS C02).
+    """
 
     pair_id: str
     status: RunStatus
-    result: object | None = None
+    result: PairResult | None = None
     detail: str = ""
+    extra: dict = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -74,6 +93,14 @@ class PipelineConfig:
     n_bootstrap: int = 40
     gsd_m: float | None = None
     extra: dict = field(default_factory=dict)
+    #: Threshold of the second fit on the first fit's inliers (refine_full).
+    refit_threshold_px: float = 1.0
+    #: Seeds OpenCV's RNG for both robust fits (CONTRACTS C06).
+    seed: int = 0
+    #: ECC displacement gate (CONTRACTS C07, ``ECC_MAX_SHIFT_PX``).
+    ecc_max_shift_px: float = 3.0
+    #: Value marking invalid pixels in both images; masked out of ECC.
+    nodata: float | None = None
 
 
 #: Matcher names routed to the learned (torch) implementations rather than OpenCV.
@@ -94,6 +121,15 @@ def _build_matcher(name: str):
     return build_classical(name)
 
 
+def _describe(exc: BaseException) -> str:
+    return f"{type(exc).__name__}: {exc}"
+
+
+def _scalar_meta(meta: dict) -> dict:
+    """``matcher_<k>`` for every scalar matcher meta value (str, int, float, bool)."""
+    return {f"matcher_{k}": v for k, v in meta.items() if isinstance(v, (str, int, float, bool))}
+
+
 def register_pair(
     source: np.ndarray,
     reference: np.ndarray,
@@ -107,101 +143,191 @@ def register_pair(
     reference_sun: tuple[float, float] | None = None,
     synthetic: bool = False,
     notes: str = "",
+    source_valid: np.ndarray | None = None,
+    reference_valid: np.ndarray | None = None,
 ) -> RunOutcome:
     """Register one pair and package everything it produced.
+
+    Stages: match -> ``min_matches`` -> robust fit (``seed``) -> ``min_inliers``
+    -> :func:`~lunar_reg.align.refine.refine_full` at ``refit_threshold_px`` ->
+    ``min_inliers`` again ("after refit") -> metrics, uniformity, conditioning.
+    Every failure after the call starts is a classified :class:`RunOutcome`;
+    this function does not raise for a bad pair.
+
+    Counts follow DECISIONS G34: the stored points are the raw matcher output,
+    ``inlier_mask`` marks the final (refit) inliers over that raw set, and the
+    metrics report raw, first-pass and final counts.
 
     ``source_sun`` / ``reference_sun`` are ``(azimuth_deg, elevation_deg)``. When
     both are given they select the ECC prefilter via
     :func:`~lunar_reg.align.refine.choose_ecc_prefilter`, which is the reliable
     signal for that choice -- see the measurements in that module.
+    ``source_valid`` / ``reference_valid`` are boolean validity masks (True =
+    valid pixel) passed to ECC, as is ``config.nodata``.
     """
+    # Imported here, not at module level, so tests can monkeypatch the stages.
     from lunar_reg.align.estimate import estimate_transform
     from lunar_reg.align.refine import choose_ecc_prefilter, refine_full
     from lunar_reg.eval.conditioning import bootstrap_conditioning
     from lunar_reg.eval.metrics import compute_metrics
     from lunar_reg.eval.uniformity import compute_uniformity
+    from lunar_reg.match.base import MatchResult
     from lunar_reg.results import PairResult
 
     config = config or PipelineConfig()
+    base = {
+        "source_id": source_id,
+        "reference_id": reference_id,
+        "source_sensor": source_sensor,
+        "reference_sensor": reference_sensor,
+        "matcher": config.matcher,
+        "model": config.model,
+        **config.extra,
+    }
+    counts: dict[str, int] = {}
 
+    def fail(status: RunStatus, stage: str, detail: str) -> RunOutcome:
+        return RunOutcome(pair_id, status, detail=detail, extra={**base, "stage": stage, **counts})
+
+    # 1-2. match
     try:
-        matches = _build_matcher(config.matcher).match(source, reference)
+        raw = _build_matcher(config.matcher).match(source, reference)
     except Exception as exc:  # noqa: BLE001 - a matcher failing is an outcome
-        return RunOutcome(
-            pair_id, RunStatus.MATCHER_ERROR, detail=f"{type(exc).__name__}: {exc}"
+        return fail(RunStatus.MATCHER_ERROR, "match", _describe(exc))
+    counts["n_raw_matches"] = len(raw)
+    if len(raw) < config.min_matches:
+        detail = (
+            f"{config.matcher} returned {len(raw)} correspondence(s), "
+            f"below the minimum of {config.min_matches}"
         )
+        reason = raw.meta.get("empty_reason")
+        if reason:
+            detail += f"; reason: {reason}"
+        return fail(RunStatus.TOO_FEW_MATCHES, "match", detail)
 
-    if len(matches) < config.min_matches:
-        return RunOutcome(
-            pair_id, RunStatus.TOO_FEW_MATCHES,
-            detail=f"{config.matcher} returned {len(matches)} correspondence(s), "
-                   f"below the minimum of {config.min_matches}",
-        )
-
+    # 3-4. first robust fit, on a copy so ``raw`` keeps no mask
+    first = MatchResult(raw.src_pts, raw.dst_pts, raw.scores, raw.matcher, None, dict(raw.meta))
     try:
-        transform, matches = estimate_transform(
-            matches, model=config.model, threshold_px=config.ransac_threshold_px
+        transform, first = estimate_transform(
+            first, model=config.model, threshold_px=config.ransac_threshold_px, seed=config.seed
         )
     except ValueError as exc:
-        return RunOutcome(pair_id, RunStatus.ESTIMATION_FAILED, detail=str(exc))
-
-    if transform.n_inliers < config.min_inliers:
-        return RunOutcome(
-            pair_id, RunStatus.TOO_FEW_INLIERS,
-            detail=f"RANSAC kept {transform.n_inliers} of {len(matches)} matches",
+        return fail(RunStatus.ESTIMATION_FAILED, "estimate", str(exc))
+    ransac_mask = np.asarray(first.inlier_mask, dtype=bool).copy()
+    counts["n_ransac_inliers"] = int(ransac_mask.sum())
+    if counts["n_ransac_inliers"] < config.min_inliers:
+        return fail(
+            RunStatus.TOO_FEW_INLIERS,
+            "estimate",
+            f"RANSAC kept {counts['n_ransac_inliers']} of {len(raw)} matches",
         )
 
     prefilter = config.ecc_prefilter
     if source_sun is not None and reference_sun is not None:
         prefilter = choose_ecc_prefilter(source_sun, reference_sun)
 
-    transform, matches, detail = refine_full(
-        matches, source=source, reference=reference, model=config.model,
-        threshold_px=config.ransac_threshold_px, use_ecc=config.use_ecc,
-        ecc_kwargs={"prefilter": prefilter},
+    # 5-6. refit on the first-pass inliers, then ECC
+    try:
+        transform, refit, detail = refine_full(
+            first,
+            source=source,
+            reference=reference,
+            model=config.model,
+            threshold_px=config.refit_threshold_px,
+            use_ecc=config.use_ecc,
+            ecc_kwargs={
+                "prefilter": prefilter,
+                "nodata": config.nodata,
+                "max_shift_px": config.ecc_max_shift_px,
+                "source_valid": source_valid,
+                "reference_valid": reference_valid,
+            },
+            seed=config.seed,
+        )
+        refit_inliers = (
+            np.asarray(refit.inlier_mask, dtype=bool)
+            if refit.inlier_mask is not None
+            else np.ones(len(refit), dtype=bool)
+        )
+        # Lift the refit mask (over the first-pass inliers, in order) to the raw set.
+        refit_mask = np.zeros(len(raw), dtype=bool)
+        refit_mask[np.flatnonzero(ransac_mask)] = refit_inliers
+    except Exception as exc:  # noqa: BLE001 - refit/ECC failing is an outcome
+        return fail(RunStatus.REFINEMENT_FAILED, "refine", _describe(exc))
+    counts["n_refit_inliers"] = int(refit_mask.sum())
+    if counts["n_refit_inliers"] < config.min_inliers:
+        return fail(
+            RunStatus.TOO_FEW_INLIERS,
+            "refine",
+            f"after refit: {counts['n_refit_inliers']} of {counts['n_ransac_inliers']} "
+            f"first-pass inliers at {config.refit_threshold_px} px",
+        )
+
+    # 7. evaluate and package
+    try:
+        final = MatchResult(raw.src_pts, raw.dst_pts, matcher=raw.matcher, inlier_mask=refit_mask)
+        metrics = compute_metrics(final, transform, gsd_m=config.gsd_m, ransac_mask=ransac_mask)
+        inliers = final.inliers()
+        uniformity = compute_uniformity(inliers.src_pts, source.shape[:2])
+
+        conditioning = {}
+        if config.n_bootstrap:
+            conditioning = bootstrap_conditioning(
+                inliers.src_pts,
+                inliers.dst_pts,
+                source.shape[:2],
+                model=config.model,
+                n_bootstrap=config.n_bootstrap,
+            ).as_dict()
+
+        import cv2
+
+        result = PairResult(
+            pair_id=pair_id,
+            source_id=source_id or pair_id,
+            reference_id=reference_id or pair_id,
+            source_sensor=source_sensor,
+            reference_sensor=reference_sensor,
+            matcher=config.matcher,
+            src_pts=raw.src_pts,
+            dst_pts=raw.dst_pts,
+            inlier_mask=refit_mask,
+            transform=transform.matrix,
+            metrics=metrics.as_dict(),
+            uniformity=uniformity.as_dict(),
+            conditioning=conditioning,
+            source_image=source,
+            reference_image=reference,
+            synthetic=synthetic,
+            notes=notes,
+            extra={
+                **config.extra,
+                "ecc_prefilter": prefilter,
+                "refine_stages": "+".join(detail.get("stages", [])),
+                "ecc_status": detail.get("ecc_status"),
+                "ecc_motion": detail.get("ecc_motion"),
+                "ecc_cc": detail.get("ecc_cc"),
+                "ecc_shift_px": detail.get("ecc_shift_px"),
+                "refit_threshold_px": config.refit_threshold_px,
+                "ransac_threshold_px": config.ransac_threshold_px,
+                "min_inliers": config.min_inliers,
+                "model": config.model,
+                "seed": config.seed,
+                "cv2_version": cv2.__version__,
+                "numpy_version": np.__version__,
+                "source_sun_azimuth": None if source_sun is None else source_sun[0],
+                "source_sun_elevation": None if source_sun is None else source_sun[1],
+                "reference_sun_azimuth": None if reference_sun is None else reference_sun[0],
+                "reference_sun_elevation": None if reference_sun is None else reference_sun[1],
+                **_scalar_meta(raw.meta),
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - an evaluation failure is an outcome
+        return fail(RunStatus.EVAL_FAILED, "eval", _describe(exc))
+
+    return RunOutcome(
+        pair_id, RunStatus.OK, result=result, extra={**base, "stage": "done", **counts}
     )
-
-    metrics = compute_metrics(matches, transform, gsd_m=config.gsd_m)
-    uniformity = compute_uniformity(matches.inliers().src_pts, source.shape[:2])
-
-    conditioning = {}
-    if config.n_bootstrap:
-        inliers = matches.inliers()
-        conditioning = bootstrap_conditioning(
-            inliers.src_pts, inliers.dst_pts, source.shape[:2],
-            model=config.model, n_bootstrap=config.n_bootstrap,
-        ).as_dict()
-
-    result = PairResult(
-        pair_id=pair_id,
-        source_id=source_id or pair_id,
-        reference_id=reference_id or pair_id,
-        source_sensor=source_sensor,
-        reference_sensor=reference_sensor,
-        matcher=config.matcher,
-        src_pts=matches.src_pts,
-        dst_pts=matches.dst_pts,
-        inlier_mask=matches.inlier_mask,
-        transform=transform.matrix,
-        metrics=metrics.as_dict(),
-        uniformity=uniformity.as_dict(),
-        conditioning=conditioning,
-        source_image=source,
-        reference_image=reference,
-        synthetic=synthetic,
-        notes=notes,
-        extra={
-            **config.extra,
-            "ecc_prefilter": prefilter,
-            "refine_stages": "+".join(detail.get("stages", [])),
-            "ecc_cc": detail.get("ecc_cc"),
-            "source_sun_azimuth": None if source_sun is None else source_sun[0],
-            "source_sun_elevation": None if source_sun is None else source_sun[1],
-            "reference_sun_azimuth": None if reference_sun is None else reference_sun[0],
-            "reference_sun_elevation": None if reference_sun is None else reference_sun[1],
-        },
-    )
-    return RunOutcome(pair_id, RunStatus.OK, result=result)
 
 
 @dataclass

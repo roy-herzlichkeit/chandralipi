@@ -44,7 +44,7 @@ def _result(**overrides) -> PairResult:
         "source_sensor": "OHRC", "reference_sensor": "LRO_NAC", "matcher": "sift",
         "src_pts": src, "dst_pts": src + 2.0,
         "inlier_mask": np.ones(40, dtype=bool), "transform": np.eye(3),
-        "metrics": {"rmse_px": 0.42, "is_subpixel": np.bool_(True)},
+        "metrics": {"rmse_px": 0.42, "self_residual_subpixel": np.bool_(True)},
         "uniformity": {"score": 0.91}, "conditioning": {"p95_px": 0.3},
         "source_image": np.zeros((256, 256), np.uint8),
         "reference_image": np.zeros((256, 256), np.uint8),
@@ -73,8 +73,8 @@ def test_numpy_booleans_survive_into_the_index():
     and json.dumps raises on it. Both are fixed by coercion, and this pins it.
     """
     row = _result().index_row()
-    assert row["m_is_subpixel"] is True
-    assert isinstance(row["m_is_subpixel"], bool)
+    assert row["m_self_residual_subpixel"] is True
+    assert isinstance(row["m_self_residual_subpixel"], bool)
 
 
 def test_index_row_prefixes_prevent_collisions():

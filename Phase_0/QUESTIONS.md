@@ -21,3 +21,8 @@ what I did meanwhile: removed `from __future__ import annotations` from scripts/
 context: src/lunar_reg/eval/error_budget.py:230-233; CONTRACTS.md C07 (refine_full detail keys always present; ecc_cc float or None; "ecc_skipped" removed per Phase_0/LLD/ecc.md §3)
 question: `if "ecc_cc" in detail: note += f", cc={detail['ecc_cc']:.3f}"` now raises TypeError whenever ECC is not APPLIED (ecc_cc is None), and the `ecc_skipped` branch is dead. error_budget.py is not in P0.08's file list. Should P0.12 (which already edits error_budget.py) change this to `if detail.get("ecc_cc") is not None` and report `detail["ecc_status"]` instead of `ecc_skipped`?
 what I did meanwhile: nothing in error_budget.py. scripts/ci.sh is green (497 passed), so no current test reaches the None path.
+
+## Q-P0.09-1  check_P0.09.sh takes ~69 s, over the G18 30 s check budget, because of a pre-existing ASIFT test
+context: Phase_0/harness/check_P0.09.sh (`repo_pytest ... tests/test_pipeline.py ...`); tests/test_pipeline.py::test_every_available_detector_produces_usable_matches[asift]; DECISIONS.md G18
+question: That one parametrised case takes 64 s on its own, and 64.13 s on the untouched base (phase-base-approved, measured in a temporary worktree), so P0.09 did not cause it. The check passes but breaks the < 30 s budget. Should the ASIFT case get a marker / smaller input, or should the check exclude it (`-k "not asift"`)? Both need a plan or harness change I may not make.
+what I did meanwhile: nothing; check_P0.09 passes as written (exit 0).
