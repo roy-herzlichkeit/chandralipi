@@ -35,6 +35,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
+from lunar_reg.provenance import ValueSource
+
 logger = logging.getLogger(__name__)
 
 PDS3 = "pds3"
@@ -146,6 +150,9 @@ class LROProduct:
     resolved: dict[str, str] = field(default_factory=dict)
     unresolved: list[str] = field(default_factory=list)
     sensor: str = "LRO_NAC"
+    #: Map georeference read from the PDS4 cart block (C10); ``None`` when the
+    #: label has none (the reason is then appended to ``unresolved``).
+    georef: GeoReference | None = None
 
     def __getitem__(self, key: str) -> Any:
         return self.values.get(key)
@@ -175,6 +182,297 @@ def _as_datetime(value: str | None) -> datetime | None:
         return None
 
 
+# ---------------------------------------------------------------------------
+# Map georeference from the PDS4 cart block (CONTRACTS C10,
+# Phase_1/LLD/lro_georeference.md). GDAL's transform for these labels reads the
+# deg/pixel ``pixel_resolution_x`` as metres, so geometry comes from the label.
+# ---------------------------------------------------------------------------
+
+POLAR_STEREOGRAPHIC = "Polar Stereographic"
+EQUIRECTANGULAR = "Equirectangular"
+
+#: Label paths (local names, ``pds4._resolve`` syntax) of the fields every
+#: supported projection needs. ``pixel_scale_*`` is m/pixel; the sibling
+#: ``pixel_resolution_*`` is deg/pixel and is never read.
+_CART_COMMON: dict[str, str] = {
+    "pixel_scale_x": "Cartography/pixel_scale_x",
+    "pixel_scale_y": "Cartography/pixel_scale_y",
+    "upperleft_corner_x": "Cartography/upperleft_corner_x",
+    "upperleft_corner_y": "Cartography/upperleft_corner_y",
+    "a_axis_radius": "Cartography/a_axis_radius",
+    "west_bounding_coordinate": "Cartography/west_bounding_coordinate",
+    "east_bounding_coordinate": "Cartography/east_bounding_coordinate",
+    "north_bounding_coordinate": "Cartography/north_bounding_coordinate",
+    "south_bounding_coordinate": "Cartography/south_bounding_coordinate",
+}
+
+#: Projection-specific parameters: local name -> path, per projection name.
+_CART_PROJECTION: dict[str, dict[str, str]] = {
+    POLAR_STEREOGRAPHIC: {
+        "longitude_of_central_meridian": "Polar_Stereographic/longitude_of_central_meridian",
+        "latitude_of_projection_origin": "Polar_Stereographic/latitude_of_projection_origin",
+    },
+    EQUIRECTANGULAR: {
+        "longitude_of_central_meridian": "Equirectangular/longitude_of_central_meridian",
+        "standard_parallel_1": "Equirectangular/standard_parallel_1",
+    },
+}
+
+#: Points sampled along each raster edge when fitting the upper-left x sign (LLD §3).
+SIGN_FIT_POINTS_PER_EDGE = 100
+SIGN_FIT_POINTS_PER_EDGE_SOURCE = ValueSource.INFERRED
+
+
+class LabelGeoreferenceError(ValueError):
+    """The label cannot be turned into a :class:`GeoReference` (missing or unsupported fields)."""
+
+
+def _fmt(value: float) -> str:
+    """Compact number for a proj4 string: ``-69.3``, ``1737400``, ``-90``."""
+    return f"{float(value):.12g}"
+
+
+def _geographic_proj4(crs_proj4: str) -> str:
+    """The sphere lon/lat CRS matching ``crs_proj4``'s ``+R``."""
+    match = re.search(r"\+R=(\S+)", crs_proj4)
+    if match is None:
+        raise LabelGeoreferenceError(f"no +R in proj4 string {crs_proj4!r}")
+    return f"+proj=longlat +R={match.group(1)} +no_defs"
+
+
+def _warp(src: str, dst: str, xs, ys) -> tuple[np.ndarray, np.ndarray]:
+    """Vectorised CRS transform through GDAL/PROJ, keeping the broadcast input shape."""
+    from rasterio.warp import transform
+
+    xs, ys = np.broadcast_arrays(np.asarray(xs, dtype=np.float64), np.asarray(ys, dtype=np.float64))
+    shape = xs.shape
+    if xs.size == 0:
+        return np.empty(shape, np.float64), np.empty(shape, np.float64)
+    out_x, out_y = transform(src, dst, xs.ravel().tolist(), ys.ravel().tolist())
+    return (
+        np.asarray(out_x, dtype=np.float64).reshape(shape),
+        np.asarray(out_y, dtype=np.float64).reshape(shape),
+    )
+
+
+@dataclass(frozen=True)
+class GeoReference:
+    """A map-projected raster's georeference, read from its label (C10).
+
+    Pixel-corner convention: ``(col, row) = (0, 0)`` is the outer upper-left
+    corner of the first pixel; ``x = x0 + col * psx`` and ``y = y0 - row * psy``.
+    Coordinate arguments are keyword-only because the legacy
+    ``geometry_grid.lonlat_to_pixel(grid, lat, lon)`` takes latitude first.
+    """
+
+    crs_proj4: str
+    x0_m: float
+    y0_m: float
+    pixel_size_x_m: float
+    pixel_size_y_m: float
+    width: int
+    height: int
+    source: ValueSource
+    note: str = ""
+
+    def pixel_to_xy(self, *, col, row) -> tuple[np.ndarray, np.ndarray]:
+        col = np.asarray(col, dtype=np.float64)
+        row = np.asarray(row, dtype=np.float64)
+        return self.x0_m + col * self.pixel_size_x_m, self.y0_m - row * self.pixel_size_y_m
+
+    def xy_to_pixel(self, *, x, y) -> tuple[np.ndarray, np.ndarray]:
+        x = np.asarray(x, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        return (x - self.x0_m) / self.pixel_size_x_m, (self.y0_m - y) / self.pixel_size_y_m
+
+    def lonlat_to_pixel(self, *, lon, lat) -> tuple[np.ndarray, np.ndarray]:
+        x, y = _warp(_geographic_proj4(self.crs_proj4), self.crs_proj4, lon, lat)
+        return self.xy_to_pixel(x=x, y=y)
+
+    def pixel_to_lonlat(self, *, col, row) -> tuple[np.ndarray, np.ndarray]:
+        x, y = self.pixel_to_xy(col=col, row=row)
+        return _warp(self.crs_proj4, _geographic_proj4(self.crs_proj4), x, y)
+
+    def affine(self):
+        from affine import Affine
+
+        return Affine(self.pixel_size_x_m, 0.0, self.x0_m, 0.0, -self.pixel_size_y_m, self.y0_m)
+
+    def as_dict(self) -> dict:
+        return {
+            "crs_proj4": self.crs_proj4,
+            "x0_m": float(self.x0_m),
+            "y0_m": float(self.y0_m),
+            "pixel_size_x_m": float(self.pixel_size_x_m),
+            "pixel_size_y_m": float(self.pixel_size_y_m),
+            "width": int(self.width),
+            "height": int(self.height),
+            "source": self.source.value,
+            "note": self.note,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> GeoReference:
+        return cls(
+            crs_proj4=str(d["crs_proj4"]),
+            x0_m=float(d["x0_m"]),
+            y0_m=float(d["y0_m"]),
+            pixel_size_x_m=float(d["pixel_size_x_m"]),
+            pixel_size_y_m=float(d["pixel_size_y_m"]),
+            width=int(d["width"]),
+            height=int(d["height"]),
+            source=ValueSource(d["source"]),
+            note=str(d.get("note", "")),
+        )
+
+
+def _bbox_residual_m(
+    crs_proj4: str,
+    x0: float,
+    y0: float,
+    psx: float,
+    psy: float,
+    width: int,
+    height: int,
+    bounds: tuple[float, float, float, float],
+    radius_m: float,
+) -> float:
+    """Metres between the raster boundary's lon/lat box and the label's (LLD §3).
+
+    ``bounds`` = (west, east, north, south) in degrees. Longitudes are compared
+    in [0, 360), wrapped to the shorter way round.
+    """
+    t = np.linspace(0.0, 1.0, SIGN_FIT_POINTS_PER_EDGE)
+    cols = np.r_[t * width, np.full_like(t, width), t * width, np.zeros_like(t)]
+    rows = np.r_[np.zeros_like(t), t * height, np.full_like(t, height), t * height]
+    lon, lat = _warp(crs_proj4, _geographic_proj4(crs_proj4), x0 + cols * psx, y0 - rows * psy)
+    if not (np.all(np.isfinite(lon)) and np.all(np.isfinite(lat))):
+        return float("inf")
+    lon = np.mod(lon, 360.0)
+    west, east, north, south = bounds
+
+    def dlon(a: float, b: float) -> float:
+        return abs((np.mod(a, 360.0) - np.mod(b, 360.0) + 180.0) % 360.0 - 180.0)
+
+    d_lon = max(dlon(lon.min(), west), dlon(lon.max(), east))
+    d_lat = max(abs(float(lat.max()) - north), abs(float(lat.min()) - south))
+    mean_lat = np.radians(0.5 * (north + south))
+    deg = np.pi / 180.0
+    return float(np.hypot(d_lon * radius_m * np.cos(mean_lat) * deg, d_lat * radius_m * deg))
+
+
+def georeference_from_label(label_path: str | Path) -> GeoReference:
+    """Georeference a map-projected PDS4 product from its own ``cart:`` block (C10).
+
+    Never uses GDAL's transform: for LROC NAC ortho labels GDAL takes the
+    deg/pixel ``pixel_resolution_x`` as the pixel size. The upper-left x sign
+    is chosen by fitting the raster boundary to ``Bounding_Coordinates``
+    (``Phase_1/LLD/lro_georeference.md`` §3); ``source`` is ``DOCUMENTED`` when
+    the written value fits better and ``INFERRED`` when the flipped sign does.
+    Raises :class:`LabelGeoreferenceError` listing every missing local name.
+    """
+    import xml.etree.ElementTree as ET
+
+    from lunar_reg.ingest.pds4 import _read_axes, _resolve
+
+    label_path = Path(label_path)
+    try:
+        root = ET.parse(label_path).getroot()
+    except ET.ParseError as exc:
+        raise LabelGeoreferenceError(f"{label_path.name}: not parseable XML: {exc}") from exc
+
+    projection, _ = _resolve(root, ("Cartography/map_projection_name",))
+    if projection is not None and projection not in _CART_PROJECTION:
+        raise LabelGeoreferenceError(
+            f"{label_path.name}: unsupported map_projection_name {projection!r} "
+            f"(supported: {', '.join(_CART_PROJECTION)})"
+        )
+    wanted = dict(_CART_COMMON)
+    if projection is not None:
+        wanted.update(_CART_PROJECTION[projection])
+
+    missing: list[str] = [] if projection is not None else ["map_projection_name"]
+    raw: dict[str, float] = {}
+    for name, path in wanted.items():
+        text, _ = _resolve(root, (path,))
+        value = _as_float(text)
+        if value is None:
+            missing.append(name)
+        else:
+            raw[name] = value
+    axes = {a.name.lower(): a.elements for a in _read_axes(root)}
+    for axis in ("Line", "Sample"):
+        if axis.lower() not in axes:
+            missing.append(f"Axis_Array {axis}")
+    if missing:
+        raise LabelGeoreferenceError(
+            f"{label_path.name}: cannot georeference, missing label field(s): {', '.join(missing)}"
+        )
+
+    if raw["a_axis_radius"] <= 0:
+        raise LabelGeoreferenceError(
+            f"{label_path.name}: non-positive a_axis_radius ({raw['a_axis_radius']} km)"
+        )
+    radius_m = raw["a_axis_radius"] * 1000.0
+    cm = raw["longitude_of_central_meridian"]
+    if projection == POLAR_STEREOGRAPHIC:
+        lat_ts = raw["latitude_of_projection_origin"]
+        lat_0 = -90.0 if lat_ts < 0 else 90.0
+        crs = (
+            f"+proj=stere +lat_0={_fmt(lat_0)} +lat_ts={_fmt(lat_ts)} +lon_0={_fmt(cm)} "
+            f"+R={_fmt(radius_m)} +units=m +no_defs"
+        )
+    else:
+        crs = (
+            f"+proj=eqc +lat_ts={_fmt(raw['standard_parallel_1'])} +lon_0={_fmt(cm)} "
+            f"+R={_fmt(radius_m)} +units=m +no_defs"
+        )
+
+    psx, psy = raw["pixel_scale_x"], raw["pixel_scale_y"]
+    if psx <= 0 or psy <= 0:
+        raise LabelGeoreferenceError(
+            f"{label_path.name}: non-positive pixel_scale_x/y ({psx}, {psy})"
+        )
+    width, height = int(axes["sample"]), int(axes["line"])
+    bounds = (
+        raw["west_bounding_coordinate"],
+        raw["east_bounding_coordinate"],
+        raw["north_bounding_coordinate"],
+        raw["south_bounding_coordinate"],
+    )
+    written_x, y0 = raw["upperleft_corner_x"], raw["upperleft_corner_y"]
+    from rasterio.errors import CRSError
+
+    try:
+        as_written = _bbox_residual_m(crs, written_x, y0, psx, psy, width, height, bounds, radius_m)
+        flipped = _bbox_residual_m(crs, -written_x, y0, psx, psy, width, height, bounds, radius_m)
+    except (CRSError, ValueError) as exc:
+        if isinstance(exc, LabelGeoreferenceError):
+            raise
+        raise LabelGeoreferenceError(
+            f"{label_path.name}: PROJ rejected the label projection {crs!r}: {exc}"
+        ) from exc
+    keep = as_written <= flipped
+    chosen, other = (as_written, flipped) if keep else (flipped, as_written)
+    note = (
+        f"ul_x sign {'as written' if keep else 'flipped'}; "
+        f"bbox residual {chosen:.1f} m (other sign {other:.1f} m)"
+    )
+    geo = GeoReference(
+        crs_proj4=crs,
+        x0_m=written_x if keep else -written_x,
+        y0_m=y0,
+        pixel_size_x_m=psx,
+        pixel_size_y_m=psy,
+        width=width,
+        height=height,
+        source=ValueSource.DOCUMENTED if keep else ValueSource.INFERRED,
+        note=note,
+    )
+    logger.info("%s: georeference %s (%s)", label_path.name, geo.source.value, note)
+    return geo
+
+
 def read_lro_label(label_path: str | Path) -> LROProduct:
     """Read an LRO reference label, dispatching on detected format.
 
@@ -188,13 +486,26 @@ def read_lro_label(label_path: str | Path) -> LROProduct:
         from lunar_reg.ingest.pds4 import read_label
 
         parsed = read_label(label_path, sensor="LRO_NAC")
+        values = dict(parsed.values)
+        resolved = dict(parsed.resolved)
+        unresolved = list(parsed.unresolved)
+        values["lines"] = parsed.lines
+        values["samples"] = parsed.samples
+        values["bands"] = parsed.bands
+        _read_pds4_bounds(label_path, values, resolved, unresolved)
+        try:
+            georef = georeference_from_label(label_path)
+        except LabelGeoreferenceError as exc:
+            georef = None
+            unresolved.append(f"georef: {exc}")
         return LROProduct(
             label_path=parsed.label_path,
             image_path=parsed.image_path,
             fmt=PDS4,
-            values=parsed.values,
-            resolved=parsed.resolved,
-            unresolved=parsed.unresolved,
+            values=values,
+            resolved=resolved,
+            unresolved=unresolved,
+            georef=georef,
         )
 
     if fmt != PDS3:
@@ -247,6 +558,34 @@ def read_lro_label(label_path: str | Path) -> LROProduct:
     )
 
 
+#: Manifest footprint column -> PDS4 ``cart:Bounding_Coordinates`` element (LLD §5).
+PDS4_BOUND_PATHS: dict[str, str] = {
+    "min_lat": "Bounding_Coordinates/south_bounding_coordinate",
+    "max_lat": "Bounding_Coordinates/north_bounding_coordinate",
+    "min_lon": "Bounding_Coordinates/west_bounding_coordinate",
+    "max_lon": "Bounding_Coordinates/east_bounding_coordinate",
+}
+
+
+def _read_pds4_bounds(
+    label_path: Path, values: dict[str, Any], resolved: dict[str, str], unresolved: list[str]
+) -> None:
+    """Fill ``min/max_lat/lon`` from the four ``*_bounding_coordinate`` fields, in place."""
+    import xml.etree.ElementTree as ET
+
+    from lunar_reg.ingest.pds4 import _resolve
+
+    root = ET.parse(label_path).getroot()
+    for name, path in PDS4_BOUND_PATHS.items():
+        text, matched = _resolve(root, (path,))
+        value = _as_float(text)
+        values[name] = value
+        if value is None or matched is None:
+            unresolved.append(name)
+        else:
+            resolved[name] = matched
+
+
 def _pds3_image_path(label_path: Path, keywords: dict[str, str]) -> Path | None:
     """Resolve ``^IMAGE`` to a file, or fall back to a sibling ``.IMG``.
 
@@ -282,6 +621,10 @@ def open_lro_product(path: str | Path):
 
     As with PDS4, the label is the entry point: GDAL resolves a bare ``.IMG``
     by extension and gets the wrong driver.
+
+    Warning: never take geometry from the opened dataset's GDAL transform (it
+    reads the deg/pixel ``pixel_resolution_x`` as metres); callers that need
+    geometry use ``LROProduct.georef`` (:func:`georeference_from_label`).
     """
     import rasterio
 
@@ -335,7 +678,9 @@ def lro_to_row(product: LROProduct) -> dict:
         "min_lon": product["min_lon"],
         "max_lon": product["max_lon"],
         "geometry_resolved": product.geometry_resolved,
-        "footprint_resolved": product["min_lat"] is not None,
+        "footprint_resolved": all(
+            product[k] is not None for k in ("min_lat", "max_lat", "min_lon", "max_lon")
+        ),
         "unresolved_fields": ",".join(product.unresolved),
         "product_type": product_type_of(product.label_path),
     }

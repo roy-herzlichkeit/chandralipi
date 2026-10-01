@@ -1,13 +1,13 @@
 # STATUS
 
-current: P1.04
+current: P1.05
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.03
+last_done: P1.04
 notes:
-- P1.03: manifest.py has ScanStatus/ScanDiagnostics/product_type_of; scan_directory and lro.scan_lro_directory take with_diagnostics; COLUMNS ends with product_type; scans now parse only "data" labels. New ingest/catalog.py (C09); new `lunar-reg catalog [--raw-root] [--json]` (exit 1 only when an instrument is UNREADABLE). The 3 scan tests in tests/test_ingest_labels.py now use *_d_img_d18.xml fixture names.
-- `lunar-reg catalog` on data/raw (EXIT=0; stdout at scratchpad p1/catalog_P1.03.stdout), first 8 lines: OHRC: present, 8 product(s), e.g. ch2_ohr_ncp_20230823T1450475804_d_img_n18 | TMC2: present, 4 product(s), e.g. ch2_tmc_ncf_20231026T0943001971_d_img_d18 | IIRS: present, 2 product(s), e.g. ch2_iir_nci_20221226T0416479474_d_img_d32 | LRO_NAC: present, 2 product(s), e.g. NAC_DTM_VIKRAMSITE1_M1442997156_100CM | LRO_NAC_DTM: present, 1 product(s), e.g. NAC_DTM_VIKRAMSITE1 | SELENE_TC: partial, 9 product(s), e.g. TC1S2B0_01_05600N005E1008.isis  (data file missing next to 7 label(s), e.g. TC1S2B0_01_05600N005E1008.isis.lbl) | label scan: 26 outcome(s), 0 failure(s) | not_a_data_product: 3  e.g. TMC2 .../ch2_tmc_ndn_20231027T1315134884_d_dtm_d18.xml: product_type=other
-- Non-blocking: Q-P1.03-1 (SELENE_TC is PARTIAL: the JAXA .lbl files name .img but .tif is on disk, and the .isis.lbl sidecars match the glob); Q-P1.03-2 (DTM and _d_oth_ labels count as "other" under the LLD rules, so products(inst) leaves them out by default). Both go in the review pack's LLD deviations and questions.
-- Not ruff-formatted, so other subcommands stay untouched: cli.py and tests/test_ingest_labels.py. ruff check passes on both. scripts/ci.sh: 605 passed.
-- Review fixes in catalog.py: (1) unlabelled data files (.img/.qub/.dat, no same-stem label) now make the instrument PARTIAL and are listed in ProductCatalog.unlabelled_data (an attribute, not a field) and in report(); (2) PDS3 .lbl minimal read is binary, first line only; (3) parse_error samples use the path relative to raw_root and keep the error text. The real `lunar-reg catalog` output is unchanged: same 8 report lines, exit 0, and the log shows 'unlabelled data files: {}'. Non-blocking Q-P1.03-3 added (the LLD does not define how 'or the reverse' should be read).
+- P1.04: lro.py has GeoReference, LabelGeoreferenceError and georeference_from_label (C10): reads the cart block through pds4._resolve, uses pixel_scale_x/y (never pixel_resolution), fits the ul_x sign to Bounding_Coordinates (LLD §3) via rasterio.warp.transform (pyproj not installed). LROProduct.georef added; PDS4 branch of read_lro_label fills lines/samples/bands and min/max lat/lon; footprint_resolved needs all four bounds; open_lro_product docstring warns against GDAL's transform. Review fix: non-positive a_axis_radius and PROJ CRSError/ValueError become LabelGeoreferenceError (product kept, georef=None).
+- Real NAC labels (M1442997156 and M1443025251; scratchpad p1/georef_P1.04.txt): source=inferred, x0_m=-11043.49999999978, y0_m=638258.4999999872, 23003x47683, note "ul_x sign flipped; bbox residual 935.4 m (other sign 23887.2 m)".
+- Non-blocking Q-P1.04-1: the chosen sign still leaves a 935.4 m bbox residual (label bounds are not the exact raster boundary). Implemented §3 as written, with no threshold.
+- Georef failure text goes into LROProduct.unresolved as "georef: ..." and may contain commas (unresolved_fields is comma-joined). `lunar-reg catalog` still exits 0 with unchanged LRO lines (scratchpad p1/catalog_P1.04.stdout). scripts/ci.sh: 621 passed (scratchpad p1/ci_P1.04.log).
+- lro.py and tests/test_lro_georeference.py ruff-formatted. scripts/run_vikram.py not touched.

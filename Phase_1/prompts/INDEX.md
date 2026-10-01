@@ -9,7 +9,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 3 | P1.01 | downloads manifest + verifier | P1.00 | harness/check_P1.01.sh | done |
 | 4 | P1.02 | public fetch script (+ run step) | P1.01 | harness/check_P1.02.sh | done |
 | 5 | P1.03 | product catalog + scan diagnostics | P1.01 | harness/check_P1.03.sh | done |
-| 6 | P1.04 | NAC georeference from label | P1.00 | harness/check_P1.04.sh | todo |
+| 6 | P1.04 | NAC georeference from label | P1.00 | harness/check_P1.04.sh | done |
 | 7 | P1.05 | geometry grid fixes | P1.00 | harness/check_P1.05.sh | todo |
 | 8 | P1.06 | overlap: grid wiring + fixes | P1.05, P1.03 | harness/check_P1.06.sh | todo |
 | 9 | P1.07 | datum convention + data test | P1.04, P1.05 | harness/check_P1.07.sh | todo |
