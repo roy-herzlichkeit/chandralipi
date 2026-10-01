@@ -32,7 +32,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from lunar_reg.ingest.fieldmap import ALL_FIELDS, Field, Provenance
+from lunar_reg.ingest.fieldmap import ALL_FIELDS, Field, Provenance, parse_path
 
 logger = logging.getLogger(__name__)
 
@@ -65,28 +65,48 @@ def _localname(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+_Segment = tuple[str, tuple[str, str] | None]
+
+
 def _iter_with_ancestors(root: ET.Element):
-    """Yield ``(element, ancestor_localname_tuple)`` for the whole tree."""
-    stack: list[tuple[ET.Element, tuple[str, ...]]] = [(root, ())]
+    """Yield ``(element, ancestor_names, ancestor_elements)`` in document order.
+
+    Pre-order, children left to right, so "first match" means first in the
+    file. The element tuple parallels the name tuple; predicate segments need
+    the elements themselves.
+    """
+    stack: list[tuple[ET.Element, tuple[str, ...], tuple[ET.Element, ...]]] = [(root, (), ())]
     while stack:
-        el, ancestors = stack.pop()
-        yield el, ancestors
-        chain = (*ancestors, _localname(el.tag))
-        stack.extend((child, chain) for child in el)
+        el, names, elements = stack.pop()
+        yield el, names, elements
+        chain_names = (*names, _localname(el.tag))
+        chain_elements = (*elements, el)
+        stack.extend((child, chain_names, chain_elements) for child in reversed(list(el)))
+
+
+def _segment_matches(el: ET.Element, segment: _Segment) -> bool:
+    """Local name equals the segment name and, if given, the predicate holds."""
+    name, predicate = segment
+    if _localname(el.tag) != name:
+        return False
+    if predicate is None:
+        return True
+    child_name, value = predicate
+    return any(_localname(c.tag) == child_name and (c.text or "").strip() == value for c in el)
 
 
 def _resolve(root: ET.Element, paths: tuple[str, ...]) -> tuple[str | None, str | None]:
-    """First value matching any candidate path.
+    """First value, in document order, matching the first candidate path that matches.
 
     Returns ``(value, matched_path)``; ``(None, None)`` when nothing matched, so
     the caller can distinguish "absent from this label" from "mapped wrong".
     """
     for path in paths:
-        parts = path.split("/")
-        want = parts[-1]
-        required = parts[:-1]
-        for el, ancestors in _iter_with_ancestors(root):
-            if _localname(el.tag) != want:
+        segments = parse_path(path)
+        want = segments[-1]
+        required = segments[:-1]
+        for el, _names, ancestors in _iter_with_ancestors(root):
+            if not _segment_matches(el, want):
                 continue
             if required and not _chain_contains(ancestors, required):
                 continue
@@ -95,10 +115,15 @@ def _resolve(root: ET.Element, paths: tuple[str, ...]) -> tuple[str | None, str 
     return None, None
 
 
-def _chain_contains(ancestors: tuple[str, ...], required: list[str]) -> bool:
+def _chain_contains(ancestors: tuple[ET.Element, ...], required: list[_Segment]) -> bool:
     """Whether ``required`` appears in order (not necessarily contiguously)."""
     it = iter(ancestors)
-    return all(any(a == r for a in it) for r in required)
+    return all(any(_segment_matches(a, r) for a in it) for r in required)
+
+
+#: Returned by :func:`_coerce` when the text matched but is not a valid value of
+#: the field's dtype -- distinct from ``None`` ("nothing matched").
+_COERCE_FAILED = object()
 
 
 def _coerce(value: str | None, dtype: str) -> Any:
@@ -112,9 +137,20 @@ def _coerce(value: str | None, dtype: str) -> Any:
         if dtype == "datetime":
             return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (TypeError, ValueError):
-        logger.debug("could not coerce %r to %s", value, dtype)
-        return None
+        return _COERCE_FAILED
     return value
+
+
+def resolve_contained(label_path: Path, file_name: str) -> Path | None:
+    """label_path.parent / file_name, or None when file_name is absolute or
+    resolves outside label_path.parent."""
+    parent = Path(label_path).parent
+    if Path(file_name).is_absolute():
+        return None
+    candidate = parent / file_name
+    if not candidate.resolve().is_relative_to(parent.resolve()):
+        return None
+    return candidate
 
 
 @dataclass
@@ -133,16 +169,22 @@ class PDS4Product:
     ``resolved`` records which candidate path supplied each field, and
     ``unresolved`` lists mapped fields that no path matched. Both exist so a
     caller can tell a genuinely absent value from a wrong mapping.
+    ``coerce_failed`` holds fields whose text matched but did not parse as the
+    field's dtype (name -> raw text); those are in neither of the other two.
+    ``image_path`` is ``None`` when the label's ``file_name`` points outside the
+    label's directory; the raw text is then in ``image_path_rejected``.
     """
 
     label_path: Path
-    image_path: Path
+    image_path: Path | None
     values: dict[str, Any] = field(default_factory=dict)
     axes: list[AxisInfo] = field(default_factory=list)
     array_kind: str | None = None
     resolved: dict[str, str] = field(default_factory=dict)
     unresolved: list[str] = field(default_factory=list)
     sensor: str | None = None
+    image_path_rejected: str | None = None
+    coerce_failed: dict[str, str] = field(default_factory=dict)
 
     def __getitem__(self, key: str) -> Any:
         return self.values.get(key)
@@ -230,14 +272,22 @@ def guess_sensor(*texts: str | None) -> str | None:
     return None
 
 
-def _find_image(label_path: Path, file_name: str | None) -> Path:
+def _find_image(label_path: Path, file_name: str | None) -> Path | None:
     if file_name:
-        candidate = label_path.parent / file_name
+        candidate = resolve_contained(label_path, file_name)
+        if candidate is None:
+            logger.warning(
+                "label %s names data file %r outside its own directory; refusing it",
+                label_path.name,
+                file_name,
+            )
+            return None
         if candidate.exists():
             return candidate
         logger.warning(
             "label %s names data file %r which is not present next to it",
-            label_path.name, file_name,
+            label_path.name,
+            file_name,
         )
         return candidate
     for p in sorted(label_path.parent.glob(label_path.stem + ".*")):
@@ -265,31 +315,49 @@ def read_label(
     values: dict[str, Any] = {}
     resolved: dict[str, str] = {}
     unresolved: list[str] = []
+    coerce_failed: dict[str, str] = {}
 
     for f in fields:
         raw, matched = _resolve(root, f.paths)
-        values[f.name] = _coerce(raw, f.dtype)
-        if matched is not None:
-            resolved[f.name] = matched
+        value = _coerce(raw, f.dtype)
+        if value is _COERCE_FAILED:
+            values[f.name] = None
+            coerce_failed[f.name] = raw
         else:
-            unresolved.append(f.name)
+            values[f.name] = value
+            if matched is not None:
+                resolved[f.name] = matched
+            else:
+                unresolved.append(f.name)
+    if coerce_failed:
+        logger.warning(
+            "%s: %d field(s) matched but failed type coercion: %s",
+            label_path.name,
+            len(coerce_failed),
+            ", ".join(f"{k}={v!r}" for k, v in list(coerce_failed.items())[:4]),
+        )
 
     axes = _read_axes(root)
     array_kind = _read_array_kind(root)
 
+    file_name = values.get("file_name")
+    image_path = _find_image(label_path, file_name)
     product = PDS4Product(
         label_path=label_path,
-        image_path=_find_image(label_path, values.get("file_name")),
+        image_path=image_path,
         values=values,
         axes=axes,
         array_kind=array_kind,
         resolved=resolved,
         unresolved=unresolved,
         sensor=sensor or guess_sensor(values.get("product_id"), label_path.name),
+        image_path_rejected=file_name if (file_name and image_path is None) else None,
+        coerce_failed=coerce_failed,
     )
 
     missing_unverified = [
-        n for n in unresolved
+        n
+        for n in unresolved
         if (fm := next((f for f in fields if f.name == n), None))
         and fm.provenance is Provenance.UNVERIFIED
     ]
@@ -297,7 +365,9 @@ def read_label(
         logger.debug(
             "%s: %d unverified field(s) did not resolve (%s). Expected until the "
             "mapping is confirmed -- run `lunar-reg probe-label` on a real product.",
-            label_path.name, len(missing_unverified), ", ".join(missing_unverified[:4]),
+            label_path.name,
+            len(missing_unverified),
+            ", ".join(missing_unverified[:4]),
         )
     return product
 
@@ -354,7 +424,8 @@ def open_product(path: str | Path):
         else:
             logger.warning(
                 "no sibling label found for %s; GDAL will pick a driver by "
-                "extension (.img resolves to HFA, not PDS4)", path.name,
+                "extension (.img resolves to HFA, not PDS4)",
+                path.name,
             )
     return rasterio.open(path)
 

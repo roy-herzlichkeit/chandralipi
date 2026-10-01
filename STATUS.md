@@ -1,12 +1,12 @@
 # STATUS
 
-current: P0.05
+current: P0.06
 phase: 0
 state: READY
 branch: phase-0
-last_done: P0.04
+last_done: P0.05
 notes:
-- P0.04: moon_datum moved to constants.py (verbatim); ingest/footprint.py, tests/test_footprint.py, configs/default.yaml deleted; PyYAML dep and README configs line removed; ingest exports moon_datum from constants.
-- Q-P0.04-1 (non-blocking): harness grep forced a comment-only edit in scripts/fetch_catalogue.py:73 (file not in LLD table).
-- scripts/ci.sh: 441 passed, 5 deselected (7 legacy footprint tests gone).
-- P1.DL (download session) may run before Phase 0 is approved: see Phase_1/prompts/P1.DL_download_session.md.
+- P0.05: PDS4 resolver walks in document order; Name[child=value] predicate segments (fieldmap.parse_segment, validated in Field.__post_init__); instrument + 8 corner paths updated; _COERCE_FAILED + PDS4Product.coerce_failed + manifest "(coerce_failed)"; resolve_contained + image_path_rejected; LRO ^IMAGE contained.
+- No existing assertion needed changing. Deviation to list at phase end: manifest/lro rows write image_path None (not "None") when rejected.
+- Q-P0.05-1 (non-blocking): cli.py:39 assumes image_path is not None.
+- scripts/ci.sh: 456 passed, 6 deselected. P1.DL may run before Phase 0 approval (Phase_1/prompts/P1.DL_download_session.md).

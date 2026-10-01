@@ -35,11 +35,26 @@ LABEL_GLOBS: tuple[str, ...] = ("*.xml", "*.XML", "*.lbl", "*.LBL")
 
 #: Column order for the manifest.
 COLUMNS: tuple[str, ...] = (
-    "product_id", "sensor", "archive", "label_path", "image_path",
-    "lines", "samples", "bands", "array_kind", "axis_order", "data_type", "numpy_dtype",
-    "megapixels", "start_time", "stop_time",
-    "sun_azimuth_deg", "sun_elevation_deg", "incidence_angle_deg",
-    "emission_angle_deg", "phase_angle_deg",
+    "product_id",
+    "sensor",
+    "archive",
+    "label_path",
+    "image_path",
+    "lines",
+    "samples",
+    "bands",
+    "array_kind",
+    "axis_order",
+    "data_type",
+    "numpy_dtype",
+    "megapixels",
+    "start_time",
+    "stop_time",
+    "sun_azimuth_deg",
+    "sun_elevation_deg",
+    "incidence_angle_deg",
+    "emission_angle_deg",
+    "phase_angle_deg",
     # The four real corners, carried through rather than reduced to a box.
     # MEASURED 2026-09-05: collapsing a rotated pushbroom footprint to its
     # lat/lon bounding box inflates its area by 3.9-4.2x on real OHRC strips
@@ -48,8 +63,13 @@ COLUMNS: tuple[str, ...] = (
     # much too large. The box is retained because it is still the only geometry
     # available when a label resolves no corners.
     *(f"corner{i}_{c}" for i in range(1, 5) for c in ("lat", "lon")),
-    "min_lat", "max_lat", "min_lon", "max_lon",
-    "geometry_resolved", "footprint_resolved", "unresolved_fields",
+    "min_lat",
+    "max_lat",
+    "min_lon",
+    "max_lon",
+    "geometry_resolved",
+    "footprint_resolved",
+    "unresolved_fields",
 )
 
 
@@ -72,7 +92,7 @@ def product_to_row(product: PDS4Product, archive: str = "chandrayaan2") -> dict:
         "sensor": product.sensor,
         "archive": archive,
         "label_path": str(product.label_path),
-        "image_path": str(product.image_path),
+        "image_path": None if product.image_path is None else str(product.image_path),
         "lines": product.lines,
         "samples": product.samples,
         "bands": product.bands,
@@ -99,7 +119,9 @@ def product_to_row(product: PDS4Product, archive: str = "chandrayaan2") -> dict:
         "max_lon": max_lon,
         "geometry_resolved": product.geometry_resolved,
         "footprint_resolved": min_lat is not None,
-        "unresolved_fields": ",".join(product.unresolved),
+        "unresolved_fields": ",".join(
+            [*product.unresolved, *(f"{name}(coerce_failed)" for name in product.coerce_failed)]
+        ),
     }
 
 

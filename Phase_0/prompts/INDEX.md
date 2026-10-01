@@ -9,7 +9,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 3 | P0.02 | learned matchers merge | P0.01 | harness/check_P0.02.sh | done |
 | 4 | P0.03 | dedupe shadow_mask and scale_ratio | P0.01 | harness/check_P0.03.sh | done |
 | 5 | P0.04 | remove footprint.py and default.yaml | P0.03 | harness/check_P0.04.sh | done |
-| 6 | P0.05 | PDS4 resolver document order | P0.01 | harness/check_P0.05.sh | todo |
+| 6 | P0.05 | PDS4 resolver document order | P0.01 | harness/check_P0.05.sh | done |
 | 7 | P0.06 | catalogue footprints as polygons | P0.04 | harness/check_P0.06.sh | todo |
 | 8 | P0.07 | provenance enum, run record, seeded fit | P0.01 | harness/check_P0.07.sh | todo |
 | 9 | P0.08 | ECC model fidelity, no mutation, gate, mask | P0.07 | harness/check_P0.08.sh | todo |

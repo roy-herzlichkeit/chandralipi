@@ -28,8 +28,34 @@ a real product to generate the correct mapping -- see
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
+
+#: One path segment: ``Name`` or ``Name[child=value]``. No quoting, no wildcards.
+_SEGMENT = re.compile(r"^([^\[\]=/]+)(?:\[([^\[\]=/]+)=([^\[\]/]*)\])?$")
+
+
+def parse_segment(segment: str) -> tuple[str, tuple[str, str] | None]:
+    """Parse one segment: ``"Name[child=value]"`` -> ``("Name", ("child", "value"))``.
+
+    A plain ``"Name"`` gives ``("Name", None)``.
+
+    Raises ``ValueError`` on unbalanced brackets, a predicate without ``=``, or
+    an empty segment.
+    """
+    match = _SEGMENT.fullmatch(segment)
+    if match is None:
+        raise ValueError(
+            f"malformed label path segment {segment!r}: expected Name or Name[child=value]"
+        )
+    name, child, value = match.groups()
+    return name, (None if child is None else (child, value))
+
+
+def parse_path(path: str) -> list[tuple[str, tuple[str, str] | None]]:
+    """Split a slash-joined label path into parsed segments (see :func:`parse_segment`)."""
+    return [parse_segment(segment) for segment in path.split("/")]
 
 
 class Provenance(str, Enum):
@@ -51,10 +77,14 @@ class Field:
     """One manifest column and the label paths that might supply it.
 
     ``paths`` are matched by *local* element name (namespace stripped), tried in
-    order. A path may be a single name (``"logical_identifier"``, matched
-    anywhere in the tree) or a slash-joined ancestor chain
-    (``"Time_Coordinates/start_date_time"``) which additionally requires those
-    ancestors, so a name that recurs in several contexts can be disambiguated.
+    order; within one path the first match in document order wins. A path may
+    be a single name (``"logical_identifier"``, matched anywhere in the tree)
+    or a slash-joined ancestor chain (``"Time_Coordinates/start_date_time"``)
+    which additionally requires those ancestors, so a name that recurs in
+    several contexts can be disambiguated. A segment may carry one predicate,
+    ``Name[child=value]``: the element must also have a direct child ``child``
+    whose stripped text is exactly ``value``. Malformed segments raise
+    ``ValueError`` here, at construction.
     """
 
     name: str
@@ -62,6 +92,10 @@ class Field:
     provenance: Provenance
     dtype: str = "str"  # str | int | float | datetime
     note: str = ""
+
+    def __post_init__(self) -> None:
+        for path in self.paths:
+            parse_path(path)
 
     @property
     def trusted(self) -> bool:
@@ -87,7 +121,7 @@ IDENTIFICATION_FIELDS: tuple[Field, ...] = (
     ),
     Field(
         "instrument",
-        ("Observing_System_Component/name",),
+        ("Observing_System_Component[type=Instrument]/name", "Observing_System_Component/name"),
         Provenance.DOCUMENTED,
         note="Observing_System may list several components (spacecraft AND "
         "instrument); the loader keeps all and the sensor is inferred separately.",
@@ -229,7 +263,11 @@ FOOTPRINT_FIELDS: tuple[Field, ...] = (
     *(
         Field(
             f"{corner}_{short}",
-            (f"{position}_{full}", f"{corner.replace('corner', 'corner_')}_{full}"),
+            (
+                f"System_Level_Coordinates/{position}_{full}",
+                f"{position}_{full}",
+                f"{corner.replace('corner', 'corner_')}_{full}",
+            ),
             Provenance.VERIFIED,
             dtype="float",
         )
@@ -261,9 +299,10 @@ def summary() -> str:
     counts: dict[str, int] = {}
     for f in ALL_FIELDS:
         counts[f.provenance.value] = counts.get(f.provenance.value, 0) + 1
-    lines = [f"{len(ALL_FIELDS)} mapped fields: " + ", ".join(
-        f"{n} {k}" for k, n in sorted(counts.items())
-    )]
+    lines = [
+        f"{len(ALL_FIELDS)} mapped fields: "
+        + ", ".join(f"{n} {k}" for k, n in sorted(counts.items()))
+    ]
     lines.append("")
     lines.append("UNVERIFIED (candidate paths are guesses; confirm before trusting):")
     for f in ALL_FIELDS:

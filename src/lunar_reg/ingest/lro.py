@@ -56,8 +56,13 @@ PDS3_STRUCTURE_KEYS = ("LINES", "LINE_SAMPLES", "SAMPLE_BITS", "SAMPLE_TYPE", "B
 #: Commonly-present standard PDS3 identification/time keywords. Standard, but
 #: presence in any given product is not guaranteed.
 PDS3_COMMON_KEYS = (
-    "PRODUCT_ID", "INSTRUMENT_ID", "INSTRUMENT_HOST_NAME", "MISSION_NAME",
-    "TARGET_NAME", "START_TIME", "STOP_TIME",
+    "PRODUCT_ID",
+    "INSTRUMENT_ID",
+    "INSTRUMENT_HOST_NAME",
+    "MISSION_NAME",
+    "TARGET_NAME",
+    "START_TIME",
+    "STOP_TIME",
 )
 
 #: UNVERIFIED. Candidate PDS3 keywords for illumination geometry. These are
@@ -134,7 +139,7 @@ class LROProduct:
     """An LRO reference product, whatever container it arrived in."""
 
     label_path: Path
-    image_path: Path
+    image_path: Path | None
     fmt: str
     values: dict[str, Any] = field(default_factory=dict)
     keywords: dict[str, str] = field(default_factory=dict)
@@ -242,17 +247,27 @@ def read_lro_label(label_path: str | Path) -> LROProduct:
     )
 
 
-def _pds3_image_path(label_path: Path, keywords: dict[str, str]) -> Path:
+def _pds3_image_path(label_path: Path, keywords: dict[str, str]) -> Path | None:
     """Resolve ``^IMAGE`` to a file, or fall back to a sibling ``.IMG``.
 
     ``^IMAGE`` may be ``("file.img",1)``, ``"file.img"``, or a bare record
     number for an attached label (in which case the data is in the label file
-    itself).
+    itself). A pointer naming a file outside the label's directory is refused
+    (``None``).
     """
+    from lunar_reg.ingest.pds4 import resolve_contained
+
     pointer = keywords.get("^IMAGE", "")
     match = re.search(r'"([^"]+)"', pointer)
     if match:
-        return label_path.parent / match.group(1)
+        contained = resolve_contained(label_path, match.group(1))
+        if contained is None:
+            logger.warning(
+                "label %s points ^IMAGE at %r outside its own directory; refusing it",
+                label_path.name,
+                match.group(1),
+            )
+        return contained
     if pointer.strip().isdigit():
         return label_path  # attached label: data lives in this same file
     for suffix in (".img", ".IMG"):
@@ -293,7 +308,7 @@ def lro_to_row(product: LROProduct) -> dict:
         "sensor": product.sensor,
         "archive": "lro",
         "label_path": str(product.label_path),
-        "image_path": str(product.image_path),
+        "image_path": None if product.image_path is None else str(product.image_path),
         "lines": product["lines"],
         "samples": product["samples"],
         "bands": product["bands"] or 1,
@@ -303,7 +318,8 @@ def lro_to_row(product: LROProduct) -> dict:
         "numpy_dtype": None,
         "megapixels": (
             product["lines"] * product["samples"] / 1e6
-            if product["lines"] and product["samples"] else None
+            if product["lines"] and product["samples"]
+            else None
         ),
         "start_time": product["start_time"],
         "stop_time": product["stop_time"],
