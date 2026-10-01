@@ -303,6 +303,8 @@ def lro_to_row(product: LROProduct) -> dict:
     Column names match :data:`lunar_reg.ingest.manifest.COLUMNS` so LRO
     reference products and Chandrayaan-2 products land in one table.
     """
+    from lunar_reg.ingest.manifest import product_type_of
+
     return {
         "product_id": product["product_id"],
         "sensor": product.sensor,
@@ -335,31 +337,50 @@ def lro_to_row(product: LROProduct) -> dict:
         "geometry_resolved": product.geometry_resolved,
         "footprint_resolved": product["min_lat"] is not None,
         "unresolved_fields": ",".join(product.unresolved),
+        "product_type": product_type_of(product.label_path),
     }
 
 
-def scan_lro_directory(root: str | Path, strict: bool = False):
-    """Parse every LRO label under ``root`` into a manifest DataFrame."""
+def scan_lro_directory(root: str | Path, strict: bool = False, with_diagnostics: bool = False):
+    """Parse every LRO data label under ``root`` into a manifest DataFrame.
+
+    Same statuses as :func:`lunar_reg.ingest.manifest.scan_directory`: non-data
+    labels are ``NOT_A_DATA_PRODUCT``, unreadable ones ``PARSE_ERROR`` (raised
+    instead when ``strict``), a missing ``root`` is ``ROOT_MISSING``. Returns the
+    frame, or ``(frame, ScanDiagnostics)`` when ``with_diagnostics``.
+    """
     import pandas as pd
 
-    from lunar_reg.ingest.manifest import COLUMNS
+    from lunar_reg.ingest.manifest import COLUMNS, ScanDiagnostics, ScanStatus, product_type_of
 
+    diag = ScanDiagnostics()
     root = Path(root)
     candidates: set[Path] = set()
-    for pattern in ("*.lbl", "*.LBL", "*.xml", "*.XML"):
-        candidates.update(root.rglob(pattern))
+    if not root.exists():
+        diag.record(ScanStatus.ROOT_MISSING, f"{root}: no such directory")
+    else:
+        for pattern in ("*.lbl", "*.LBL", "*.xml", "*.XML"):
+            candidates.update(root.rglob(pattern))
 
     rows = []
     for path in sorted(candidates):
+        kind = product_type_of(path)
+        if kind != "data":
+            diag.record(ScanStatus.NOT_A_DATA_PRODUCT, f"{path}: product_type={kind}")
+            continue
         try:
             rows.append(lro_to_row(read_lro_label(path)))
-        except Exception as exc:  # noqa: BLE001 - skip unreadable labels
+        except Exception as exc:  # noqa: BLE001 - one bad label must not stop the scan
             if strict:
                 raise
-            logger.warning("could not parse %s: %s", path.name, exc)
+            diag.record(ScanStatus.PARSE_ERROR, f"{path}: {type(exc).__name__}: {exc}")
+            continue
+        diag.record(ScanStatus.PARSED, str(path))
 
     frame = pd.DataFrame(rows, columns=list(COLUMNS))
     for col in ("start_time", "stop_time"):
         frame[col] = pd.to_datetime(frame[col], errors="coerce", utc=True)
-    logger.info("scanned %d LRO product(s) from %s", len(frame), root)
+    logger.info("scanned %d LRO product(s) from %s: %s", len(frame), root, diag.counts)
+    if with_diagnostics:
+        return frame, diag
     return frame

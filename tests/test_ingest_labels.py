@@ -401,8 +401,9 @@ def test_manifest_flags_unresolved_geometry(ohrc_label):
 
 
 def test_scan_directory_finds_labels_and_skips_bad_ones(tmp_path):
-    (tmp_path / "good.xml").write_text(_pds4_label())
-    (tmp_path / "broken.xml").write_text("<not-valid-xml")
+    # P1.03: only labels whose product_type_of is "data" are parsed
+    (tmp_path / "good_d_img_d18.xml").write_text(_pds4_label())
+    (tmp_path / "broken_d_img_d18.xml").write_text("<not-valid-xml")
     frame = scan_directory(tmp_path)
     assert len(frame) == 1
 
@@ -410,7 +411,7 @@ def test_scan_directory_finds_labels_and_skips_bad_ones(tmp_path):
 def test_scan_directory_strict_reraises(tmp_path):
     from xml.etree.ElementTree import ParseError
 
-    (tmp_path / "broken.xml").write_text("<not-valid-xml")
+    (tmp_path / "broken_d_img_d18.xml").write_text("<not-valid-xml")
     with pytest.raises(ParseError):
         scan_directory(tmp_path, strict=True)
 
@@ -427,7 +428,7 @@ def test_ch2_and_lro_manifests_share_a_schema(tmp_path):
     from lunar_reg.ingest.lro import scan_lro_directory
 
     (tmp_path / "ch2").mkdir()
-    (tmp_path / "ch2" / "a.xml").write_text(_pds4_label())
+    (tmp_path / "ch2" / "a_d_img_d18.xml").write_text(_pds4_label())
     (tmp_path / "lro").mkdir()
     (tmp_path / "lro" / "n.lbl").write_text(PDS3_LABEL)
 

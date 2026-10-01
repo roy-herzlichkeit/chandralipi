@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 
 from lunar_reg.ingest.pds4 import PDS4Product, read_label
@@ -70,7 +72,83 @@ COLUMNS: tuple[str, ...] = (
     "geometry_resolved",
     "footprint_resolved",
     "unresolved_fields",
+    # "data" | "browse" | "geometry" | "other", from the label's file name
+    # (:func:`product_type_of`). Only "data" rows reach the frame from a scan.
+    "product_type",
 )
+
+
+class ScanStatus(str, Enum):
+    """Outcome of looking at one label (or at the scan root) during a scan."""
+
+    PARSED = "parsed"
+    PARSE_ERROR = "parse_error"
+    # browse / geometry / misc label: counted, not an error
+    NOT_A_DATA_PRODUCT = "not_a_data_product"
+    ROOT_MISSING = "root_missing"
+
+    @property
+    def is_failure(self) -> bool:
+        return self in (ScanStatus.PARSE_ERROR, ScanStatus.ROOT_MISSING)
+
+
+_SCAN_STATUS_MEANING = {
+    ScanStatus.PARSED: "data label read",
+    ScanStatus.PARSE_ERROR: "label exists but could not be read (a bug or a corrupt file)",
+    ScanStatus.NOT_A_DATA_PRODUCT: "browse/geometry/other label: counted, not an error",
+    ScanStatus.ROOT_MISSING: "scan root is not on disk (a data gap, not a parse failure)",
+}
+
+
+@dataclass
+class ScanDiagnostics:
+    """Per-:class:`ScanStatus` counts and the first sample of each (classified outcomes)."""
+
+    counts: dict[str, int] = field(default_factory=dict)
+    samples: dict[str, str] = field(default_factory=dict)
+
+    def record(self, status: ScanStatus, sample: str) -> None:
+        status = ScanStatus(status)
+        self.counts[status.value] = self.counts.get(status.value, 0) + 1
+        self.samples.setdefault(status.value, sample[:200])
+
+    @property
+    def n_failures(self) -> int:
+        return sum(n for k, n in self.counts.items() if ScanStatus(k).is_failure)
+
+    def report(self) -> str:
+        total = sum(self.counts.values())
+        lines = [f"label scan: {total} outcome(s), {self.n_failures} failure(s)"]
+        for key in sorted(self.counts):
+            status = ScanStatus(key)
+            marker = "! " if status.is_failure else "  "
+            lines.append(
+                f"{marker}{key}: {self.counts[key]}  e.g. {self.samples.get(key, '(none)')}"
+                f"  [{_SCAN_STATUS_MEANING[status]}]"
+            )
+        return "\n".join(lines)
+
+
+def product_type_of(label_path: str | Path) -> str:
+    """``"data"`` | ``"browse"`` | ``"geometry"`` | ``"other"`` from the label's file name.
+
+    Rules on the lower-cased name, first match wins (Phase_1/LLD/catalog.md §1):
+    ``_b_brw_`` -> browse; ``_g_grd_`` -> geometry; ``_d_img_`` / ``_d_cub_`` /
+    ends with ``_100cm.xml`` / a ``.lbl`` -> data; anything else -> other.
+    """
+    name = Path(label_path).name.lower()
+    if "_b_brw_" in name:
+        return "browse"
+    if "_g_grd_" in name:
+        return "geometry"
+    if (
+        "_d_img_" in name
+        or "_d_cub_" in name
+        or name.endswith("_100cm.xml")
+        or name.endswith(".lbl")
+    ):
+        return "data"
+    return "other"
 
 
 def _corners(product: PDS4Product) -> tuple[float | None, ...]:
@@ -122,6 +200,7 @@ def product_to_row(product: PDS4Product, archive: str = "chandrayaan2") -> dict:
         "unresolved_fields": ",".join(
             [*product.unresolved, *(f"{name}(coerce_failed)" for name in product.coerce_failed)]
         ),
+        "product_type": product_type_of(product.label_path),
     }
 
 
@@ -150,35 +229,50 @@ def scan_directory(
     archive: str = "chandrayaan2",
     sensor: str | None = None,
     strict: bool = False,
+    with_diagnostics: bool = False,
 ):
-    """Parse every label under ``root`` into a manifest DataFrame.
+    """Parse every data label under ``root`` into a manifest DataFrame.
 
-    Unparseable labels are logged and skipped so one malformed product cannot
-    abort a scan of hundreds; pass ``strict=True`` to raise instead.
+    Every label gets a :class:`ScanStatus`: labels whose :func:`product_type_of`
+    is not ``"data"`` are counted as ``NOT_A_DATA_PRODUCT`` and not parsed;
+    unparseable labels are counted as ``PARSE_ERROR`` so one malformed product
+    cannot abort a scan of hundreds (pass ``strict=True`` to raise instead); a
+    non-existent ``root`` is ``ROOT_MISSING`` and yields an empty frame.
+
+    Returns the frame, or ``(frame, ScanDiagnostics)`` when ``with_diagnostics``.
     """
-    labels = find_labels(root)
-    logger.info("scanning %d label(s) under %s", len(labels), root)
-
+    diag = ScanDiagnostics()
+    root = Path(root)
     products: list[PDS4Product] = []
-    failed: list[tuple[Path, str]] = []
+    if not root.exists():
+        diag.record(ScanStatus.ROOT_MISSING, f"{root}: no such directory")
+        labels: list[Path] = []
+    else:
+        labels = find_labels(root)
     for path in labels:
+        kind = product_type_of(path)
+        if kind != "data":
+            diag.record(ScanStatus.NOT_A_DATA_PRODUCT, f"{path}: product_type={kind}")
+            continue
         try:
             products.append(read_label(path, sensor=sensor))
         except Exception as exc:  # noqa: BLE001 - one bad label must not stop the scan
             if strict:
                 raise
-            failed.append((path, f"{type(exc).__name__}: {exc}"))
-            logger.warning("could not parse %s: %s", path.name, exc)
+            diag.record(ScanStatus.PARSE_ERROR, f"{path}: {type(exc).__name__}: {exc}")
+            continue
+        diag.record(ScanStatus.PARSED, str(path))
 
     frame = build_manifest(products, archive=archive)
-    if failed:
-        logger.warning("%d of %d label(s) failed to parse", len(failed), len(labels))
+    logger.info("scanned %d label(s) under %s: %s", len(labels), root, diag.counts)
     if len(frame) and not frame["geometry_resolved"].any():
         logger.warning(
             "no product resolved any illumination field. The geometry mapping in "
             "fieldmap.py is still unverified -- run `lunar-reg probe-label` on one "
             "of these labels and paste the suggested block in."
         )
+    if with_diagnostics:
+        return frame, diag
     return frame
 
 

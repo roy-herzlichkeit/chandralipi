@@ -8,7 +8,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 2 | P1.DL | download session (out of sequence) | — (may run any time) | harness/check_P1.DL.sh | done |
 | 3 | P1.01 | downloads manifest + verifier | P1.00 | harness/check_P1.01.sh | done |
 | 4 | P1.02 | public fetch script (+ run step) | P1.01 | harness/check_P1.02.sh | done |
-| 5 | P1.03 | product catalog + scan diagnostics | P1.01 | harness/check_P1.03.sh | todo |
+| 5 | P1.03 | product catalog + scan diagnostics | P1.01 | harness/check_P1.03.sh | done |
 | 6 | P1.04 | NAC georeference from label | P1.00 | harness/check_P1.04.sh | todo |
 | 7 | P1.05 | geometry grid fixes | P1.00 | harness/check_P1.05.sh | todo |
 | 8 | P1.06 | overlap: grid wiring + fixes | P1.05, P1.03 | harness/check_P1.06.sh | todo |

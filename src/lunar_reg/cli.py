@@ -213,6 +213,20 @@ def cmd_params(args) -> int:
     return 0
 
 
+def cmd_catalog(args) -> int:
+    """Print what is on disk per instrument; exit 1 only when one is UNREADABLE (G24)."""
+    from lunar_reg.ingest.catalog import InstrumentStatus, build_catalog
+
+    catalog = build_catalog(args.raw_root)
+    print(catalog.report())
+    if args.json:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(catalog.as_dict(), indent=2) + "\n")
+        print(f"\nwrote {args.json}")
+    unreadable = any(s is InstrumentStatus.UNREADABLE for s in catalog.status.values())
+    return 1 if unreadable else 0
+
+
 def cmd_preprocess(args) -> int:
     """Run the preprocessing pipeline (optionally an ablation sweep) on a product."""
     import numpy as np
@@ -288,6 +302,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_man.add_argument("--lro", type=Path, help="directory of LRO reference labels")
     p_man.add_argument("--output", type=Path, help="write the manifest here (.parquet)")
     p_man.set_defaults(func=cmd_manifest)
+
+    p_cat = sub.add_parser("catalog", help="list what is on disk per instrument")
+    p_cat.add_argument("--raw-root", type=Path, default=Path("data/raw"))
+    p_cat.add_argument("--json", type=Path, help="also write {status, entries} as JSON here")
+    p_cat.set_defaults(func=cmd_catalog)
 
     p_ov = sub.add_parser("overlap", help="find footprint overlaps between two sensors")
     p_ov.add_argument("manifest", type=Path, help="manifest .parquet from `lunar-reg manifest`")
