@@ -75,16 +75,6 @@ SENSORS: dict[str, SensorSpec] = {
 }
 
 
-def scale_ratio(source: str, reference: str) -> float:
-    """Return the GSD ratio between two sensors.
-
-    A ratio far from 1.0 is what breaks naive matching: OHRC->TMC-2 is ~20x,
-    OHRC->IIRS is ~320x. Anything above :data:`MAX_SAFE_SCALE_RATIO` should be
-    bridged in two hops rather than matched directly.
-    """
-    return SENSORS[reference].gsd_m / SENSORS[source].gsd_m
-
-
 #: Beyond this, resample the pair to a common intermediate grid (or route via TMC-2)
 #: instead of asking a matcher to absorb the whole scale gap in one step.
 MAX_SAFE_SCALE_RATIO: float = 8.0

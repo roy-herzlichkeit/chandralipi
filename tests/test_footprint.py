@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from lunar_reg.constants import MOON_RADIUS_M, SENSORS, scale_ratio
+from lunar_reg.constants import MOON_RADIUS_M, SENSORS
 from lunar_reg.ingest.footprint import Footprint, find_pairs, overlap, overlap_fraction
 
 A = Footprint(-10.0, 10.0, -10.0, 10.0, "A")
@@ -42,11 +42,6 @@ def test_ground_extent_uses_the_lunar_radius_not_earths():
     expected = MOON_RADIUS_M * 3.141592653589793 / 180.0
     assert ns == pytest.approx(expected, rel=1e-6)
     assert ns < 31_000  # one degree of latitude on Earth is ~111 km
-
-
-def test_scale_ratios_match_the_documented_sensor_gaps():
-    assert scale_ratio("OHRC", "TMC2") == pytest.approx(20.0)
-    assert scale_ratio("OHRC", "IIRS") == pytest.approx(320.0)
 
 
 def test_iirs_is_the_only_hyperspectral_sensor():

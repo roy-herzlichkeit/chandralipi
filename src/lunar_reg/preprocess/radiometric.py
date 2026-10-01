@@ -24,6 +24,7 @@ from lunar_reg.preprocess.params import (
     INVERSION_MAX,
     NORMALIZE_TARGET_MAX,
 )
+from lunar_reg.preprocess.shadow import shadow_mask
 
 logger = logging.getLogger(__name__)
 
@@ -85,22 +86,6 @@ def normalize_intensity(image: np.ndarray) -> np.ndarray:
     out = np.zeros_like(image)
     out[valid] = (image[valid] - mean) / std
     return out
-
-
-def shadow_mask(image: np.ndarray, percentile: float = 5.0) -> np.ndarray:
-    """Boolean mask of probable cast shadow.
-
-    Low sun elevation over lunar terrain produces large regions of near-zero
-    signal that carry no recoverable texture. Keypoints found there are noise,
-    and because shadows move with sun azimuth they are actively misleading
-    across acquisitions -- mask them out rather than letting RANSAC sort it out.
-    """
-    image = np.asarray(image, dtype=np.float32)
-    finite = image[np.isfinite(image)]
-    if finite.size == 0:
-        return np.zeros(image.shape, dtype=bool)
-    threshold = np.percentile(finite, percentile)
-    return image <= threshold
 
 
 def suppress_shadows(image: np.ndarray, percentile: float = 5.0) -> np.ndarray:

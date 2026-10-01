@@ -48,7 +48,6 @@ from lunar_reg.preprocess.radiometric import (
     log_transform,
     match_histogram,
     normalize_intensity,
-    shadow_mask,
     standard_chain,
     suppress_shadows,
     to_uint8,
@@ -58,6 +57,7 @@ from lunar_reg.preprocess.shadow import (
     estimate_shadow_severity,
     normalize_shadows,
     shadow_fraction,
+    shadow_mask,
 )
 
 __all__ = [

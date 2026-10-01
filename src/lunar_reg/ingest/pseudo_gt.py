@@ -50,6 +50,14 @@ import math
 from dataclasses import dataclass, field
 from enum import Enum
 
+#: Largest source/reference GSD ratio to attempt with a single matcher. One value
+#: in one place: this is ``constants.MAX_SAFE_SCALE_RATIO`` under the name that
+#: ``overlap.find_cross_sensor_pairs`` imports. PLACEHOLDER to tune -- no paper
+#: states a threshold for this pipeline. SIFT tolerates a few octaves;
+#: detector-free transformers are trained near 1:1 and degrade sooner. Pairs
+#: beyond this should be chained through an intermediate sensor rather than
+#: matched directly.
+from lunar_reg.constants import MAX_SAFE_SCALE_RATIO as MAX_DIRECT_SCALE_RATIO
 from lunar_reg.ingest.overlap import (
     MOON_RADIUS_M,
     FootprintPolygon,
@@ -74,13 +82,6 @@ NOMINAL_GSD_M: dict[str, float] = {
     "IIRS": 80.0,
     "LRO_NAC": 0.5,
 }
-
-#: Largest source/reference GSD ratio to attempt with a single matcher.
-#: PLACEHOLDER to tune -- no paper states a threshold for this pipeline. SIFT
-#: tolerates a few octaves; detector-free transformers are trained near 1:1 and
-#: degrade sooner. Pairs beyond this should be chained through an intermediate
-#: sensor rather than matched directly.
-MAX_DIRECT_SCALE_RATIO: float = 8.0
 
 
 def scale_ratio(sensor_a: str, sensor_b: str) -> float | None:
@@ -329,7 +330,9 @@ def estimate_confidence(
         gsd = NOMINAL_GSD_M.get(sensor)
         if gsd is None:
             estimate.add(
-                f"{role} quantisation", None, TermSource.UNKNOWN,
+                f"{role} quantisation",
+                None,
+                TermSource.UNKNOWN,
                 f"GSD for sensor {sensor!r} is not in NOMINAL_GSD_M",
             )
         else:
@@ -337,24 +340,32 @@ def estimate_confidence(
             # Variance of a uniform distribution over a pixel of side g is
             # g^2/12, so sigma = g/sqrt(12) per axis. Irreducible.
             estimate.add(
-                f"{role} quantisation", gsd / math.sqrt(12.0), TermSource.COMPUTED,
+                f"{role} quantisation",
+                gsd / math.sqrt(12.0),
+                TermSource.COMPUTED,
                 f"{sensor} at {gsd:g} m/px; uniform-over-pixel, irreducible",
             )
 
     if measured_residual_m is not None:
         estimate.add(
-            "georeference (measured)", measured_residual_m, TermSource.MEASURED,
+            "georeference (measured)",
+            measured_residual_m,
+            TermSource.MEASURED,
             f"observed against matcher-derived transforms on {n_validation_pairs} "
             f"same-modality pair(s)",
         )
     else:
         estimate.add(
-            "absolute pointing", None, TermSource.UNKNOWN,
+            "absolute pointing",
+            None,
+            TermSource.UNKNOWN,
             "Chandrayaan-2 geolocation accuracy has not been established by this "
             "project and is not carried in the parsed label fields",
         )
         estimate.add(
-            "corner-transform model", None, TermSource.UNKNOWN,
+            "corner-transform model",
+            None,
+            TermSource.UNKNOWN,
             "geographic_to_pixel_transform fits a homography to four corners; for "
             "a long pushbroom strip that is an approximation of unmeasured size",
         )
@@ -366,7 +377,9 @@ def estimate_confidence(
         # dropped -- a term that silently disappears from a budget looks like an
         # oversight, and someone will re-add it as UNKNOWN.
         estimate.add(
-            "corner ordering", 0.0, TermSource.COMPUTED,
+            "corner ordering",
+            0.0,
+            TermSource.COMPUTED,
             "verified against a real OHRC label; ring traversal confirmed correct",
         )
 
@@ -445,9 +458,7 @@ def build_pseudo_gt(
     ref_sensor = reference.sensor or ""
 
     if spacing_m is None:
-        coarse = max(
-            NOMINAL_GSD_M.get(src_sensor, 1.0), NOMINAL_GSD_M.get(ref_sensor, 1.0)
-        )
+        coarse = max(NOMINAL_GSD_M.get(src_sensor, 1.0), NOMINAL_GSD_M.get(ref_sensor, 1.0))
         spacing_m = 8.0 * coarse
 
     points = sample_grid_in_polygon(polygon, spacing_m)
@@ -470,14 +481,19 @@ def build_pseudo_gt(
         if fp.samples is None or fp.lines is None:
             continue
         keep &= (
-            (pts[:, 0] >= 0) & (pts[:, 0] <= fp.samples - 1)
-            & (pts[:, 1] >= 0) & (pts[:, 1] <= fp.lines - 1)
+            (pts[:, 0] >= 0)
+            & (pts[:, 0] <= fp.samples - 1)
+            & (pts[:, 1] >= 0)
+            & (pts[:, 1] <= fp.lines - 1)
         )
     n_dropped = int((~keep).sum())
     if n_dropped:
         logger.info(
             "pseudo-gt %s/%s: %d of %d sample(s) projected outside a product grid",
-            source.product_id, reference.product_id, n_dropped, len(points),
+            source.product_id,
+            reference.product_id,
+            n_dropped,
+            len(points),
         )
 
     return PseudoGTSet(
@@ -603,22 +619,24 @@ def loop_closure_residual_m(footprints, polygon, spacing_m: float) -> float:
 
 def recommended_validation_plan() -> str:
     """Which pairs to run :func:`validate_against_transform` on, and why."""
-    return "\n".join([
-        "To replace the UNKNOWN terms with a measured number, run the validation on",
-        "pairs where a matcher genuinely works, then transfer the residual:",
-        "",
-        "  1. TMC2 x TMC2   ratio 1.0   same instrument, same modality. Isolates",
-        "                               pointing error with nothing else in the way.",
-        "  2. OHRC x TMC2   ratio 20    same modality, wide scale gap. The difference",
-        "                               from (1) is the scale-and-model contribution.",
-        "  3. TMC2 x LRO_NAC ratio 10   cross-mission. LRO NAC geolocation is the",
-        "                               better-controlled of the two, so this leans",
-        "                               closest to an absolute check.",
-        "",
-        "IIRS pairs cannot appear in this list: if a matcher could solve them, the",
-        "pseudo ground truth would not be needed. Their confidence is inherited from",
-        "(1)-(3) by assumption, not measured.",
-    ])
+    return "\n".join(
+        [
+            "To replace the UNKNOWN terms with a measured number, run the validation on",
+            "pairs where a matcher genuinely works, then transfer the residual:",
+            "",
+            "  1. TMC2 x TMC2   ratio 1.0   same instrument, same modality. Isolates",
+            "                               pointing error with nothing else in the way.",
+            "  2. OHRC x TMC2   ratio 20    same modality, wide scale gap. The difference",
+            "                               from (1) is the scale-and-model contribution.",
+            "  3. TMC2 x LRO_NAC ratio 10   cross-mission. LRO NAC geolocation is the",
+            "                               better-controlled of the two, so this leans",
+            "                               closest to an absolute check.",
+            "",
+            "IIRS pairs cannot appear in this list: if a matcher could solve them, the",
+            "pseudo ground truth would not be needed. Their confidence is inherited from",
+            "(1)-(3) by assumption, not measured.",
+        ]
+    )
 
 
 __all__ = [
