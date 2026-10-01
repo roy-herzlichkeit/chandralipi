@@ -11,6 +11,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 
+import numpy as np
+
+from lunar_reg.provenance import ValueSource
+
 # --- Lunar reference frame -------------------------------------------------
 # IAU 2000/2009 mean radius. The Moon is treated as a sphere for PDS products;
 # both axes are equal, so flattening is exactly 0.
@@ -19,6 +23,40 @@ MOON_FLATTENING: float = 0.0
 
 #: Name registered into pygeodesy's datum table by :func:`moon_datum`.
 MOON_DATUM_NAME = "Moon2000"
+
+# --- Datum convention (DECISIONS G13, Phase_1/LLD/datum.md, docs/DATUM.md) ---
+# On a sphere planetocentric and planetographic latitudes are identical, so the
+# only open items are the radius (above) and the longitude direction and range.
+#: Longitudes increase towards the east (positive east).
+LONGITUDE_DIRECTION = "east"
+#: Internal storage range for longitudes: [0, 360). Convert at I/O.
+LONGITUDE_RANGE = "0_360"
+#: INFERRED until an ISRO SIS or the tests/test_datum.py data test confirms it (G13).
+DATUM_SOURCE = ValueSource.INFERRED
+DATUM_NOTE = (
+    "sphere R=1737400 m; planetocentric=planetographic on a sphere; east-positive; "
+    "see docs/DATUM.md"
+)
+
+
+def lon_to_360(lon) -> np.ndarray | float:
+    """Longitude(s) in degrees wrapped into ``[0, 360)``; vectorised, NaN preserved.
+
+    A scalar input returns a ``float``; anything array-like returns an array.
+    """
+    arr = np.asarray(lon, dtype=np.float64)
+    out = np.mod(np.mod(arr, 360.0) + 360.0, 360.0)
+    return float(out) if out.ndim == 0 else out
+
+
+def lon_to_180(lon) -> np.ndarray | float:
+    """Longitude(s) in degrees wrapped into ``[-180, 180)``; vectorised, NaN preserved.
+
+    A scalar input returns a ``float``; anything array-like returns an array.
+    """
+    arr = np.asarray(lon, dtype=np.float64)
+    out = np.mod(arr + 180.0, 360.0) - 180.0
+    return float(out) if out.ndim == 0 else out
 
 
 @lru_cache(maxsize=1)
