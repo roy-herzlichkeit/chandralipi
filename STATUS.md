@@ -1,12 +1,13 @@
 # STATUS
 
-current: P1.06
+current: P1.07
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.05
+last_done: P1.06
 notes:
-- P1.05: geometry_grid.py now has public snap_to_integer (with _snap kept as an alias) and an __all__. find_geometry_files uses *_g_grd_*.csv and filters by the YYYYMMDDTHHMMSSffff token; an id with no token returns [] and logs one warning. The longitude rewrap uses the column-0 median, and the new GeometryGrid.longitude_reference_deg is also applied to lonlat_to_pixel queries. polygon_to_pixel_window takes the union of boundary samples and the grid nodes inside the polygon (PolarFrame at >= POLAR_LATITUDE_DEG; overlap/pseudo_gt are imported lazily to avoid a cycle once P1.06 wires the grid in).
-- Real-grid data tests RAN, none skipped: 4 calibrated OHRC ncp grids under data/raw/ch2/ohrc. 8 data tests passed (log: scratchpad p1/pytest_P1.05.log). data/raw/ohrc_vikram has no grid CSVs.
-- Non-polar node test also rewraps node longitudes to the same reference as the polygon. This changes nothing when the grid has a reference.
-- geometry_grid.py and tests/test_geometry_grid_fixes.py were ruff-formatted. test_geometry_grid.py was only edited in the §5 block (not formatted). scripts/ci.sh: 634 passed (scratchpad p1/ci_P1.05.log).
+- P1.06: overlap.py adds PriorSource (C11), WindowStatus, WindowOutcome, FootprintPolygon.geometry_grid_path (footprint_from_row copies it), to_fit_plane, footprint_prior_source, pixel_window; grid tried first (lru_cache(8)); unreadable grid -> GRID_UNREADABLE (no fallback); bbox footprint -> BBOX_HAS_NO_PIXEL_ORIENTATION. polygon_to_pixel_window == pixel_window(...).window. crop_to_overlap writes window_status/prior_source, all bands, window_transform, crs, parent's nodata.
+- Fixes A046/A047/A048/A050/A051/A052/A105/A106 applied; pseudo_gt.project_to_pixels goes through to_fit_plane; same-sensor scan iterates j>i; duplicate product_id rows -> new OverlapDiagnostics.n_self_pairs_skipped (Q-P1.06-2). Review fix: A047 rewrap shifts each ring as a whole (unwrap, shift mean into (ref-180, ref+180]); per-vertex version gave false OK antipodal overlaps. Q-P1.06-3 records departure from literal LLD A047 wording: list as LLD deviation in review pack.
+- Behaviour change: MISSING_FOOTPRINT now counted once per product; test_overlap.py::test_missing_footprint_is_reported_as_metadata_not_as_no_overlap assertion 1 -> 2 (only that line edited, file not formatted).
+- overlap.py, pseudo_gt.py, tests/test_overlap_fixes.py ruff-formatted. scripts/ci.sh: 654 passed (log: scratchpad p1/ci_P1.06.log).
+- Non-blocking: Q-P1.06-1 (after A047 rewrap, reference footprint in other longitude convention gives OUTSIDE_PRODUCT on corner path), Q-P1.06-2 (<4 corners -> NO_PIXEL_SIZE; self-pair counter), Q-P1.06-3.

@@ -587,7 +587,8 @@ def test_missing_footprint_is_reported_as_metadata_not_as_no_overlap():
     assert len(pairs) == 0
     assert diag.n_source_without_footprint == 1
     assert diag.n_reference_without_footprint == 1
-    assert diag.counts[OverlapStatus.MISSING_FOOTPRINT.value] == 1
+    # A105 (P1.06): one MISSING_FOOTPRINT per product without a footprint.
+    assert diag.counts[OverlapStatus.MISSING_FOOTPRINT.value] == 2
 
     report = diag.report()
     assert "metadata gap, not a geometry failure" in report

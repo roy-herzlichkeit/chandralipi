@@ -63,6 +63,7 @@ from lunar_reg.ingest.overlap import (
     FootprintPolygon,
     _strip_closing_duplicate,
     geographic_to_pixel_transform,
+    to_fit_plane,
 )
 
 logger = logging.getLogger(__name__)
@@ -204,6 +205,10 @@ def project_to_pixels(footprint: FootprintPolygon, points):
 
     Returns an ``(N, 2)`` array of ``(col, row)``, or ``None`` when the
     footprint has no usable corner-to-pixel transform.
+
+    Points go through :func:`~lunar_reg.ingest.overlap.to_fit_plane` first, so
+    a polar footprint's matrix -- fitted in its ``PolarFrame`` -- is applied to
+    plane coordinates rather than to raw lat/lon (A051).
     """
     import numpy as np
 
@@ -211,7 +216,8 @@ def project_to_pixels(footprint: FootprintPolygon, points):
     if matrix is None or not points:
         return None
 
-    pts = np.array([[lon, lat] for lat, lon in points], dtype=np.float64)
+    plane = to_fit_plane(footprint, points)
+    pts = np.array([[b, a] for a, b in plane], dtype=np.float64)
     homogeneous = np.hstack([pts, np.ones((len(pts), 1))]) @ matrix.T
     denom = homogeneous[:, 2:3]
     if not np.all(np.isfinite(denom)) or np.any(np.abs(denom) < 1e-12):

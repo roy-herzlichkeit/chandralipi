@@ -162,6 +162,50 @@ class OverlapStatus(str, Enum):
         return self not in (OverlapStatus.OK, OverlapStatus.DISJOINT)
 
 
+class PriorSource(str, Enum):
+    """Which geometry a footprint's ground -> pixel mapping came from (C11)."""
+
+    #: The product's own ``*_g_grd_*.csv`` geometry grid.
+    GEOMETRY_GRID = "geometry_grid"
+    #: A homography fitted to the four label corners.
+    LABEL_CORNERS = "label_corners"
+    #: A lat/lon bounding box; carries no pixel orientation at all.
+    BBOX = "bbox"
+
+
+class WindowStatus(str, Enum):
+    """Why a polygon did or did not map to a pixel window in one product."""
+
+    OK = "ok"
+    #: The footprint has no usable ``lines``/``samples`` (or too few corners
+    #: for the corner homography), so pixel space is undefined.
+    NO_PIXEL_SIZE = "no_pixel_size"
+    #: The polygon maps entirely outside the product (or the mapping is
+    #: degenerate at one of its vertices).
+    OUTSIDE_PRODUCT = "outside_product"
+    #: The footprint is a lat/lon bounding box: it says where the product is on
+    #: the ground but not which way its rows and columns run (A049).
+    BBOX_HAS_NO_PIXEL_ORIENTATION = "bbox_has_no_pixel_orientation"
+    #: The footprint names a geometry grid and reading it failed. Reported, and
+    #: deliberately not papered over with the corner homography.
+    GRID_UNREADABLE = "grid_unreadable"
+
+    @property
+    def is_failure(self) -> bool:
+        return self is not WindowStatus.OK
+
+
+@dataclass
+class WindowOutcome:
+    """The classified result of mapping a lat/lon polygon into one product."""
+
+    status: WindowStatus
+    #: ``(row_off, col_off, height, width)``; ``None`` unless ``status`` is OK.
+    window: tuple[int, int, int, int] | None
+    source: PriorSource | None
+    detail: str = ""
+
+
 #: Metres per degree of arc on the lunar sphere. The polar frame's unit.
 _M_PER_ARC_DEG: float = MOON_RADIUS_M * math.pi / 180.0
 
@@ -212,9 +256,7 @@ class PolarFrame:
         return (p.y / _M_PER_ARC_DEG, p.x / _M_PER_ARC_DEG)
 
     def to_sphere(self, northing: float, easting: float) -> tuple[float, float]:
-        p = _equidistant(self.pole_lat).reverse(
-            easting * _M_PER_ARC_DEG, northing * _M_PER_ARC_DEG
-        )
+        p = _equidistant(self.pole_lat).reverse(easting * _M_PER_ARC_DEG, northing * _M_PER_ARC_DEG)
         return (float(p.lat), float(p.lon))
 
     def plane_ring(self, ring) -> tuple[tuple[float, float], ...]:
@@ -243,6 +285,9 @@ class FootprintPolygon:
     #: product's real corners. Near a pole the difference is not cosmetic, so
     #: :meth:`validate` needs to know which it is holding.
     bbox_derived: bool = False
+    #: The product's ``*_g_grd_*.csv`` geometry grid, when the catalog found
+    #: one. Preferred over the corners by :func:`pixel_window`.
+    geometry_grid_path: str | None = None
 
     @property
     def lats(self) -> tuple[float, ...]:
@@ -346,17 +391,13 @@ def polygon_area_m2(ring, radius: float = MOON_RADIUS_M) -> float:
         return 0.0
     try:
         return float(
-            ST.areaOf(
-                [ST.LatLon(lat, _wrap_lon(lon)) for lat, lon in ring], radius=radius
-            )
+            ST.areaOf([ST.LatLon(lat, _wrap_lon(lon)) for lat, lon in ring], radius=radius)
         )
     except Exception as exc:  # noqa: BLE001 - degenerate rings are reported, not raised
         # Not expected once longitudes are wrapped, so this is louder than the
         # debug line it used to be: a zero area here is indistinguishable
         # downstream from a genuinely empty overlap.
-        logger.warning(
-            "areaOf failed on a %d-point ring, reporting 0 m^2: %s", len(ring), exc
-        )
+        logger.warning("areaOf failed on a %d-point ring, reporting 0 m^2: %s", len(ring), exc)
         return 0.0
 
 
@@ -506,8 +547,10 @@ def polygon_from_wkt(text: Any) -> tuple[tuple[float, float], ...] | None:
 def _ring_bounds(ring) -> tuple[float, float, float, float]:
     """``(min_a, max_a, min_b, max_b)`` of a ring of ``(a, b)`` pairs."""
     return (
-        min(c[0] for c in ring), max(c[0] for c in ring),
-        min(c[1] for c in ring), max(c[1] for c in ring),
+        min(c[0] for c in ring),
+        max(c[0] for c in ring),
+        min(c[1] for c in ring),
+        max(c[1] for c in ring),
     )
 
 
@@ -518,12 +561,43 @@ def _touching(a_ring, b_ring, eps: float = 1e-9) -> bool:
     :class:`PolarFrame`, where a shared *longitude* edge means nothing: near a
     pole two footprints can share a meridian and still be far apart on the
     ground. Both coordinate systems are in degrees, so ``eps`` carries over.
+
+    Abutting on one axis is only touching when the boxes also meet on the other
+    axis (A048): two boxes sharing a latitude edge but far apart in longitude
+    are disjoint, not touching.
     """
     a_min_a, a_max_a, a_min_b, a_max_b = _ring_bounds(a_ring)
     b_min_a, b_max_a, b_min_b, b_max_b = _ring_bounds(b_ring)
     gap_a = max(a_min_a, b_min_a) - min(a_max_a, b_max_a)
     gap_b = max(a_min_b, b_min_b) - min(a_max_b, b_max_b)
-    return abs(gap_a) <= eps or abs(gap_b) <= eps
+    return (abs(gap_a) <= eps and gap_b <= eps) or (abs(gap_b) <= eps and gap_a <= eps)
+
+
+def _rewrap_ring(ring, reference_lon: float) -> tuple[tuple[float, float], ...]:
+    """A lat/lon ring moved, as a whole, into the convention around ``ref``.
+
+    Lets two footprints written in different longitude conventions (0..360 and
+    -180..180) be clipped against each other in one planar lat/lon system
+    (A047). Latitudes are untouched.
+
+    The ring is first unwrapped so that no edge jumps by more than 180 degrees,
+    then shifted by one multiple of 360 so that its mean longitude lies in
+    ``(ref - 180, ref + 180]``. Moving each vertex separately into that interval
+    would split a ring that straddles ``ref +/- 180`` into a planar quad nearly
+    360 degrees wide, which the clipper then overlaps with footprints on the far
+    side of the Moon. A vertex of a ring that straddles the boundary may
+    therefore lie just outside the interval; the ring stays contiguous.
+    """
+    lons = [ring[0][1]]
+    for _, lon in ring[1:]:
+        # Step to the nearest representative of ``lon``: delta in [-180, 180).
+        lons.append(lons[-1] + ((lon - lons[-1] + 180.0) % 360.0) - 180.0)
+    mean = sum(lons) / len(lons)
+    # (ref - mean + 180) % 360 lies in [0, 360), so the target lies in
+    # (ref - 180, ref + 180]; the shift is rounded to an exact multiple of 360.
+    target = reference_lon - (((reference_lon - mean + 180.0) % 360.0) - 180.0)
+    shift = 360.0 * round((target - mean) / 360.0)
+    return tuple((lat, lon + shift) for (lat, _), lon in zip(ring, lons, strict=True))
 
 
 def _unit(lat: float, lon: float) -> tuple[float, float, float]:
@@ -597,7 +671,8 @@ def _polar_frame_for(
     gap = _cap_separation_deg(source.corners, reference.corners)
     if gap > 0.0:
         return (
-            None, OverlapStatus.DISJOINT,
+            None,
+            OverlapStatus.DISJOINT,
             f"bounding caps are {gap:.3f} deg apart on the sphere",
         )
 
@@ -610,7 +685,8 @@ def _polar_frame_for(
         colat = max(frame.colatitude_deg(lat) for lat in poly.lats)
         if colat > POLAR_CLIP_MAX_COLATITUDE_DEG:
             return (
-                None, OverlapStatus.POLAR_EXTENT_UNSUPPORTED,
+                None,
+                OverlapStatus.POLAR_EXTENT_UNSUPPORTED,
                 f"{name} footprint {poly.product_id!r} reaches {colat:.1f} deg from "
                 f"the {'north' if frame.pole_lat > 0 else 'south'} pole, beyond the "
                 f"{POLAR_CLIP_MAX_COLATITUDE_DEG:.0f} deg the polar frame is trusted to",
@@ -632,7 +708,9 @@ def intersect(source: FootprintPolygon, reference: FootprintPolygon) -> OverlapR
         status = poly.validate()
         if status is not OverlapStatus.OK:
             return OverlapResult(
-                source, reference, status,
+                source,
+                reference,
+                status,
                 detail=f"{name} footprint {poly.product_id!r}: {status.value}",
             )
 
@@ -650,10 +728,16 @@ def intersect(source: FootprintPolygon, reference: FootprintPolygon) -> OverlapR
         # spherical -- so feeding it frame coordinates in (northing, easting) is
         # the same operation it already performs on (lat, lon), in a plane that
         # behaves.
-        source_ring = frame.plane_ring(source.corners) if frame else source.corners
-        reference_ring = (
-            frame.plane_ring(reference.corners) if frame else reference.corners
-        )
+        if frame:
+            source_ring = frame.plane_ring(source.corners)
+            reference_ring = frame.plane_ring(reference.corners)
+        else:
+            # A047: one longitude convention for both rings, anchored on the
+            # source ring's first vertex, so a 0..360 footprint and a
+            # -180..180 one are not 360 degrees apart in the clipper's plane.
+            ref_lon = source.corners[0][1]
+            source_ring = _rewrap_ring(source.corners, ref_lon)
+            reference_ring = _rewrap_ring(reference.corners, ref_lon)
 
         from pygeodesy.clipy import LatLon_, clipFHP4
 
@@ -668,7 +752,9 @@ def intersect(source: FootprintPolygon, reference: FootprintPolygon) -> OverlapR
         ring = frame.sphere_ring(clipped_ring) if frame else clipped_ring
     except Exception as exc:  # noqa: BLE001 - reported, never swallowed
         return OverlapResult(
-            source, reference, OverlapStatus.CLIP_ERROR,
+            source,
+            reference,
+            OverlapStatus.CLIP_ERROR,
             detail=f"{type(exc).__name__}: {exc}",
         )
 
@@ -684,7 +770,9 @@ def intersect(source: FootprintPolygon, reference: FootprintPolygon) -> OverlapR
 
     if len(ring) < 3:
         return OverlapResult(
-            source, reference, OverlapStatus.DEGENERATE_EMPTY,
+            source,
+            reference,
+            OverlapStatus.DEGENERATE_EMPTY,
             polygon=ring,
             detail=f"clipper returned {len(ring)} distinct vertices, need >= 3",
         )
@@ -697,10 +785,13 @@ def intersect(source: FootprintPolygon, reference: FootprintPolygon) -> OverlapR
 
     if area < MIN_OVERLAP_AREA_M2 or aspect > MAX_OVERLAP_ASPECT:
         return OverlapResult(
-            source, reference, OverlapStatus.DEGENERATE_SLIVER,
-            polygon=ring, area_m2=area,
+            source,
+            reference,
+            OverlapStatus.DEGENERATE_SLIVER,
+            polygon=ring,
+            area_m2=area,
             detail=f"area={area:.1f} m^2, aspect={aspect:.1f} "
-                   f"(limits: area>={MIN_OVERLAP_AREA_M2:.0f}, aspect<={MAX_OVERLAP_ASPECT:.0f})",
+            f"(limits: area>={MIN_OVERLAP_AREA_M2:.0f}, aspect<={MAX_OVERLAP_ASPECT:.0f})",
         )
 
     return OverlapResult(source, reference, OverlapStatus.OK, polygon=ring, area_m2=area)
@@ -723,6 +814,7 @@ def footprint_from_row(row: Any) -> FootprintPolygon | None:
     rotation of the real footprint -- a pushbroom strip at an angle becomes a
     larger axis-aligned box, so overlap area from the fallback is an upper bound.
     """
+
     def value(key):
         try:
             v = row[key]
@@ -748,6 +840,9 @@ def footprint_from_row(row: Any) -> FootprintPolygon | None:
         v = value(key)
         return int(v) if v is not None else None
 
+    # P1.03's catalog carries the product's geometry grid; older manifests have
+    # no such column, which text() reads as None.
+    grid_path = text("geometry_grid_path")
     meta = {
         "product_id": text("product_id"),
         "sensor": text("sensor"),
@@ -755,6 +850,7 @@ def footprint_from_row(row: Any) -> FootprintPolygon | None:
         "image_path": text("image_path"),
         "lines": count("lines"),
         "samples": count("samples"),
+        "geometry_grid_path": str(grid_path) if grid_path else None,
     }
 
     corners = [(value(f"corner{i}_lat"), value(f"corner{i}_lon")) for i in range(1, 5)]
@@ -780,8 +876,10 @@ def footprint_from_row(row: Any) -> FootprintPolygon | None:
         return None
     return FootprintPolygon(
         corners=(
-            (min_lat, min_lon), (min_lat, max_lon),
-            (max_lat, max_lon), (max_lat, min_lon),
+            (min_lat, min_lon),
+            (min_lat, max_lon),
+            (max_lat, max_lon),
+            (max_lat, min_lon),
         ),
         bbox_derived=True,
         **meta,
@@ -804,14 +902,16 @@ class OverlapDiagnostics:
     n_pairs_considered: int = 0
     n_source_without_footprint: int = 0
     n_reference_without_footprint: int = 0
+    #: Same-sensor scans only: pairs not intersected because both rows carry
+    #: the same ``product_id`` (a duplicated manifest row, never a real pair).
+    n_self_pairs_skipped: int = 0
 
     def record(self, result: OverlapResult) -> None:
         key = result.status.value
         self.counts[key] += 1
         if key not in self.samples:
-            self.samples[key] = (
-                f"{result.source.product_id} x {result.reference.product_id}"
-                + (f" -- {result.detail}" if result.detail else "")
+            self.samples[key] = f"{result.source.product_id} x {result.reference.product_id}" + (
+                f" -- {result.detail}" if result.detail else ""
             )
 
     def record_missing(self, status: OverlapStatus, detail: str) -> None:
@@ -824,10 +924,7 @@ class OverlapDiagnostics:
 
     @property
     def n_suspicious(self) -> int:
-        return sum(
-            n for k, n in self.counts.items()
-            if OverlapStatus(k).is_suspicious
-        )
+        return sum(n for k, n in self.counts.items() if OverlapStatus(k).is_suspicious)
 
     def report(self) -> str:
         lines = [
@@ -839,6 +936,11 @@ class OverlapDiagnostics:
                 f"products with no usable footprint: "
                 f"{self.n_source_without_footprint} source, "
                 f"{self.n_reference_without_footprint} reference"
+            )
+        if self.n_self_pairs_skipped:
+            lines.append(
+                f"same-sensor pairs skipped because both rows share a product_id "
+                f"(duplicated manifest rows): {self.n_self_pairs_skipped}"
             )
         lines.append("")
         lines.append("outcomes:")
@@ -862,8 +964,11 @@ class OverlapDiagnostics:
                 "      This is NOT evidence that products do not overlap.",
             ]
         if self.n_ok == 0 and self.n_pairs_considered:
-            lines += ["", "no usable overlaps found -- see the outcome breakdown above before"
-                      " concluding the data is at fault"]
+            lines += [
+                "",
+                "no usable overlaps found -- see the outcome breakdown above before"
+                " concluding the data is at fault",
+            ]
         return "\n".join(lines)
 
 
@@ -884,42 +989,57 @@ def find_overlapping_pairs(
 
     diagnostics = OverlapDiagnostics()
 
+    same_sensor = source_sensor == reference_sensor
     sources = manifest[manifest["sensor"] == source_sensor]
     references = manifest[manifest["sensor"] == reference_sensor]
     diagnostics.n_source = len(sources)
     diagnostics.n_reference = len(references)
 
-    source_polys, reference_polys = [], []
-    for _, row in sources.iterrows():
-        poly = footprint_from_row(row)
-        if poly is None:
-            diagnostics.n_source_without_footprint += 1
-        else:
-            source_polys.append(poly)
-    for _, row in references.iterrows():
-        poly = footprint_from_row(row)
-        if poly is None:
-            diagnostics.n_reference_without_footprint += 1
-        else:
-            reference_polys.append(poly)
+    def footprints(frame, role: str) -> tuple[list[FootprintPolygon], int]:
+        # A105: one MISSING_FOOTPRINT per product, sampled as "<role> <id>".
+        polys, n_missing = [], 0
+        for _, row in frame.iterrows():
+            poly = footprint_from_row(row)
+            if poly is None:
+                n_missing += 1
+                diagnostics.record_missing(
+                    OverlapStatus.MISSING_FOOTPRINT, f"{role} {row.get('product_id')}"
+                )
+            else:
+                polys.append(poly)
+        return polys, n_missing
 
-    missing = diagnostics.n_source_without_footprint + diagnostics.n_reference_without_footprint
-    if missing:
-        diagnostics.record_missing(
-            OverlapStatus.MISSING_FOOTPRINT,
-            f"{missing} product(s) carry no corner or bounding-box coordinates; "
-            f"first source without one: "
-            f"{sources.iloc[0]['product_id'] if len(sources) else '(none)'}",
+    source_polys, diagnostics.n_source_without_footprint = footprints(sources, "source")
+    if same_sensor:
+        # One product list: scanning it a second time as "reference" would
+        # double-count every missing footprint.
+        reference_polys = source_polys
+        diagnostics.n_reference_without_footprint = diagnostics.n_source_without_footprint
+    else:
+        reference_polys, diagnostics.n_reference_without_footprint = footprints(
+            references, "reference"
         )
 
+    if same_sensor:
+        # A050: each unordered pair once, never a product against itself.
+        candidates = (
+            (source_polys[i], source_polys[j])
+            for i in range(len(source_polys))
+            for j in range(i + 1, len(source_polys))
+        )
+    else:
+        candidates = ((s, r) for s in source_polys for r in reference_polys)
+
     rows = []
-    for source in source_polys:
-        for reference in reference_polys:
-            diagnostics.n_pairs_considered += 1
-            result = intersect(source, reference)
-            diagnostics.record(result)
-            if result.ok and result.source_fraction >= min_source_fraction:
-                rows.append(result.as_row())
+    for source, reference in candidates:
+        if same_sensor and source.product_id == reference.product_id:
+            diagnostics.n_self_pairs_skipped += 1
+            continue
+        diagnostics.n_pairs_considered += 1
+        result = intersect(source, reference)
+        diagnostics.record(result)
+        if result.ok and result.source_fraction >= min_source_fraction:
+            rows.append(result.as_row())
 
     frame = pd.DataFrame(rows)
     if len(frame):
@@ -927,7 +1047,8 @@ def find_overlapping_pairs(
 
     logger.info(
         "overlap scan: %d usable pair(s), %d suspicious outcome(s)",
-        len(frame), diagnostics.n_suspicious,
+        len(frame),
+        diagnostics.n_suspicious,
     )
     if diagnostics.n_suspicious:
         # One concise line here; the full report is the caller's to print, so it
@@ -936,7 +1057,8 @@ def find_overlapping_pairs(
             "%d non-trivial outcome(s): %s -- call diagnostics.report() for detail",
             diagnostics.n_suspicious,
             ", ".join(
-                f"{k}={n}" for k, n in sorted(diagnostics.counts.items())
+                f"{k}={n}"
+                for k, n in sorted(diagnostics.counts.items())
                 if OverlapStatus(k).is_suspicious
             ),
         )
@@ -1001,9 +1123,7 @@ def geographic_to_pixel_transform(footprint: FootprintPolygon):
 
     # Ring order from footprint_from_row is UL, UR, LR, LL.
     frame = footprint_frame(footprint)
-    corners = (
-        frame.plane_ring(footprint.corners[:4]) if frame else footprint.corners[:4]
-    )
+    corners = frame.plane_ring(footprint.corners[:4]) if frame else footprint.corners[:4]
     src = np.array([[b, a] for a, b in corners], dtype=np.float32)
     dst = np.array(
         [[0.0, 0.0], [width - 1.0, 0.0], [width - 1.0, height - 1.0], [0.0, height - 1.0]],
@@ -1012,44 +1132,123 @@ def geographic_to_pixel_transform(footprint: FootprintPolygon):
     return cv2.getPerspectiveTransform(src, dst)
 
 
-def polygon_to_pixel_window(footprint: FootprintPolygon, polygon):
-    """Pixel-space bounding window of a lat/lon polygon within a product.
+def to_fit_plane(footprint: FootprintPolygon, ring) -> tuple[tuple[float, float], ...]:
+    """A ``(lat, lon)`` ring in the plane :func:`geographic_to_pixel_transform` fits in.
 
-    Returns ``(row_off, col_off, height, width)`` clipped to the product, or
-    ``None`` if the polygon maps entirely outside it.
-
-    The window is **conservative**: it covers every pixel the polygon touches,
-    so an edge falling mid-pixel rounds outward. A window may therefore be up to
-    one pixel larger per side than the exact geometric extent. That direction is
-    deliberate -- a crop that silently drops a row of genuine overlap is worse
-    than one carrying a pixel of slop.
+    The ring unchanged for a non-polar footprint; its :class:`PolarFrame`
+    ``(northing, easting)`` ring for a polar one. Shared by
+    :func:`polygon_to_pixel_window` and :func:`lunar_reg.ingest.pseudo_gt.project_to_pixels`
+    so neither can apply the corner matrix in a different plane from the one it
+    was fitted in (A051).
     """
+    frame = footprint_frame(footprint)
+    if frame is None:
+        return tuple((lat, lon) for lat, lon in ring)
+    return frame.plane_ring(ring)
+
+
+def footprint_prior_source(footprint: FootprintPolygon) -> PriorSource:
+    """Which geometry :func:`pixel_window` will use for this footprint.
+
+    The geometry grid when one is recorded and the file exists; otherwise a
+    bounding box is a box, and anything else is the label corners.
+    """
+    path = footprint.geometry_grid_path
+    if path and Path(path).is_file():
+        return PriorSource.GEOMETRY_GRID
+    if footprint.bbox_derived:
+        return PriorSource.BBOX
+    return PriorSource.LABEL_CORNERS
+
+
+@lru_cache(maxsize=8)
+def _cached_grid(path: str, lines: int | None, samples: int | None):
+    """One parsed geometry grid per path (and image size); grids are megabytes of CSV."""
+    from lunar_reg.ingest.geometry_grid import read_geometry_grid
+
+    return read_geometry_grid(path, lines=lines, samples=samples)
+
+
+def _grid_window(footprint: FootprintPolygon, polygon) -> WindowOutcome:
+    import csv
+    import xml.etree.ElementTree as ET
+
+    from lunar_reg.ingest.geometry_grid import polygon_to_pixel_window as grid_window
+
+    path = str(footprint.geometry_grid_path)
+    try:
+        grid = _cached_grid(path, footprint.lines, footprint.samples)
+    except (OSError, ValueError, csv.Error, ET.ParseError) as exc:
+        # No fallback to the corners: a grid that exists and cannot be read is
+        # a fault to look at, not something to hide behind a coarser prior.
+        return WindowOutcome(
+            WindowStatus.GRID_UNREADABLE,
+            None,
+            PriorSource.GEOMETRY_GRID,
+            detail=f"{Path(path).name}: {type(exc).__name__}: {exc}"[:200],
+        )
+    window = grid_window(grid, polygon)
+    if window is None:
+        return WindowOutcome(
+            WindowStatus.OUTSIDE_PRODUCT,
+            None,
+            PriorSource.GEOMETRY_GRID,
+            detail="no boundary sample or grid node of the polygon lies in the product",
+        )
+    return WindowOutcome(WindowStatus.OK, tuple(int(v) for v in window), PriorSource.GEOMETRY_GRID)
+
+
+def _corner_window(footprint: FootprintPolygon, polygon, detail: str = "") -> WindowOutcome:
+    """The label-corner homography path, classified."""
     import numpy as np
 
+    from lunar_reg.ingest.geometry_grid import snap_to_integer
+
+    source = PriorSource.LABEL_CORNERS
+    if (
+        footprint.lines is None
+        or footprint.samples is None
+        or int(footprint.lines) <= 0
+        or int(footprint.samples) <= 0
+    ):
+        return WindowOutcome(
+            WindowStatus.NO_PIXEL_SIZE,
+            None,
+            source,
+            detail=f"lines={footprint.lines}, samples={footprint.samples}",
+        )
     matrix = geographic_to_pixel_transform(footprint)
     if matrix is None:
-        return None
+        return WindowOutcome(
+            WindowStatus.NO_PIXEL_SIZE,
+            None,
+            source,
+            detail=f"{len(footprint.corners)} corner(s); the corner homography needs 4",
+        )
 
-    # Must use the same plane the matrix was fitted in, hence footprint_frame
-    # rather than any decision taken per pair.
-    frame = footprint_frame(footprint)
-    ring = _strip_closing_duplicate(tuple(polygon))
-    if frame is not None:
-        ring = frame.plane_ring(ring)
+    # Must use the same plane the matrix was fitted in, hence to_fit_plane
+    # (footprint_frame) rather than any decision taken per pair.
+    ring = to_fit_plane(footprint, _strip_closing_duplicate(tuple(polygon)))
     pts = np.array([[b, a] for a, b in ring], dtype=np.float64)
     homogeneous = np.hstack([pts, np.ones((len(pts), 1))]) @ matrix.T
     denom = homogeneous[:, 2:3]
     if not np.all(np.isfinite(denom)) or np.any(np.abs(denom) < 1e-12):
-        return None
+        return WindowOutcome(
+            WindowStatus.OUTSIDE_PRODUCT,
+            None,
+            source,
+            detail="a polygon vertex maps to the homography's line at infinity",
+        )
     pixels = homogeneous[:, :2] / denom
 
     # Corners map to pixel *centres* (0 .. width-1), so the exclusive stop bound
     # is one past the last covered pixel. Without the +1 a polygon covering the
-    # whole product yields a window one row and one column short.
-    col0 = int(math.floor(pixels[:, 0].min()))
-    col1 = int(math.floor(pixels[:, 0].max())) + 1
-    row0 = int(math.floor(pixels[:, 1].min()))
-    row1 = int(math.floor(pixels[:, 1].max())) + 1
+    # whole product yields a window one row and one column short. Snap first
+    # (A106): a vertex exactly on a corner comes back as 799 - 1e-9.
+    col0 = int(math.floor(snap_to_integer(pixels[:, 0].min())))
+    col1 = int(math.floor(snap_to_integer(pixels[:, 0].max()))) + 1
+    row0 = int(math.floor(snap_to_integer(pixels[:, 1].min())))
+    row1 = int(math.floor(snap_to_integer(pixels[:, 1].max()))) + 1
 
     col0 = max(0, min(col0, int(footprint.samples)))
     col1 = max(0, min(col1, int(footprint.samples)))
@@ -1057,8 +1256,53 @@ def polygon_to_pixel_window(footprint: FootprintPolygon, polygon):
     row1 = max(0, min(row1, int(footprint.lines)))
 
     if col1 <= col0 or row1 <= row0:
-        return None
-    return (row0, col0, row1 - row0, col1 - col0)
+        return WindowOutcome(
+            WindowStatus.OUTSIDE_PRODUCT,
+            None,
+            source,
+            detail="the polygon maps entirely outside the product",
+        )
+    return WindowOutcome(
+        WindowStatus.OK, (row0, col0, row1 - row0, col1 - col0), source, detail=detail
+    )
+
+
+def pixel_window(footprint: FootprintPolygon, polygon) -> WindowOutcome:
+    """Pixel window of a lat/lon polygon in one product, classified (TBD 1.1).
+
+    Geometry grid first (:func:`footprint_prior_source`); the label-corner
+    homography otherwise; a bounding box is refused with
+    :attr:`WindowStatus.BBOX_HAS_NO_PIXEL_ORIENTATION`. The window is
+    ``(row_off, col_off, height, width)`` clipped to the product and
+    **conservative**: it covers every pixel the polygon touches, so an edge
+    falling mid-pixel rounds outward by at most one pixel per side.
+    """
+    source = footprint_prior_source(footprint)
+    if source is PriorSource.GEOMETRY_GRID:
+        return _grid_window(footprint, polygon)
+    detail = (
+        f"geometry_grid_path {footprint.geometry_grid_path} does not exist"
+        if footprint.geometry_grid_path
+        else ""
+    )
+    if source is PriorSource.BBOX:
+        return WindowOutcome(
+            WindowStatus.BBOX_HAS_NO_PIXEL_ORIENTATION,
+            None,
+            source,
+            detail=detail or "footprint is a lat/lon bounding box, not the product's corners",
+        )
+    return _corner_window(footprint, polygon, detail)
+
+
+def polygon_to_pixel_window(footprint: FootprintPolygon, polygon):
+    """Pixel-space bounding window of a lat/lon polygon within a product.
+
+    Returns ``(row_off, col_off, height, width)`` clipped to the product, or
+    ``None`` for any non-OK :class:`WindowOutcome` -- call :func:`pixel_window`
+    for the reason. Same conservative rounding as :func:`pixel_window`.
+    """
+    return pixel_window(footprint, polygon).window
 
 
 def _safe_stem(text: str | None, fallback: str) -> str:
@@ -1100,17 +1344,19 @@ def crop_to_overlap(
 
     for side, footprint in (("source", result.source), ("reference", result.reference)):
         entry: dict[str, Any] = {"product_id": footprint.product_id}
-        window_spec = polygon_to_pixel_window(footprint, result.polygon)
-        if window_spec is None:
+        outcome = pixel_window(footprint, result.polygon)
+        entry["window_status"] = outcome.status.value
+        entry["prior_source"] = outcome.source.value if outcome.source else None
+        if outcome.window is None:
             entry["error"] = (
-                "overlap polygon does not map to a usable pixel window "
-                "(missing pixel dimensions, or the polygon falls outside the product)"
+                f"overlap polygon does not map to a usable pixel window "
+                f"({outcome.status.value}: {outcome.detail})"
             )
             summary["sides"][side] = entry
             logger.warning("%s %s: %s", side, footprint.product_id, entry["error"])
             continue
 
-        row_off, col_off, height, width = window_spec
+        row_off, col_off, height, width = outcome.window
         entry.update(row_off=row_off, col_off=col_off, height=height, width=width)
 
         source_path = footprint.label_path or footprint.image_path
@@ -1122,9 +1368,7 @@ def crop_to_overlap(
         # The pair id is part of the name: a product that overlaps several
         # partners produces one crop per pair, and without this the second
         # crop silently overwrites the first with a different region.
-        own = _safe_stem(
-            footprint.product_id, Path(str(footprint.image_path or source_path)).stem
-        )
+        own = _safe_stem(footprint.product_id, Path(str(footprint.image_path or source_path)).stem)
         partner = _safe_stem(
             (result.reference if side == "source" else result.source).product_id, "partner"
         )
@@ -1132,13 +1376,25 @@ def crop_to_overlap(
         try:
             with open_product(source_path) as dataset:
                 window = Window(col_off, row_off, width, height)
-                data = dataset.read(1, window=window)
+                # A052: every band, not just the first.
+                data = dataset.read(window=window)
                 profile = dataset.profile.copy()
                 profile.update(
-                    driver="GTiff", height=height, width=width, count=1,
-                    dtype=data.dtype, compress="deflate",
+                    driver="GTiff",
+                    height=height,
+                    width=width,
+                    count=dataset.count,
+                    dtype=data.dtype,
+                    compress="deflate",
                 )
-                profile.pop("nodata", None)
+                # A046: the crop's own georeference -- the parent's transform
+                # shifted to the window origin. The parent's crs stays in the
+                # copied profile.
+                profile["transform"] = dataset.window_transform(window)
+                if dataset.nodata is not None:
+                    profile["nodata"] = dataset.nodata
+                else:
+                    profile.pop("nodata", None)
                 # A PDS4 profile carries blockxsize/blockysize but not tiled;
                 # GTiff rejects block sizes unless TILED=YES, so drop them for
                 # the small strip-organised outputs a crop produces.
@@ -1146,7 +1402,7 @@ def crop_to_overlap(
                 profile.pop("blockysize", None)
                 profile["tiled"] = False
                 with rasterio.open(out_path, "w", **profile) as out:
-                    out.write(data, 1)
+                    out.write(data)
             entry["output"] = str(out_path)
         except Exception as exc:  # noqa: BLE001 - reported per side, not fatal for the pair
             entry["error"] = f"{type(exc).__name__}: {exc}"
@@ -1195,7 +1451,7 @@ def find_cross_sensor_pairs(
 
     frames, diagnostics = [], {}
     for i, source_sensor in enumerate(present):
-        for reference_sensor in present[i + 1:]:
+        for reference_sensor in present[i + 1 :]:
             frame, diag = find_overlapping_pairs(
                 manifest, source_sensor, reference_sensor, min_source_fraction
             )
@@ -1208,9 +1464,7 @@ def find_cross_sensor_pairs(
                 source_sensor=source_sensor,
                 reference_sensor=reference_sensor,
                 scale_ratio=ratio,
-                direct_match_feasible=(
-                    None if ratio is None else ratio <= MAX_DIRECT_SCALE_RATIO
-                ),
+                direct_match_feasible=(None if ratio is None else ratio <= MAX_DIRECT_SCALE_RATIO),
                 bridge_via=bridge_sensor(source_sensor, reference_sensor),
             )
             frames.append(frame)
@@ -1227,7 +1481,9 @@ def find_cross_sensor_pairs(
             "%d of %d overlapping pair(s) exceed the direct-match scale ratio of "
             "%.0fx and must be chained through an intermediate sensor; widest is "
             "%s at %.0fx",
-            len(infeasible), len(combined), MAX_DIRECT_SCALE_RATIO,
+            len(infeasible),
+            len(combined),
+            MAX_DIRECT_SCALE_RATIO,
             f"{infeasible.iloc[0]['source_sensor']}x{infeasible.iloc[0]['reference_sensor']}",
             infeasible["scale_ratio"].max(),
         )
