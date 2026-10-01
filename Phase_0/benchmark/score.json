@@ -1,0 +1,134 @@
+{
+  "axes": {
+    "correctness": {
+      "detail": {
+        "cpu_suite": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 536,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "pile` or `torch.export`.\n    warnings.warn(\n\ntests/test_overlap.py::test_crop_writes_both_sides\ntests/test_overlap.py::test_crop_filenames_encode_the_pair_not_just_the_product\ntests/test_overlap.py::test_crop_output_is_a_readable_geotiff\ntests/test_overlap.py::test_lid_with_colons_produces_a_safe_filename\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\ntests/test_overlap.py::test_crop_writes_both_sides\ntests/test_overlap.py::test_crop_filenames_encode_the_pair_not_just_the_product\ntests/test_overlap.py::test_crop_output_is_a_readable_geotiff\ntests/test_overlap.py::test_lid_with_colons_produces_a_safe_filename\ntests/test_registered_export.py::test_provenance_tags_travel_with_the_file\ntests/test_registered_export.py::test_affine_2x3_matrix_is_accepted\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n536 passed, 6 deselected, 11 warnings in 99.05s (0:01:39)\n"
+        },
+        "harness": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 115,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "........................................................................ [ 62%]\n...........................................                              [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_P0_02.py::test_loftr_odd_size_cpu\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n115 passed, 1 warning in 5.99s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.4
+    },
+    "quality": {
+      "detail": {
+        "parts": {
+          "counts": {
+            "samples": [],
+            "truth_rms_px": [
+              0.023223993894854966,
+              0.012963571143151775,
+              0.01634602280212799,
+              0.0142889124326852,
+              0.009701594664348641,
+              0.014970030069480712,
+              0.0158650390745857,
+              0.012326306971167548,
+              0.018415721484820236,
+              0.015492428393915177
+            ],
+            "unclassified_exceptions": 0,
+            "value": 1.0
+          },
+          "determinism": {
+            "in_process": true,
+            "subprocess": true,
+            "value": 1.0
+          },
+          "ecc_affine": {
+            "samples": [],
+            "value": 1.0
+          }
+        },
+        "pass": {
+          "counts": true,
+          "determinism": true,
+          "ecc_affine": true,
+          "no_unclassified_exceptions": true
+        },
+        "thresholds": {
+          "counts": 1.0,
+          "determinism": 1.0,
+          "ecc_affine": 0.9
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.3
+    },
+    "spec_conformance": {
+      "detail": {
+        "contracts": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 29,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": ".............................                                            [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_contracts_P0.py::test_C15_roundtrip\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n29 passed, 1 warning in 1.91s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.3
+    },
+    "synthetic": {
+      "detail": {
+        "label": "SYNTHETIC \u2014 truth-based error on generated scenes, never merged with real-data axes (Q19)",
+        "metric": "median transform_rms_px vs known homography, sift, same illumination, 10 seeds",
+        "values_px": [
+          0.023223993894854966,
+          0.012963571143151775,
+          0.01634602280212799,
+          0.0142889124326852,
+          0.009701594664348641,
+          0.014970030069480712,
+          0.0158650390745857,
+          0.012326306971167548,
+          0.018415721484820236,
+          0.015492428393915177
+        ]
+      },
+      "direction": "<=",
+      "pass": true,
+      "threshold": 0.5,
+      "value": 0.015231229231697944,
+      "weight": 0.0
+    }
+  },
+  "created_utc": "2026-10-01T07:39:28+00:00",
+  "git_sha": "d64cd82184885dd35d22a3547339e0207c27cf20",
+  "pass": true,
+  "phase": "0",
+  "provenance": "measured",
+  "schema": 1,
+  "skips": {
+    "count": 0,
+    "reasons": {}
+  },
+  "weighted_total": 1.0
+}
