@@ -1,13 +1,13 @@
 # STATUS
 
-current: P1.08
+current: P1.09
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.07
+last_done: P1.08
 notes:
-- P1.07: constants.py adds LONGITUDE_DIRECTION="east", LONGITUDE_RANGE="0_360", DATUM_SOURCE=ValueSource.INFERRED, DATUM_NOTE, lon_to_360/lon_to_180 (vectorised, NaN kept, scalar->float); no existing constant changed. docs/DATUM.md written (offset stays [INSERT RESULT]); every section 2 table row carries a ValueSource member (internal longitude range INFERRED as project convention), enforced by a new unit test.
-- tests/test_datum.py: unit tests + 1 @pytest.mark.data test (ran: 25 grid nodes inside NAC, both mirrors outside).
-- Data test printed (pytest tests/test_datum.py -s): "MEASURED grid-vs-corner offset (m): median 2903.6 over the 25 sub-grid nodes, strip centre 2900.4 (ValueSource.MEASURED; ch2_ohr_ncp_20240425T1406019344_d_img_d18 vs NAC NAC_DTM_VIKRAMSITE1_M1442997156_100CM, NAC georeference source inferred)"
-- Non-blocking Q-P1.07-1: LLD §3.5 "median ... of the strip centre" is ambiguous; the test prints and asserts both the 25-node median and the centre distance.
-- constants.py, tests/test_datum.py ruff-clean and formatted. scripts/ci.sh: 664 passed (log: scratchpad p1/ci_P1.07.log).
+- P1.08: every LLD preprocess_nodata §2 function takes valid=None (to_uint8, apply_clahe, normalize_intensity, suppress_shadows, invert, dilate, log_transform, match_histogram(+reference_valid), standard_chain, shadow_mask/fraction/estimate_shadow_severity/normalize_shadows). Masked uint8 output reserves 0 for nodata (radiometric.VALID_U8_MIN=1); float output NaN. Effective mask = valid & isfinite (shadow._effective_valid; ValueError on shape mismatch; empty mask -> all-0/all-NaN + one warning per call).
+- _retinex (A107) fills NaN/invalid with valid median before blurring, restores NaN; reflectance range over usable pixels only. standard_chain computes the effective mask once and passes it to every step (NaN inside valid stays 0 through to_uint8/apply_clahe); hand-chained callers must pass the effective mask themselves.
+- valid=None byte-identical to pre-change: hashes captured at HEAD 1d978f0 before editing (scratchpad p1/p108_hashes_before.txt), pinned in tests/test_preprocess_nodata.py (65 tests + review tests: retinex independent of nodata values; NaN inside valid through chain). pipeline.py untouched (P1.09 wires context.valid).
+- Non-blocking Q-P1.08-1: method="none" with valid returns float32 NaN-masked copy; non-finite pixels count as nodata; log_transform valid outputs not clipped to >=1.
+- ruff clean/formatted on the 3 files; scripts/ci.sh: 716 passed (log: scratchpad p1/ci_P1.08.log).

@@ -13,7 +13,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 7 | P1.05 | geometry grid fixes | P1.00 | harness/check_P1.05.sh | done |
 | 8 | P1.06 | overlap: grid wiring + fixes | P1.05, P1.03 | harness/check_P1.06.sh | done |
 | 9 | P1.07 | datum convention + data test | P1.04, P1.05 | harness/check_P1.07.sh | done |
-| 10 | P1.08 | nodata in radiometric + shadow | P1.00 | harness/check_P1.08.sh | todo |
+| 10 | P1.08 | nodata in radiometric + shadow | P1.00 | harness/check_P1.08.sh | done |
 | 11 | P1.09 | preprocess geometry + StepStatus | P1.08 | harness/check_P1.09.sh | todo |
 | 12 | P1.10 | presets inside register_pair | P1.09 | harness/check_P1.10.sh | todo |
 | 13 | P1.11 | reference sun geometry | P1.04 | harness/check_P1.11.sh | todo |

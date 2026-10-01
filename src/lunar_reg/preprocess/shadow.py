@@ -34,22 +34,52 @@ logger = logging.getLogger(__name__)
 SHADOW_METHODS = ("gamma", "mask", "retinex", "none")
 
 
-def shadow_mask(image: np.ndarray, percentile: float = 5.0) -> np.ndarray:
+def _effective_valid(image: np.ndarray, valid: np.ndarray | None, caller: str) -> np.ndarray:
+    """Return ``valid & isfinite(image)`` as a bool array (Phase_1/LLD/preprocess_nodata.md §1).
+
+    ``valid`` is the nodata mask (True = real data); it must match ``image``'s
+    shape. When nothing is valid, one warning naming ``caller`` is logged and the
+    caller returns its all-zero / all-NaN output.
+    """
+    arr = np.asarray(image)
+    mask = np.asarray(valid, dtype=bool)
+    if mask.shape != arr.shape:
+        raise ValueError(f"{caller}: valid mask shape {mask.shape} != image shape {arr.shape}")
+    if np.issubdtype(arr.dtype, np.floating):
+        mask = mask & np.isfinite(arr)
+    if not mask.any():
+        logger.warning("%s: valid mask has no valid finite pixel; returning empty output", caller)
+    return mask
+
+
+def shadow_mask(
+    image: np.ndarray, percentile: float = 5.0, valid: np.ndarray | None = None
+) -> np.ndarray:
     """Boolean mask of probable cast shadow, by intensity percentile.
 
     A percentile rather than a fixed level, because absolute DN varies with
     sensor gain and exposure. The trade-off: at very low sun elevation a real
     scene may be 30%+ shadow, and a fixed 5% then labels only the deepest part.
     Report :func:`shadow_fraction` alongside any result that depends on this.
+
+    With ``valid`` the percentile is taken over valid finite pixels only and the
+    mask is False wherever ``valid`` is False.
     """
     image = np.asarray(image, dtype=np.float32)
+    if valid is not None:
+        v = _effective_valid(image, valid, "shadow_mask")
+        if not v.any():
+            return np.zeros(image.shape, dtype=bool)
+        return (image <= np.percentile(image[v], percentile)) & v
     finite = image[np.isfinite(image)]
     if finite.size == 0:
         return np.zeros(image.shape, dtype=bool)
     return image <= np.percentile(finite, percentile)
 
 
-def shadow_fraction(image: np.ndarray, percentile: float = 5.0) -> float:
+def shadow_fraction(
+    image: np.ndarray, percentile: float = 5.0, valid: np.ndarray | None = None
+) -> float:
     """Fraction of the image the mask actually calls shadow.
 
     This is **not** reliably ``percentile / 100``. The mask uses ``<=``, so every
@@ -61,20 +91,34 @@ def shadow_fraction(image: np.ndarray, percentile: float = 5.0) -> float:
     Always call this after choosing ``shadow_percentile`` to see what the
     threshold is really selecting; the requested percentile is a lower bound on
     the fraction treated as shadow, not the value.
+
+    With ``valid`` the fraction is over valid finite pixels only.
     """
+    if valid is not None:
+        v = _effective_valid(image, valid, "shadow_fraction")
+        if not v.any():
+            return 0.0
+        return float(shadow_mask(image, percentile, valid=v)[v].mean())
     return float(shadow_mask(image, percentile).mean())
 
 
-def estimate_shadow_severity(image: np.ndarray, dark_level: float = 0.15) -> float:
+def estimate_shadow_severity(
+    image: np.ndarray, dark_level: float = 0.15, valid: np.ndarray | None = None
+) -> float:
     """Fraction of pixels below an absolute darkness level, in ``[0, 1]``.
 
     Unlike :func:`shadow_fraction` this does not move with the percentile, so it
     is a real measure of how shadowed a scene is. Use it to decide *whether* a
     scene is an extreme sun-angle case at all -- the percentile approach labels
     5% of a fully-lit image as "shadow" regardless.
+
+    With ``valid`` the range and the fraction use valid finite pixels only.
     """
     image = np.asarray(image, dtype=np.float32)
-    finite = image[np.isfinite(image)]
+    if valid is not None:
+        finite = image[_effective_valid(image, valid, "estimate_shadow_severity")]
+    else:
+        finite = image[np.isfinite(image)]
     if finite.size == 0:
         return 0.0
     lo, hi = float(finite.min()), float(finite.max())
@@ -89,24 +133,48 @@ def normalize_shadows(
     percentile: float = 5.0,
     gamma: float = 0.5,
     sigma: float = 25.0,
+    valid: np.ndarray | None = None,
 ) -> np.ndarray:
     """Brighten or suppress shadowed regions.
 
     All parameters are placeholders -- the paper states none of them. See
     :mod:`lunar_reg.preprocess.params`.
+
+    With ``valid`` every method takes its statistics from valid finite pixels
+    only and the output is a float32 copy with NaN wherever ``valid`` is False
+    (also for ``method="none"``).
     """
     if method not in SHADOW_METHODS:
         raise ValueError(f"method must be one of {SHADOW_METHODS}, got {method!r}")
+    if valid is None:
+        if method == "none":
+            return np.asarray(image)
+        if method == "gamma":
+            return _gamma_shadow(image, percentile, gamma)
+        if method == "mask":
+            return _mask_shadow(image, percentile)
+        return _retinex(image, sigma)
+
+    v = _effective_valid(image, valid, "normalize_shadows")
+    if not v.any():
+        return np.full(np.shape(image), np.nan, dtype=np.float32)
     if method == "none":
-        return np.asarray(image)
-    if method == "gamma":
-        return _gamma_shadow(image, percentile, gamma)
-    if method == "mask":
-        return _mask_shadow(image, percentile)
-    return _retinex(image, sigma)
+        out = np.asarray(image, dtype=np.float32)
+    elif method == "gamma":
+        out = _gamma_shadow(image, percentile, gamma, valid=v)
+    elif method == "mask":
+        out = _mask_shadow(image, percentile, valid=v)
+    else:
+        out = _retinex(image, sigma, valid=v)
+    # Copy: the helpers may hand back the caller's own float32 array unchanged.
+    out = np.array(out, dtype=np.float32, copy=True)
+    out[~v] = np.nan
+    return out
 
 
-def _gamma_shadow(image: np.ndarray, percentile: float, gamma: float) -> np.ndarray:
+def _gamma_shadow(
+    image: np.ndarray, percentile: float, gamma: float, valid: np.ndarray | None = None
+) -> np.ndarray:
     """Apply a brightening gamma inside shadow only.
 
     The intensity is renormalised **within the shadow range** ``[lo, threshold]``
@@ -125,11 +193,11 @@ def _gamma_shadow(image: np.ndarray, percentile: float, gamma: float) -> np.ndar
     * leaves lit terrain untouched, preserving overall scene contrast.
     """
     arr = np.asarray(image, dtype=np.float32)
-    mask = shadow_mask(arr, percentile)
+    mask = shadow_mask(arr, percentile, valid=valid)
     if not mask.any():
         return arr
 
-    finite = arr[np.isfinite(arr)]
+    finite = arr[valid] if valid is not None else arr[np.isfinite(arr)]
     lo, hi = float(finite.min()), float(finite.max())
     if hi <= lo:
         return arr
@@ -147,38 +215,57 @@ def _gamma_shadow(image: np.ndarray, percentile: float, gamma: float) -> np.ndar
     return out
 
 
-def _mask_shadow(image: np.ndarray, percentile: float) -> np.ndarray:
+def _mask_shadow(
+    image: np.ndarray, percentile: float, valid: np.ndarray | None = None
+) -> np.ndarray:
     """Flatten shadow to the scene median so it generates no keypoints."""
     arr = np.asarray(image, dtype=np.float32).copy()
-    mask = shadow_mask(arr, percentile)
-    lit = arr[np.isfinite(arr) & ~mask]
+    mask = shadow_mask(arr, percentile, valid=valid)
+    usable = valid if valid is not None else np.isfinite(arr)
+    lit = arr[usable & ~mask]
     if lit.size:
         arr[mask] = float(np.median(lit))
     return arr
 
 
-def _retinex(image: np.ndarray, sigma: float) -> np.ndarray:
+def _retinex(image: np.ndarray, sigma: float, valid: np.ndarray | None = None) -> np.ndarray:
     """Single-scale retinex: divide out a Gaussian-blurred illumination estimate.
 
     Handles a smooth illumination gradient across the frame better than a hard
     threshold, but haloes at sharp shadow boundaries -- and lunar shadows at low
     sun elevation are about as sharp as boundaries get, so check the output.
+
+    NaN and invalid pixels (A107) are filled with the median of the valid finite
+    pixels before blurring, so they cannot spread NaN through the Gaussian, and
+    are set back to NaN afterwards. On an all-finite image with ``valid=None``
+    nothing is filled and the output is unchanged.
     """
     import cv2
 
     arr = np.asarray(image, dtype=np.float32)
-    finite = arr[np.isfinite(arr)]
+    usable = np.isfinite(arr) if valid is None else valid & np.isfinite(arr)
+    finite = arr[usable]
     if finite.size == 0:
         return arr
     lo, hi = float(finite.min()), float(finite.max())
     if hi <= lo:
         return arr
 
-    scaled = (arr - lo) / (hi - lo) + 1e-3
+    filled = ~usable
+    work = arr
+    if filled.any():
+        work = arr.copy()
+        work[filled] = float(np.median(finite))
+
+    scaled = (work - lo) / (hi - lo) + 1e-3
     illumination = cv2.GaussianBlur(scaled, (0, 0), sigma)
     reflectance = np.log(scaled) - np.log(np.maximum(illumination, 1e-6))
 
-    r_lo, r_hi = float(reflectance.min()), float(reflectance.max())
+    kept = reflectance[usable]
+    r_lo, r_hi = float(kept.min()), float(kept.max())
     if r_hi <= r_lo:
         return arr
-    return ((reflectance - r_lo) / (r_hi - r_lo) * (hi - lo) + lo).astype(np.float32)
+    out = ((reflectance - r_lo) / (r_hi - r_lo) * (hi - lo) + lo).astype(np.float32)
+    if filled.any():
+        out[filled] = np.nan
+    return out
