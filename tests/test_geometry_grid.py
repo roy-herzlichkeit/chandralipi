@@ -495,9 +495,12 @@ def test_closed_ring_is_accepted(product):
 # Real products, when they happen to be extracted
 # ---------------------------------------------------------------------------
 
+# Resolved from this file, not the cwd, so the test finds the data however
+# pytest is launched. Calibrated OHRC products (P1.DL) ship real grids.
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 REAL_ROOTS = (
-    Path("data/raw"),
-    Path("data/interim"),
+    DATA_DIR / "raw" / "ch2" / "ohrc",
+    DATA_DIR / "raw" / "ohrc_vikram",
 )
 
 
@@ -513,7 +516,9 @@ def real_geometry_files():
 @pytest.mark.parametrize("paths", real_geometry_files() or [None])
 def test_real_geometry_products_load_without_a_single_bad_row(paths):
     if paths is None:
-        pytest.skip("no extracted *_g_grd_d18.csv under data/")
+        pytest.skip(
+            "no *_g_grd_*.csv geometry grid under " + ", ".join(str(root) for root in REAL_ROOTS)
+        )
     csv_path, label_path = paths
     grid = read_geometry_grid(csv_path, label_path)
 

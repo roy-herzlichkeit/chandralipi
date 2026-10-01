@@ -75,6 +75,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import re
 import xml.etree.ElementTree as ET
 from collections import Counter
 from dataclasses import dataclass, field
@@ -171,10 +172,7 @@ class GeometryGridDiagnostics:
 
     @property
     def record_count_mismatch(self) -> bool:
-        return (
-            self.declared_records is not None
-            and self.declared_records != self.observed_records
-        )
+        return self.declared_records is not None and self.declared_records != self.observed_records
 
     @property
     def file_size_mismatch(self) -> bool:
@@ -188,9 +186,7 @@ class GeometryGridDiagnostics:
         lines = [f"geometry grid: {self.observed_records} data row(s) read"]
         if self.declared_records is not None:
             verdict = "MISMATCH" if self.record_count_mismatch else "matches"
-            lines.append(
-                f"  label declares {self.declared_records} record(s) -- {verdict}"
-            )
+            lines.append(f"  label declares {self.declared_records} record(s) -- {verdict}")
         if self.file_size_mismatch:
             # Seen for real on the TMC-2 nadir product: the label says 2111975
             # bytes, the file is 2111886, yet the label's md5 matches the file.
@@ -252,6 +248,11 @@ class GeometryGrid:
     field_provenance: Provenance = GEOMETRY_FIELD_PROVENANCE
     #: True if longitudes were unwrapped past the 0/360 seam. UNVERIFIED path.
     longitude_unwrapped: bool = False
+    #: The reference longitude the grid's longitudes were rewrapped around
+    #: (median of the finite values in the first sample column), or ``None``
+    #: when no value needed rewrapping. :func:`lonlat_to_pixel` rewraps query
+    #: longitudes around the same reference before solving.
+    longitude_reference_deg: float | None = None
     diagnostics: GeometryGridDiagnostics = field(default_factory=GeometryGridDiagnostics)
 
     @property
@@ -274,8 +275,7 @@ class GeometryGrid:
         if self.lines is None or self.samples is None:
             return None
         return (
-            int(self.scan_lines[-1]) == self.lines - 1
-            and int(self.pixels[-1]) == self.samples - 1
+            int(self.scan_lines[-1]) == self.lines - 1 and int(self.pixels[-1]) == self.samples - 1
         )
 
     def corners(self) -> tuple[tuple[float, float], ...]:
@@ -382,16 +382,41 @@ def read_geometry_label(path: str | Path) -> GeometryLabel:
     )
 
 
+#: Glob for the geometry-grid CSV of a Chandrayaan-2 product. The level/version
+#: suffix after ``_g_grd_`` varies (``d18``, ``n18``, ``d32``), so it is a wildcard.
+GEOMETRY_GRID_GLOB: str = "*_g_grd_*.csv"
+
+#: The acquisition timestamp token shared by an image product and its geometry
+#: grid (``YYYYMMDDTHHMMSSffff``). The image id's level and version tokens differ
+#: from the grid file's, so the timestamp is the only part that matches.
+_TIMESTAMP_TOKEN = re.compile(r"\d{8}T\d{10}")
+
+
 def find_geometry_files(root: str | Path, product_id: str | None = None):
     """Locate ``(csv, label)`` pairs under an extracted product directory.
 
-    Matches the ``*_g_grd_d18.csv`` naming used by the calibrated OHRC and
-    TMC-2 bundles. Returns a list of ``(csv_path, label_path_or_None)``.
+    Matches :data:`GEOMETRY_GRID_GLOB` (``*_g_grd_*.csv``), which covers the
+    ``_d18``, ``_n18`` and ``_d32`` grids of the calibrated OHRC, TMC-2 and IIRS
+    bundles. When ``product_id`` is given, only CSVs whose name contains its
+    timestamp token are kept; an id with no timestamp token matches nothing and
+    logs one warning. Returns a sorted list of ``(csv_path, label_path_or_None)``.
     """
     root = Path(root)
-    pattern = f"*{product_id}*_g_grd_d18.csv" if product_id else "*_g_grd_d18.csv"
+    token = None
+    if product_id is not None:
+        found = _TIMESTAMP_TOKEN.search(product_id)
+        if found is None:
+            logger.warning(
+                "find_geometry_files: product id %r has no YYYYMMDDTHHMMSSffff "
+                "timestamp token; no geometry grid can be matched to it",
+                product_id,
+            )
+            return []
+        token = found.group(0)
     out = []
-    for csv_path in sorted(root.rglob(pattern)):
+    for csv_path in sorted(root.rglob(GEOMETRY_GRID_GLOB)):
+        if token is not None and token not in csv_path.name:
+            continue
         label = csv_path.with_suffix(".xml")
         out.append((csv_path, label if label.exists() else None))
     return out
@@ -480,11 +505,10 @@ def read_geometry_grid(
         points = _consume_rows(reader, index, len(field_names), lines, samples, diag)
 
     if not points:
-        raise ValueError(
-            f"{csv_path.name}: no parseable geometry rows\n{diag.report()}"
-        )
+        raise ValueError(f"{csv_path.name}: no parseable geometry rows\n{diag.report()}")
 
     grid = _assemble(points, diag, lines, samples)
+    reference = _longitude_reference(grid["lon"])
     unwrapped = _maybe_unwrap_longitude(grid["lon"], diag)
 
     result = GeometryGrid(
@@ -499,12 +523,16 @@ def read_geometry_grid(
         field_names=tuple(field_names),
         field_provenance=provenance,
         longitude_unwrapped=unwrapped,
+        longitude_reference_deg=reference if unwrapped else None,
         diagnostics=diag,
     )
 
     logger.info(
         "geometry grid %s: %d x %d points from %d row(s), %d suspicious outcome(s)",
-        csv_path.name, *result.shape, diag.observed_records, diag.n_suspicious,
+        csv_path.name,
+        *result.shape,
+        diag.observed_records,
+        diag.n_suspicious,
     )
     if diag.n_suspicious:
         # One concise line from the library; the caller prints the full report,
@@ -514,8 +542,7 @@ def read_geometry_grid(
             csv_path.name,
             diag.n_suspicious,
             ", ".join(
-                f"{k}={n}" for k, n in sorted(diag.counts.items())
-                if GridStatus(k).is_suspicious
+                f"{k}={n}" for k, n in sorted(diag.counts.items()) if GridStatus(k).is_suspicious
             ),
         )
     return result
@@ -543,8 +570,7 @@ def _field_index(field_names) -> dict[str, int]:
     for wanted in ("longitude", "latitude", "pixel", "scan"):
         if wanted not in lowered:
             raise ValueError(
-                f"geometry table has no {wanted!r} field; declared fields are "
-                f"{tuple(field_names)}"
+                f"geometry table has no {wanted!r} field; declared fields are {tuple(field_names)}"
             )
         index[wanted] = lowered[wanted]
     return index
@@ -584,12 +610,15 @@ def _consume_rows(reader, index, n_fields, lines, samples, diag):
                 f"line {lineno}: lat={lat} lon={lon}",
             )
             continue
-        if pixel < 0 or scan < 0 or (samples is not None and pixel >= samples) \
-                or (lines is not None and scan >= lines):
+        if (
+            pixel < 0
+            or scan < 0
+            or (samples is not None and pixel >= samples)
+            or (lines is not None and scan >= lines)
+        ):
             diag.record(
                 GridStatus.INDEX_OUT_OF_RANGE,
-                f"line {lineno}: pixel={pixel} scan={scan} "
-                f"(image {lines}x{samples})",
+                f"line {lineno}: pixel={pixel} scan={scan} (image {lines}x{samples})",
             )
             continue
 
@@ -653,21 +682,52 @@ def _assemble(points, diag, lines, samples):
     return {"scan": scan_vals, "pixel": pixel_vals, "lat": lat, "lon": lon}
 
 
-def _maybe_unwrap_longitude(lon: np.ndarray, diag) -> bool:
-    """Make longitudes continuous if the grid straddles the 0/360 seam.
+def _longitude_reference(lon: np.ndarray) -> float | None:
+    """Median of the finite longitudes in the first sample column (column 0).
 
-    UNVERIFIED: neither inspected product wraps (OHRC spans 23.0-27.7 deg,
-    TMC-2 140.9-142.7 deg), so this branch has never executed on real data. It
-    is deliberately conditional and reported rather than applied unconditionally,
-    because shifting longitudes on a product that does not need it would corrupt
-    every subsequent lookup.
+    ``None`` when the grid has no finite longitude at all. If column 0 has none
+    (a grid missing its whole first column), the median of every finite value
+    is used instead so the reference still sits inside the product.
     """
-    finite = lon[np.isfinite(lon)]
+    column = lon[:, 0] if lon.ndim == 2 else lon
+    finite = column[np.isfinite(column)]
     if finite.size == 0:
+        finite = lon[np.isfinite(lon)]
+    if finite.size == 0:
+        return None
+    return float(np.median(finite))
+
+
+def _rewrap_longitude(lon, reference: float):
+    """``reference + ((lon - reference + 180) % 360) - 180``: within +/-180 of it.
+
+    NaN stays NaN. Works on scalars and arrays.
+    """
+    return reference + np.mod(np.asarray(lon, dtype=np.float64) - reference + 180.0, 360.0) - 180.0
+
+
+def _maybe_unwrap_longitude(lon: np.ndarray, diag) -> bool:
+    """Make longitudes continuous if the grid straddles a longitude seam.
+
+    Every finite longitude is rewrapped to lie within 180 deg of a reference
+    (:func:`_longitude_reference`, the median of the first sample column), so a
+    grid crossing the 0/360 seam or the +/-180 antimeridian becomes continuous
+    whichever convention its CSV uses. ``lon`` is modified in place. Returns
+    True, and appends a note, only when at least one value moved by more than
+    1e-9 deg; a grid that is already continuous is left bit-for-bit unchanged.
+
+    UNVERIFIED on real data: no inspected product wraps (OHRC spans 23.0-27.7
+    and 32.1-32.5 deg, TMC-2 140.9-142.7 deg). The synthetic antimeridian test
+    in ``tests/test_geometry_grid_fixes.py`` exercises it.
+    """
+    reference = _longitude_reference(lon)
+    if reference is None:
         return False
-    if float(finite.max() - finite.min()) <= LONGITUDE_WRAP_SPAN_DEG:
+    finite = np.isfinite(lon)
+    rewrapped = _rewrap_longitude(lon[finite], reference)
+    if not np.any(np.abs(rewrapped - lon[finite]) > 1e-9):
         return False
-    lon[np.isfinite(lon) & (lon > LONGITUDE_WRAP_SPAN_DEG)] -= 360.0
+    lon[finite] = rewrapped
     diag.notes.append(
         "longitudes span more than 180 deg and were unwrapped to a continuous "
         "range -- UNVERIFIED code path, no inspected product exercises it"
@@ -778,8 +838,8 @@ def lonlat_to_pixel(
     lon = np.atleast_1d(np.asarray(lon, dtype=np.float64))
     if lat.shape != lon.shape:
         raise ValueError(f"lat shape {lat.shape} != lon shape {lon.shape}")
-    if grid.longitude_unwrapped:
-        lon = np.where(lon > LONGITUDE_WRAP_SPAN_DEG, lon - 360.0, lon)
+    if grid.longitude_reference_deg is not None:
+        lon = _rewrap_longitude(lon, grid.longitude_reference_deg)
 
     n_scan, n_pixel = grid.shape
     line = np.full(lat.shape, np.nan)
@@ -906,9 +966,20 @@ def _invert_cell(grid, i, j, target, max_iterations, tolerance_deg):
 PIXEL_SNAP_TOLERANCE: float = 1e-3
 
 
-def _snap(value: float) -> float:
+def snap_to_integer(value: float, tolerance: float = PIXEL_SNAP_TOLERANCE) -> float:
+    """``value`` rounded to the nearest integer when within ``tolerance`` of it.
+
+    Used before ``floor``/``ceil`` on a solved pixel coordinate: a vertex that is
+    exactly a grid node comes back as ``11999 - 1e-9``, and flooring that would
+    lose a whole row or column. Values further than ``tolerance`` from an integer
+    are returned unchanged.
+    """
     nearest = round(float(value))
-    return float(nearest) if abs(value - nearest) < PIXEL_SNAP_TOLERANCE else float(value)
+    return float(nearest) if abs(value - nearest) < tolerance else float(value)
+
+
+#: Private alias kept so internal callers do not change.
+_snap = snap_to_integer
 
 
 def polygon_to_pixel_window(grid: GeometryGrid, polygon, densify: int = 8):
@@ -919,15 +990,27 @@ def polygon_to_pixel_window(grid: GeometryGrid, polygon, densify: int = 8):
     ``(row_off, col_off, height, width)`` clipped to the product, or ``None`` --
     so a caller can swap one for the other.
 
-    ``polygon`` is a sequence of ``(lat, lon)``. Edges are densified before
-    mapping because the grid map is *not* projective: a straight edge in ground
-    coordinates is curved in pixel space, and taking only the vertices can
-    understate the window. ``densify`` is the number of segments each edge is
-    split into.
+    ``polygon`` is a sequence of ``(lat, lon)``. The window covers the union of
+    two candidate sets:
 
-    Returns ``None`` when no vertex lands inside the grid footprint. That is a
-    reported outcome, not a silent empty crop -- inspect
-    :attr:`PixelLookup.inside` via :func:`lonlat_to_pixel` for the detail.
+    1. the polygon's boundary, densified into ``densify`` segments per edge and
+       mapped with :func:`lonlat_to_pixel` (only samples landing inside the grid
+       footprint count). Densifying matters because the grid map is *not*
+       projective: a straight ground edge is curved in pixel space.
+    2. every grid node ``(scan_lines[i], pixels[j])`` whose ground position lies
+       inside the polygon. This is what gives a window when the polygon is larger
+       than the product (no boundary sample lands inside the grid) or when the
+       product is larger than the polygon in a way the boundary alone misses.
+
+    The node test runs in a :class:`~lunar_reg.ingest.overlap.PolarFrame` when
+    the polygon reaches :data:`~lunar_reg.ingest.overlap.POLAR_LATITUDE_DEG`,
+    otherwise in ``(lon, lat)`` with longitudes rewrapped around the grid's
+    :attr:`GeometryGrid.longitude_reference_deg` (or the polygon's first vertex
+    when the grid has none).
+
+    Returns ``None`` only when both candidate sets are empty. That is a reported
+    outcome, not a silent empty crop -- inspect :attr:`PixelLookup.inside` via
+    :func:`lonlat_to_pixel` for the detail.
     """
     ring = [tuple(pt) for pt in polygon]
     if len(ring) >= 2 and ring[0] == ring[-1]:
@@ -945,11 +1028,12 @@ def polygon_to_pixel_window(grid: GeometryGrid, polygon, densify: int = 8):
             lons.append(lon0 + t * (lon1 - lon0))
 
     lookup = lonlat_to_pixel(grid, np.array(lats), np.array(lons))
-    if not lookup.inside.any():
+    node_rows, node_cols = _grid_nodes_inside(grid, ring)
+    if not lookup.inside.any() and node_rows.size == 0:
         return None
 
-    rows = lookup.line[lookup.inside]
-    cols = lookup.sample[lookup.inside]
+    rows = np.concatenate([lookup.line[lookup.inside], node_rows])
+    cols = np.concatenate([lookup.sample[lookup.inside], node_cols])
 
     # Grid points are pixel *centres*, so the exclusive stop bound is one past
     # the last covered pixel -- same convention as overlap.polygon_to_pixel_window.
@@ -970,3 +1054,101 @@ def polygon_to_pixel_window(grid: GeometryGrid, polygon, densify: int = 8):
     if row1 <= row0 or col1 <= col0:
         return None
     return (row0, col0, row1 - row0, col1 - col0)
+
+
+def _grid_nodes_inside(grid: GeometryGrid, ring) -> tuple[np.ndarray, np.ndarray]:
+    """Image ``(line, sample)`` of every grid node lying inside ``ring``.
+
+    ``ring`` is an open ``(lat, lon)`` ring. Polar polygons (any vertex at or
+    beyond :data:`~lunar_reg.ingest.overlap.POLAR_LATITUDE_DEG`) are tested in an
+    azimuthal-equidistant :class:`~lunar_reg.ingest.overlap.PolarFrame` on the
+    pole of the most poleward vertex, where meridian convergence does not distort
+    the test; the rest in ``(lon, lat)`` after rewrapping both the polygon's and
+    the nodes' longitudes around one reference. A cheap prefilter (colatitude in
+    the polar case, the lat/lon bounding box otherwise) limits the per-node
+    crossing-number test to plausible candidates; it never excludes a node that
+    could be inside.
+    """
+    # Imported here, not at module level: overlap will import this module once
+    # the grid is wired into it (P1.06), and a top-level import would be a cycle.
+    from lunar_reg.ingest.overlap import POLAR_LATITUDE_DEG, PolarFrame
+    from lunar_reg.ingest.pseudo_gt import point_in_ring
+
+    empty = (np.empty(0), np.empty(0))
+    node_lat = grid.lat
+    node_lon = grid.lon
+    finite = np.isfinite(node_lat) & np.isfinite(node_lon)
+    if not finite.any():
+        return empty
+
+    ring_lats = np.array([float(lat) for lat, _ in ring])
+    ring_lons = np.array([float(lon) for _, lon in ring])
+    if not (np.isfinite(ring_lats).all() and np.isfinite(ring_lons).all()):
+        return empty
+
+    polar_vertex = int(np.argmax(np.abs(ring_lats)))
+    if abs(ring_lats[polar_vertex]) >= POLAR_LATITUDE_DEG:
+        pole = 90.0 if ring_lats[polar_vertex] > 0 else -90.0
+        frame = PolarFrame(pole)
+        # Distance from the pole is exact in an equidistant plane, and the
+        # farthest point of a plane polygon from the origin is a vertex, so no
+        # node further from the pole than every vertex can be inside.
+        max_colat = float(np.max(np.abs(pole - ring_lats))) + 1e-6
+        candidate = finite & (np.abs(pole - node_lat) <= max_colat)
+        test_ring = frame.plane_ring(list(zip(ring_lats, ring_lons, strict=True)))
+        ii, jj = np.nonzero(candidate)
+        keep = [
+            point_in_ring(*frame.to_plane(float(node_lat[i, j]), float(node_lon[i, j])), test_ring)
+            for i, j in zip(ii, jj, strict=True)
+        ]
+    else:
+        reference = (
+            grid.longitude_reference_deg
+            if grid.longitude_reference_deg is not None
+            else float(ring_lons[0])
+        )
+        poly_lons = _rewrap_longitude(ring_lons, reference)
+        lon_rw = np.where(finite, _rewrap_longitude(node_lon, reference), np.nan)
+        test_ring = tuple(zip(ring_lats.tolist(), poly_lons.tolist(), strict=True))
+        with np.errstate(invalid="ignore"):
+            candidate = (
+                finite
+                & (node_lat >= ring_lats.min())
+                & (node_lat <= ring_lats.max())
+                & (lon_rw >= poly_lons.min())
+                & (lon_rw <= poly_lons.max())
+            )
+        ii, jj = np.nonzero(candidate)
+        keep = [
+            point_in_ring(float(node_lat[i, j]), float(lon_rw[i, j]), test_ring)
+            for i, j in zip(ii, jj, strict=True)
+        ]
+
+    if not keep:
+        return empty
+    mask = np.asarray(keep, dtype=bool)
+    return (
+        grid.scan_lines[ii[mask]].astype(np.float64),
+        grid.pixels[jj[mask]].astype(np.float64),
+    )
+
+
+__all__ = [
+    "GEOMETRY_FIELD_NAMES",
+    "GEOMETRY_FIELD_PROVENANCE",
+    "GEOMETRY_GRID_GLOB",
+    "LONGITUDE_WRAP_SPAN_DEG",
+    "PIXEL_SNAP_TOLERANCE",
+    "GeometryGrid",
+    "GeometryGridDiagnostics",
+    "GeometryLabel",
+    "GridStatus",
+    "PixelLookup",
+    "find_geometry_files",
+    "lonlat_to_pixel",
+    "pixel_to_lonlat",
+    "polygon_to_pixel_window",
+    "read_geometry_grid",
+    "read_geometry_label",
+    "snap_to_integer",
+]
