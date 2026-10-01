@@ -1,14 +1,43 @@
 # REVIEW PACK — Phase 0
 
+Refreshed after the external review (`Phase_0/REVIEW.md`). The original pack was committed at `50b0b1c` (tag `phase-0-done`, not moved).
+
+### Review fixes since `phase-0-done`
+Only the findings confirmed by reproduction were patched; partially-correct and refuted findings were deliberately not acted on.
+
+| commit | finding | change | regression test (fails on the previous code) |
+|---|---|---|---|
+| `ce33460` | P0-02 | `results.save_results` raises `ValueError` on a `pair_id` repeated in one batch, before anything is written | `tests/test_results_v2.py::test_repeated_pair_id_in_one_batch_writes_nothing` |
+| `ce33460` | P0-06 | `pipeline.run_batch` persists failures in a `finally`, even when `save_results` raises | `tests/test_results_v2.py::test_run_batch_persists_failures_when_saving_results_raises` |
+| `ce33460` | P0-03 | `cli.cmd_inspect` reads label values via `product["..."]` and reports a rejected image path instead of crashing | `tests/test_cli_inspect.py` (2 tests) |
+
+Other commits on the branch since `phase-0-done`: `9b75cdf` (the review), `d97121f` and `40531f3` (architect plan commits; `40531f3` answers Q-P0.R-1), `5bd5f8a` (re-measured score.json + Q-P0.R-1).
+
 ## Diff range
-`phase-base-approved..HEAD` (DECISIONS G07). Stat taken at HEAD = `d64cd82` (P0.12, last code commit); the `P0: review pack` commit adds only this file, `Phase_0/benchmark/score.json` and `STATUS.md`.
+`phase-base-approved..HEAD` (DECISIONS G07). Stat taken at HEAD = `40531f3`; the refresh commit adds only this file and `STATUS.md`.
 
 ```
+ .fable/inbox_P1DL_20260930.md           |  97 +++++++
  .github/workflows/ci.yml                |  22 ++
- Phase_0/QUESTIONS.md                    |  36 +++
+ .gitignore                              |   4 +
+ CLARIFY.md                              |   1 +
+ DECISIONS.md                            |   1 +
+ FABLE_NOTES.md                          |   4 +
+ PLAN_PROGRESS.md                        |   1 +
+ Phase_0/QUESTIONS.md                    |  42 +++
+ Phase_0/REVIEW.md                       |  22 ++
+ Phase_0/REVIEW_PACK_0.md                | 333 ++++++++++++++++++++++++
+ Phase_0/benchmark/score.json            | 134 ++++++++++
  Phase_0/prompts/INDEX.md                |  26 +-
+ Phase_1/ASSUMPTIONS.md                  |   1 +
+ Phase_1/LLD/downloads.md                |  22 +-
+ Phase_1/LLD/tmc2_iirs.md                |   2 +
+ Phase_1/harness/MANIFEST.sha256         |   4 +-
+ Phase_1/harness/check_P1.15.sh          |   2 +-
+ Phase_1/harness/tests/test_P1_15.py     |  57 ++++-
+ Phase_1/prompts/P1.15_tmc2_iirs.md      |   7 +-
  README.md                               |   1 -
- STATUS.md                               |  12 +-
+ STATUS.md                               |  15 +-
  configs/default.yaml                    |  36 ---
  pyproject.toml                          |  11 +-
  scripts/build_demo_results.py           |   8 +-
@@ -19,10 +48,11 @@
  scripts/setup.sh                        |  18 +-
  scripts/untar_data.py                   | 201 +++++++++++++++
  src/lunar_reg/align/estimate.py         |  88 +++++--
- src/lunar_reg/align/refine.py           | 282 +++++++++++++++++----
+ src/lunar_reg/align/refine.py           | 282 ++++++++++++++++----
+ src/lunar_reg/cli.py                    |  16 +-
  src/lunar_reg/constants.py              |  35 ++-
  src/lunar_reg/eval/conditioning.py      | 235 +++++++++++------
- src/lunar_reg/eval/error_budget.py      | 126 ++++++----
+ src/lunar_reg/eval/error_budget.py      | 126 +++++----
  src/lunar_reg/eval/metrics.py           |  50 +++-
  src/lunar_reg/eval/uniformity.py        | 115 +++++++--
  src/lunar_reg/ingest/__init__.py        |   4 +-
@@ -34,35 +64,36 @@
  src/lunar_reg/ingest/pds4.py            | 129 +++++++---
  src/lunar_reg/ingest/pseudo_gt.py       |  88 ++++---
  src/lunar_reg/match/classical.py        |  62 +++--
- src/lunar_reg/match/learned.py          | 123 +++++----
+ src/lunar_reg/match/learned.py          | 123 ++++++---
  src/lunar_reg/match/loftr.py            | 188 --------------
  src/lunar_reg/match/rift2/matcher.py    |  39 ++-
  src/lunar_reg/match/stitch.py           |  21 +-
  src/lunar_reg/match/superglue.py        | 107 ++------
- src/lunar_reg/pipeline.py               | 277 +++++++++++++++------
+ src/lunar_reg/pipeline.py               | 282 ++++++++++++++------
  src/lunar_reg/preprocess/__init__.py    |   2 +-
  src/lunar_reg/preprocess/radiometric.py |  17 +-
  src/lunar_reg/provenance.py             |  32 +++
- src/lunar_reg/results.py                | 429 ++++++++++++++++++++++++++++----
- src/lunar_reg/runrecord.py              | 227 +++++++++++++++++
+ src/lunar_reg/results.py                | 440 ++++++++++++++++++++++++++++----
+ src/lunar_reg/runrecord.py              | 227 ++++++++++++++++
  tests/test_catalogue_footprints.py      | 128 ++++++++++
- tests/test_ecc_fidelity.py              | 194 +++++++++++++++
- tests/test_estimate_seeded.py           | 126 ++++++++++
+ tests/test_cli_inspect.py               |  35 +++
+ tests/test_ecc_fidelity.py              | 194 ++++++++++++++
+ tests/test_estimate_seeded.py           | 126 +++++++++
  tests/test_eval.py                      |  14 +-
  tests/test_eval_fixes.py                | 135 ++++++++++
  tests/test_footprint.py                 |  53 ----
  tests/test_learned_matchers.py          | 144 +++++++++++
  tests/test_pds4_resolver.py             | 135 ++++++++++
- tests/test_pipeline_counts.py           | 155 ++++++++++++
+ tests/test_pipeline_counts.py           | 155 +++++++++++
  tests/test_results_and_pipeline.py      |  10 +-
- tests/test_results_v2.py                | 159 ++++++++++++
+ tests/test_results_v2.py                | 199 +++++++++++++++
  tests/test_run_vikram_geometry.py       | 206 +++++++++++++++
- tests/test_untar_data.py                | 111 +++++++++
- 54 files changed, 4038 insertions(+), 1161 deletions(-)
+ tests/test_untar_data.py                | 111 ++++++++
+ 72 files changed, 4828 insertions(+), 1179 deletions(-)
 ```
 
 ## verify.sh
-Exit code: **0** (`bash Phase_0/harness/verify.sh`). Last 30 lines:
+Exit code: **0** (`bash Phase_0/harness/verify.sh`, run at `40531f3`). Last 30 lines:
 
 ```
 tests/test_registered_export.py::test_provenance_tags_travel_with_the_file
@@ -72,7 +103,7 @@ tests/test_registered_export.py::test_affine_2x3_matrix_is_accepted
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 - generated xml file: /home/herzlichkeit/Desktop/Projects/sih/Phase_0/benchmark/out/ci_junit.xml -
-========== 536 passed, 6 deselected, 11 warnings in 100.70s (0:01:40) ==========
+========== 541 passed, 6 deselected, 11 warnings in 102.95s (0:01:42) ==========
 == resource-marked repo tests (gpu / weights / data; skip with reason when absent)
 ......                                                                   [100%]
 =============================== warnings summary ===============================
@@ -81,7 +112,7 @@ tests/test_learned_matchers.py::test_loftr_cpu_odd_size_pads_and_drops_padding_m
     warnings.warn(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-6 passed, 536 deselected, 1 warning in 4.19s
+6 passed, 541 deselected, 1 warning in 4.40s
 == Phase 0 harness
 ........................................................................ [ 62%]
 ...........................................                              [100%]
@@ -91,14 +122,14 @@ Phase_0/harness/tests/test_P0_02.py::test_loftr_odd_size_cpu
     warnings.warn(
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-115 passed, 1 warning in 6.05s
+115 passed, 1 warning in 6.17s
 == ruff on files changed since phase-base-approved
 All checks passed!
 CHECK OK: Phase 0 verify
 ```
 
 ## score.json
-`Phase_0/benchmark/score.json`, verbatim:
+`Phase_0/benchmark/score.json`, verbatim (measured at `ce33460`, the last commit that changed code under test; `5bd5f8a` and `40531f3` change only process/plan files):
 
 ```json
 {
@@ -109,11 +140,11 @@ CHECK OK: Phase 0 verify
           "errors": 0,
           "failed": 0,
           "failed_ids": [],
-          "passed": 536,
+          "passed": 541,
           "returncode": 0,
           "skip_reasons": {},
           "skipped": 0,
-          "tail": "pile` or `torch.export`.\n    warnings.warn(\n\ntests/test_overlap.py::test_crop_writes_both_sides\ntests/test_overlap.py::test_crop_filenames_encode_the_pair_not_just_the_product\ntests/test_overlap.py::test_crop_output_is_a_readable_geotiff\ntests/test_overlap.py::test_lid_with_colons_produces_a_safe_filename\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\ntests/test_overlap.py::test_crop_writes_both_sides\ntests/test_overlap.py::test_crop_filenames_encode_the_pair_not_just_the_product\ntests/test_overlap.py::test_crop_output_is_a_readable_geotiff\ntests/test_overlap.py::test_lid_with_colons_produces_a_safe_filename\ntests/test_registered_export.py::test_provenance_tags_travel_with_the_file\ntests/test_registered_export.py::test_affine_2x3_matrix_is_accepted\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n536 passed, 6 deselected, 11 warnings in 99.05s (0:01:39)\n"
+          "tail": "pile` or `torch.export`.\n    warnings.warn(\n\ntests/test_overlap.py::test_crop_writes_both_sides\ntests/test_overlap.py::test_crop_filenames_encode_the_pair_not_just_the_product\ntests/test_overlap.py::test_crop_output_is_a_readable_geotiff\ntests/test_overlap.py::test_lid_with_colons_produces_a_safe_filename\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\ntests/test_overlap.py::test_crop_writes_both_sides\ntests/test_overlap.py::test_crop_filenames_encode_the_pair_not_just_the_product\ntests/test_overlap.py::test_crop_output_is_a_readable_geotiff\ntests/test_overlap.py::test_lid_with_colons_produces_a_safe_filename\ntests/test_registered_export.py::test_provenance_tags_travel_with_the_file\ntests/test_registered_export.py::test_affine_2x3_matrix_is_accepted\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n541 passed, 6 deselected, 11 warnings in 97.19s (0:01:37)\n"
         },
         "harness": {
           "errors": 0,
@@ -123,7 +154,7 @@ CHECK OK: Phase 0 verify
           "returncode": 0,
           "skip_reasons": {},
           "skipped": 0,
-          "tail": "........................................................................ [ 62%]\n...........................................                              [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_P0_02.py::test_loftr_odd_size_cpu\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n115 passed, 1 warning in 5.99s\n"
+          "tail": "........................................................................ [ 62%]\n...........................................                              [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_P0_02.py::test_loftr_odd_size_cpu\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n115 passed, 1 warning in 5.96s\n"
         }
       },
       "direction": ">=",
@@ -190,7 +221,7 @@ CHECK OK: Phase 0 verify
           "returncode": 0,
           "skip_reasons": {},
           "skipped": 0,
-          "tail": ".............................                                            [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_contracts_P0.py::test_C15_roundtrip\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n29 passed, 1 warning in 1.91s\n"
+          "tail": ".............................                                            [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_contracts_P0.py::test_C15_roundtrip\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n29 passed, 1 warning in 1.64s\n"
         }
       },
       "direction": ">=",
@@ -223,8 +254,8 @@ CHECK OK: Phase 0 verify
       "weight": 0.0
     }
   },
-  "created_utc": "2026-10-01T07:39:28+00:00",
-  "git_sha": "d64cd82184885dd35d22a3547339e0207c27cf20",
+  "created_utc": "2026-10-01T10:25:57+00:00",
+  "git_sha": "ce3346028dbd34936f8bf6ca1f433e67be16322d",
   "pass": true,
   "phase": "0",
   "provenance": "measured",
@@ -280,6 +311,12 @@ question: DO 3 lists `max_occupiable_cells` but LLD §3 and G33 (revised, RC07) 
 what I did meanwhile: added `UniformityMetrics.max_occupiable_cells` as a read-only property (= min(n_points, total_cells)), not used in coverage/score and not in as_dict; the score follows LLD §3 exactly (20 spread points -> 0.946, quadrant-packed -> 0.336). Removing the property is a one-line revert.
 also noted: with the adaptive grid, coverage is a fraction of g_eff², so thinning can raise `coverage` (300 corner points -> 5 points: 1/64 -> 1/4). tests/test_eval.py::test_enforce_uniformity_cannot_create_coverage now asserts on fixed-8x8 occupied cells instead. Q-P0.08-1 (error_budget ecc_cc None) is fixed in this prompt, since error_budget.py is in P0.12's file list.
 
+## Q-P0.R-1  Phase 0 verify.sh now fails on ruff in a Phase 1 harness file from the architect commit d97121f
+context: Phase_0/harness/verify.sh (`ruff_files $(changed_py_since phase-base-approved)`); Phase_1/harness/tests/test_P1_15.py:63,131,133 (E501, added in d97121f "Plan: accept P1.DL disk overrun ...")
+question: After the review fixes (ce33460) phase-0 sits on top of d97121f, so verify.sh's "ruff on files changed since phase-base-approved" step includes Phase_1/harness/tests/test_P1_15.py, which has three E501 lines (102/112/110 > 100). The file is protected (G05) and the Phase 1 MANIFEST pins it, so the implementer cannot fix it. Can the architect wrap those three lines and regenerate Phase_1/harness/MANIFEST.sha256?
+what I did meanwhile: nothing to that file. Every Phase 0 file passes ruff; all other verify.sh steps pass (scripts/ci.sh 541 passed; marked tests 6 passed; Phase 0 harness 115 passed); benchmark/run.sh pass=True at ce33460. REVIEW_PACK_0.md is not refreshed yet: it waits for a green verify.sh.
+answer (architect, 2026-10-01): fixed on `phase-0`: the three lines are wrapped (no assertion changed), `ruff check` passes on that file and on every `.py` changed since `phase-base-approved`, and Phase_1/harness/MANIFEST.sha256 is regenerated. Re-run verify.sh and refresh REVIEW_PACK_0.md.
+
 ## LLD deviations
 | file:line | LLD section | what differs | why |
 |---|---|---|---|
@@ -291,7 +328,7 @@ also noted: with the adaptive grid, coverage is a fraction of g_eff², so thinni
 | scripts/fetch_catalogue.py:73 | dedupe_and_removals.md §P0.04 | Comment-only edit in a file the §P0.04 table does not list. | The protected harness grep (`test_P0_04.py::test_no_references_left`) fails otherwise; Q-P0.04-1. |
 | src/lunar_reg/ingest/fieldmap.py:39 | pds4_resolver.md §2 | Segment parsing lives in public `parse_segment`/`parse_path` in fieldmap.py (shared by `Field.__post_init__` and `pds4._resolve`); an empty segment (`A//c`) is also malformed. | One parser for validation and matching. |
 | src/lunar_reg/ingest/pds4.py:87 | pds4_resolver.md §2 | A predicate is also honoured on the last (leaf) segment, not only on ancestors. | Same matcher for every segment; no field in the map uses a leaf predicate today. |
-| src/lunar_reg/ingest/manifest.py:95, src/lunar_reg/ingest/lro.py:311 | pds4_resolver.md §5 | Rows write `image_path = None` (not the string `"None"`) when the image path was rejected. | `str(None)` would put a fake path into the manifest. cli.py:39 still assumes a path (Q-P0.05-1). |
+| src/lunar_reg/ingest/manifest.py:95, src/lunar_reg/ingest/lro.py:311 | pds4_resolver.md §5 | Rows write `image_path = None` (not the string `"None"`) when the image path was rejected. | `str(None)` would put a fake path into the manifest. `cli.py inspect` now reports a rejected path instead of crashing (review fix P0-03, closes Q-P0.05-1). |
 | scripts/fetch_catalogue.py:56 | catalogue_footprints.md §1 | `from __future__ import annotations` removed from the script. | Python 3.12 `dataclasses` cannot process string annotations in a module loaded via `spec_from_file_location` without a `sys.modules` entry; the protected `load_script` does exactly that (Q-P0.06-1). |
 | src/lunar_reg/runrecord.py:46 | provenance_runrecord_fit.md §2 | Every `RunRecord` field has a default. | Lets `read_run_record` and partial construction work; field names, order and JSON keys are exactly C15. |
 | src/lunar_reg/align/refine.py:194 | ecc.md §2 / C07 | `EccStatus.is_failure` property added (NOT_CONVERGED, REJECTED_DISPLACEMENT). | Classified-outcomes skill pattern; enum members and values unchanged. |
@@ -301,7 +338,7 @@ also noted: with the adaptive grid, coverage is a fraction of g_eff², so thinni
 | src/lunar_reg/pipeline.py:266 | pipeline_counts.md §2 | `PairResult` construction sits inside the stage-7 `try`, so an invalid `pair_id` (C04 validation) is classified `EVAL_FAILED`. | `register_pair` must not raise for a bad pair (C02). |
 | src/lunar_reg/pipeline.py:368 | results_v2.md §6 | `BatchReport.report()` appends `store.report()` when a store report exists. | The store outcome is printed on every run (classified-outcomes convention). |
 | src/lunar_reg/results.py:563 | results_v2.md §5 / C05 | `StoreReport.report()` gets the root from a private `_root` attribute set by `reindex`/`save_results`, not a dataclass field. | C05 freezes `StoreReport`'s fields; the report line format needs the root. |
-| src/lunar_reg/results.py:623 | results_v2.md §5 | `save_results(overwrite=False)` checks every target before writing any and raises one `FileExistsError` naming the clashes. | A clash midway would otherwise leave a half-saved batch and an un-reindexed store. |
+| src/lunar_reg/results.py:627, :634 | results_v2.md §5 | `save_results` raises `ValueError` on a `pair_id` repeated within the batch, then (with `overwrite=False`) checks every target on disk; both checks run before anything is written. | A clash midway would otherwise leave a half-saved batch and an un-indexed store; the in-batch check was added by review fix P0-02. |
 | src/lunar_reg/results.py:500 | results_v2.md §4 | `save_failures` writes nothing when no outcome failed (returns the path anyway); `load_failures` on an absent file returns an empty frame with the C05 columns. | No empty parquet files; callers can still read the columns. |
 | src/lunar_reg/results.py:347 | results_v2.md §3 | `load_pair` validates `pair_id` against `PAIR_ID_PATTERN` before building the path. | A pair id is a file name; `../x` must not read outside the store. |
 | scripts/run_vikram.py:304 | run_vikram_geometry.md §2 | "Recorded" geometry requires `shift_e_m`/`shift_s_m` as well as `ref_crop_c0`/`ref_crop_r0`; otherwise the legacy note path is tried. | The shift sets the integer extent of the reference crop, hence the output shape; defaulting it would be a silent default. |
@@ -313,6 +350,7 @@ also noted: with the adaptive grid, coverage is a fraction of g_eff², so thinni
 | src/lunar_reg/eval/uniformity.py:355 | eval_fixes.md §3 | `enforce_uniformity` uses `_bin` but keeps clipping out-of-frame points into border cells (it still returns them). | LLD §3 changes only `cell_counts` to drop them; thinning behaviour is otherwise unchanged. |
 | src/lunar_reg/eval/error_budget.py:267 | eval_fixes.md §1, ecc.md §3 | The refinement note prints `cc` only when `ecc_cc` is not None, else `ecc <ecc_status>`; the `ecc_skipped` branch is gone. | C07 makes `ecc_cc` always present and possibly None; the old `:.3f` format raised TypeError (Q-P0.08-1). |
 | src/lunar_reg/eval/error_budget.py (dominant) | eval_fixes.md §1 | Docstring/report describe the not-resolved band as "within 25%". | The LLD comment says "20 %" but its formula is `larger / smaller <= 1.25`; the code follows the formula. |
+| src/lunar_reg/pipeline.py (run_batch) | results_v2.md §6 | `save_failures` runs in a `finally` after `save_results`, so failures are persisted even when saving the OK results raises. | Review fix P0-06: the failures cannot be recomputed without rerunning the batch. |
 
 ## Review focus
 `Phase_0/REVIEW_FOCUS.md`, verbatim:
