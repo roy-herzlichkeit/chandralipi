@@ -1,12 +1,12 @@
 # STATUS
 
-current: P0.06
+current: P0.07
 phase: 0
 state: READY
 branch: phase-0
-last_done: P0.05
+last_done: P0.06
 notes:
-- P0.05: PDS4 resolver walks in document order; Name[child=value] predicate segments (fieldmap.parse_segment, validated in Field.__post_init__); instrument + 8 corner paths updated; _COERCE_FAILED + PDS4Product.coerce_failed + manifest "(coerce_failed)"; resolve_contained + image_path_rejected; LRO ^IMAGE contained.
-- No existing assertion needed changing. Deviation to list at phase end: manifest/lro rows write image_path None (not "None") when rejected.
-- Q-P0.05-1 (non-blocking): cli.py:39 assumes image_path is not None.
-- scripts/ci.sh: 456 passed, 6 deselected. P1.DL may run before Phase 0 approval (Phase_1/prompts/P1.DL_download_session.md).
+- P0.06: fetch_catalogue ISSDC rows write corner* = None + footprint_wkt (polygon_to_wkt of the ring); _corner_columns deleted. overlap.polygon_from_wkt added; footprint_from_row prefers corners > footprint_wkt > bbox.
+- Q-P0.06-1 (non-blocking): removed `from __future__ import annotations` from scripts/fetch_catalogue.py so importlib-loaded @dataclass works (py3.12 dataclasses needs sys.modules entry). Same trap likely for run_vikram in P0.11.
+- scripts/ci.sh: 471 passed, 6 deselected. Catalogue NOT re-fetched (no network).
+- P1.DL may run before Phase 0 approval (Phase_1/prompts/P1.DL_download_session.md).

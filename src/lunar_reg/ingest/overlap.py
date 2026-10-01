@@ -463,6 +463,46 @@ def polygon_to_wkt(ring) -> str | None:
     return f"POLYGON(({coords}))"
 
 
+def polygon_from_wkt(text: Any) -> tuple[tuple[float, float], ...] | None:
+    """Parse a WKT ``POLYGON`` outer ring back to ``((lat, lon), ...)``.
+
+    Accepts what :func:`polygon_to_wkt` writes and ODE's ``Footprint_C0_geometry``
+    form: ``POLYGON((x y, ...))`` or ``POLYGON ((x y, ...))``, ``x`` = lon,
+    ``y`` = lat. Only the outer ring is read (up to the first ``)``) and the
+    closing duplicate is stripped. Returns ``None`` for anything else --
+    ``MULTIPOLYGON``, fewer than 3 vertices, non-numeric or non-finite values --
+    so the caller can fall back to a bounding box.
+    """
+    if not isinstance(text, str):
+        return None
+    body = text.strip()
+    if not body.startswith("POLYGON"):
+        return None
+    body = body[len("POLYGON") :].lstrip()
+    if not body.startswith("("):
+        return None
+    body = body[1:].lstrip()
+    if not body.startswith("("):
+        return None
+    end = body.find(")")
+    if end < 0:
+        return None
+    vertices: list[tuple[float, float]] = []
+    for pair in body[1:end].split(","):
+        parts = pair.split()
+        if len(parts) != 2:
+            return None
+        try:
+            lon, lat = float(parts[0]), float(parts[1])
+        except ValueError:
+            return None
+        if not (math.isfinite(lon) and math.isfinite(lat)):
+            return None
+        vertices.append((lat, lon))
+    ring = _strip_closing_duplicate(tuple(vertices))
+    return ring if len(ring) >= 3 else None
+
+
 def _ring_bounds(ring) -> tuple[float, float, float, float]:
     """``(min_a, max_a, min_b, max_b)`` of a ring of ``(a, b)`` pairs."""
     return (
@@ -676,7 +716,9 @@ _CORNER_COLUMNS = tuple(f"corner{i}_{c}" for i in range(1, 5) for c in ("lat", "
 def footprint_from_row(row: Any) -> FootprintPolygon | None:
     """Build a footprint from a manifest row, or ``None`` if it has no usable geometry.
 
-    Prefers the four explicit corners in ring order. Falls back to the
+    Prefers the four explicit corners in ring order. Next, a ``footprint_wkt``
+    polygon (catalogue rows carry the real ring there; see
+    :func:`polygon_from_wkt`). Falls back to the
     ``min_lat``/``max_lat``/``min_lon``/``max_lon`` bounding box, which loses any
     rotation of the real footprint -- a pushbroom strip at an angle becomes a
     larger axis-aligned box, so overlap area from the fallback is an upper bound.
@@ -723,6 +765,12 @@ def footprint_from_row(row: Any) -> FootprintPolygon | None:
         # corner3 really is lower-LEFT, so 1,2,3,4 would be a bow-tie.
         ordered = (corners[0], corners[1], corners[3], corners[2])
         return FootprintPolygon(corners=tuple(ordered), **meta)
+
+    wkt = text("footprint_wkt")
+    if isinstance(wkt, str) and wkt.strip():
+        ring = polygon_from_wkt(wkt)
+        if ring is not None:
+            return FootprintPolygon(corners=ring, **meta)
 
     min_lat, max_lat = value("min_lat"), value("max_lat")
     min_lon, max_lon = value("min_lon"), value("max_lon")

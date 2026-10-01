@@ -53,8 +53,6 @@ yields plausible wrong numbers, which is the specific hazard this docstring
 exists to prevent.
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import logging
@@ -67,6 +65,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+from lunar_reg.ingest.overlap import polygon_to_wkt
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +241,7 @@ def read_issdc_catalogue(
             continue
 
         diagnostics.record(RowOutcome.OK, product_id)
+        footprint_wkt = polygon_to_wkt(latlon)
         yield {
             "product_id": product_id,
             "sensor": sensor,
@@ -258,28 +259,17 @@ def read_issdc_catalogue(
             "emission_angle_deg": None,
             "phase_angle_deg": None,
             "geometry_resolved": False,
-            "footprint_resolved": True,
+            "footprint_resolved": footprint_wkt is not None,
             "unresolved_fields": "incidence_angle_deg,emission_angle_deg,phase_angle_deg",
-            **_corner_columns(latlon),
+            # No corners: ring vertices are not the label's UL/UR/LL/LR, and
+            # footprint_from_row would traverse them into a bow-tie. The real
+            # ring travels as footprint_wkt instead. The ISSDC UL_/UR_/BL_/BR_
+            # properties are projected metres in the polar layers, not degrees.
+            **{f"corner{i}_{c}": None for i in range(1, 5) for c in ("lat", "lon")},
             "min_lat": min(lats), "max_lat": max(lats),
             "min_lon": min(lons), "max_lon": max(lons),
+            "footprint_wkt": footprint_wkt,
         }
-
-
-def _corner_columns(latlon: list[tuple[float, float]]) -> dict[str, float | None]:
-    """First four ring vertices as ``cornerN_lat`` / ``cornerN_lon``.
-
-    A catalogue ring is closed and may carry more than four vertices, so this is
-    the footprint's first four corners, not necessarily the label's UL/UR/BL/BR
-    in that order. Downstream code should prefer the polygon.
-    """
-    out: dict[str, float | None] = {}
-    for i in range(1, 5):
-        if i - 1 < len(latlon):
-            out[f"corner{i}_lat"], out[f"corner{i}_lon"] = latlon[i - 1]
-        else:
-            out[f"corner{i}_lat"] = out[f"corner{i}_lon"] = None
-    return out
 
 
 def _intersects(lats, lons, box: tuple[float, float, float, float]) -> bool:
