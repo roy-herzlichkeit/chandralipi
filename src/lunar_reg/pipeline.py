@@ -387,8 +387,13 @@ def run_batch(pairs, config: PipelineConfig | None = None, root=None) -> BatchRe
             logger.warning("%s: %s (%s)", outcome.pair_id, outcome.status.value, outcome.detail)
 
     if root is not None:
-        report.store = save_results(report.results, root)
-        save_failures(report.failures, root)
+        try:
+            report.store = save_results(report.results, root)
+        finally:
+            # Failures are recorded even when saving the OK results raises
+            # (e.g. FileExistsError on an existing pair id): they are not
+            # recomputable without rerunning the batch.
+            save_failures(report.failures, root)
     return report
 
 

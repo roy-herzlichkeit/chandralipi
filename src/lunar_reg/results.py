@@ -47,6 +47,7 @@ import json
 import logging
 import os
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -615,10 +616,20 @@ def save_results(
 
     Without ``overwrite`` an existing pair is never replaced: every target is
     checked first and ``FileExistsError`` names the clashes before anything is
-    written.
+    written. A batch that repeats a ``pair_id`` raises ``ValueError``, also
+    before anything is written (whatever ``overwrite`` says): one id names one
+    file, so the second copy would either clash mid-batch or silently replace
+    the first.
     """
     root = Path(root)
     results = list(results)
+    counts = Counter(r.pair_id for r in results)
+    repeated = sorted(pid for pid, n in counts.items() if n > 1)
+    if repeated:
+        raise ValueError(
+            f"{len(repeated)} pair_id(s) repeated within one batch; nothing was written: "
+            f"{', '.join(repeated[:5])}"
+        )
     if not overwrite:
         clashes = [r.pair_id for r in results if _pair_path(r.pair_id, root).exists()]
         if clashes:

@@ -36,12 +36,18 @@ def cmd_inspect(args) -> int:
     product = read_label(args.label)
     print(f"product:    {product.product_id}")
     print(f"sensor:     {product.sensor}")
-    print(f"image:      {product.image_path.name}")
+    if product.image_path is not None:
+        print(f"image:      {product.image_path.name}")
+    else:
+        print(f"image:      REJECTED (file_name {product.image_path_rejected!r} "
+              f"points outside the label's directory)")
     print(f"size:       {product.samples} x {product.lines} ({product.bands} band(s))")
-    if product.sun_azimuth_deg is not None:
-        print(f"sun azim:   {product.sun_azimuth_deg:.2f} deg")
-    if product.incidence_angle_deg is not None:
-        print(f"incidence:  {product.incidence_angle_deg:.2f} deg")
+    sun_azimuth = product["sun_azimuth_deg"]
+    incidence = product["incidence_angle_deg"]
+    if sun_azimuth is not None:
+        print(f"sun azim:   {sun_azimuth:.2f} deg")
+    if incidence is not None:
+        print(f"incidence:  {incidence:.2f} deg")
 
     if product.lines and product.samples:
         full = estimate_full_load_bytes(product.lines, product.samples, product.bands)

@@ -157,3 +157,43 @@ def test_run_batch_writes_failures_parquet(tmp_path):
     assert list(load_failures(tmp_path)["status"]) == ["too_few_matches"]
     assert report.store is not None and report.store.n_saved == 0
     assert "too_few_matches" in report.report() and "store" in report.report()
+
+
+@pytest.mark.parametrize("overwrite", [False, True])
+def test_repeated_pair_id_in_one_batch_writes_nothing(tmp_path, overwrite):
+    """Review P0-02: a repeated id used to write the first copy, then raise mid-batch."""
+    batch = [_pair(pair_id="a"), _pair(pair_id="dup"), _pair(pair_id="dup"), _pair(pair_id="z")]
+    with pytest.raises(ValueError, match="dup"):
+        save_results(batch, tmp_path, overwrite=overwrite)
+    assert not (tmp_path / "pairs").exists() or not any((tmp_path / "pairs").iterdir())
+    assert not (tmp_path / "index.parquet").exists()
+
+
+def test_run_batch_persists_failures_when_saving_results_raises(tmp_path, monkeypatch):
+    """Review P0-06: a FileExistsError from save_results used to skip save_failures."""
+    from lunar_reg.match.base import MatchResult
+
+    rng = np.random.default_rng(11)
+    src = rng.uniform(10, 390, (60, 2))
+    good = MatchResult(src, src + (3.0, -2.0), matcher="stub")
+
+    class _Stub:
+        name = "stub"
+
+        def match(self, source, reference):
+            return good if source.any() else MatchResult.empty("stub")
+
+    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name, **kw: _Stub())
+    texture = (rng.uniform(0, 255, (400, 400))).astype(np.uint8)
+    blank = np.zeros((96, 96), np.uint8)
+    config = PipelineConfig(matcher="stub", use_ecc=False, n_bootstrap=0)
+    pairs = [
+        dict(source=texture, reference=texture, pair_id="ok1"),
+        dict(source=blank, reference=blank, pair_id="blank"),
+    ]
+    run_batch(pairs, config, root=tmp_path)  # first run stores ok1 and one failure
+    assert list(load_failures(tmp_path)["pair_id"]) == ["blank"]
+
+    with pytest.raises(FileExistsError, match="ok1"):
+        run_batch(pairs, config, root=tmp_path)  # ok1 exists: save_results refuses
+    assert list(load_failures(tmp_path)["pair_id"]) == ["blank", "blank"]
