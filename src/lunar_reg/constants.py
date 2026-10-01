@@ -87,6 +87,8 @@ class SensorSpec:
 
     ``gsd_m`` is the nominal ground sample distance at the reference altitude;
     real products carry their own value in the PDS4 label and that always wins.
+    ``gsd_source`` says where the nominal value came from and ``gsd_note`` how it
+    relates to the products this project actually uses.
     """
 
     name: str
@@ -94,6 +96,8 @@ class SensorSpec:
     bands: int
     swath_km: float
     notes: str = ""
+    gsd_source: ValueSource = ValueSource.UNKNOWN
+    gsd_note: str = ""
 
 
 #: Nominal specs. Treat as planning defaults, not as ground truth for a given product.
@@ -104,6 +108,8 @@ SENSORS: dict[str, SensorSpec] = {
         bands=1,
         swath_km=3.0,
         notes="Strips are the memory problem: ~12k px across, tens of thousands of lines down.",
+        gsd_source=ValueSource.DOCUMENTED,
+        gsd_note="nominal value from the mission page; a product label carries the real one",
     ),
     "TMC2": SensorSpec(
         name="TMC-2",
@@ -111,6 +117,8 @@ SENSORS: dict[str, SensorSpec] = {
         bands=1,
         swath_km=20.0,
         notes="Panchromatic; the natural bridge between OHRC and LRO NAC scales.",
+        gsd_source=ValueSource.DOCUMENTED,
+        gsd_note="nominal value from the mission page; a product label carries the real one",
     ),
     "IIRS": SensorSpec(
         name="IIRS",
@@ -118,6 +126,8 @@ SENSORS: dict[str, SensorSpec] = {
         bands=256,
         swath_km=20.0,
         notes="Hyperspectral 0.8-5.0 um. Hardest modality; needs band reduction before matching.",
+        gsd_source=ValueSource.DOCUMENTED,
+        gsd_note="nominal value from the mission page; a product label carries the real one",
     ),
     "LRO_NAC": SensorSpec(
         name="LRO NAC",
@@ -125,6 +135,8 @@ SENSORS: dict[str, SensorSpec] = {
         bands=1,
         swath_km=5.0,
         notes="Primary reference. Public, so it unblocks work before PRADAN/chmapbrowse access.",
+        gsd_source=ValueSource.DOCUMENTED,
+        gsd_note="nominal EDR 0.5 m; the Vikram ortho is 1.0 m (label pixel_scale_x)",
     ),
     "SELENE_TC": SensorSpec(
         name="SELENE TC",
@@ -132,6 +144,8 @@ SENSORS: dict[str, SensorSpec] = {
         bands=1,
         swath_km=35.0,
         notes="Independent third reference for cross-validation.",
+        gsd_source=ValueSource.DOCUMENTED,
+        gsd_note="nominal value from the mission page; a product label carries the real one",
     ),
 }
 

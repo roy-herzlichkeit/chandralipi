@@ -44,6 +44,37 @@ def to_common_gsd(
     return cv2.resize(image, new_size, interpolation=interp)
 
 
+def resample_pixel_transform(src_shape: tuple[int, ...], dst_shape: tuple[int, ...]) -> np.ndarray:
+    """3x3 matrix mapping input pixel ``(x, y)`` to output pixel ``(x', y')`` for a resize.
+
+    Pixel-centre convention, i.e. ``cv2.resize``'s sampling geometry:
+    ``x' = (x + 0.5) * w'/w - 0.5`` (Phase_1/LLD/preprocess_geometry.md §2).
+    Shapes are ``(rows, cols)``; only the last two axes are used.
+    """
+    h, w = src_shape[-2:]
+    h2, w2 = dst_shape[-2:]
+    sx, sy = w2 / w, h2 / h
+    return np.array(
+        [[sx, 0.0, 0.5 * sx - 0.5], [0.0, sy, 0.5 * sy - 0.5], [0.0, 0.0, 1.0]],
+        dtype=np.float64,
+    )
+
+
+def resample_mask(valid: np.ndarray, shape: tuple[int, ...]) -> np.ndarray:
+    """Resize a boolean validity mask to ``shape[-2:]`` with nearest-neighbour sampling.
+
+    Uses ``cv2.INTER_NEAREST_EXACT`` (source pixel ``floor((x' + 0.5) * w/w')``),
+    the pixel-centre geometry of :func:`resample_pixel_transform`; plain
+    ``INTER_NEAREST`` samples ``floor(x' * w/w')`` and shifts the mask by up to
+    half an output pixel toward the origin.
+    """
+    import cv2
+
+    h2, w2 = shape[-2:]
+    mask = np.asarray(valid, dtype=np.uint8)
+    return cv2.resize(mask, (w2, h2), interpolation=cv2.INTER_NEAREST_EXACT).astype(bool)
+
+
 def match_scale(
     source: np.ndarray,
     reference: np.ndarray,
@@ -94,7 +125,8 @@ def paper_target_gsd(source_sensor: str | None, reference_sensor: str | None) ->
     if param is None:
         logger.debug(
             "no paper-stated resampling target for %s -> %s; supply target_gsd_m",
-            source_sensor, reference_sensor,
+            source_sensor,
+            reference_sensor,
         )
         return None
     return float(param.value)

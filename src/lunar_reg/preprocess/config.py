@@ -103,6 +103,9 @@ class PreprocessConfig:
     source_sensor: str | None = None
     reference_sensor: str | None = None
     target_gsd_m: float | None = None
+    #: Which image of the pair this config preprocesses: "source" or "reference".
+    #: Selects the GSD the resample step reads from the context (P1.09).
+    side: str = "source"
 
     #: Free-form label carried into the pipeline history, for ablation tables.
     label: str = "default"
