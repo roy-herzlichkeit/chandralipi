@@ -60,4 +60,4 @@ Each folder also has `benchmark/{RUBRIC.md,run.sh,score.py}`, `ASSUMPTIONS.md`, 
 | D | Review RC07 → G33 adaptive uniformity grid; RC14 → G39 ECC with both validity masks (C07); RC18 → G38 prior shift OHRC-only; RC21 → C10 keyword-only |
 | D | Review RC09/10/11/12/22/27/35/36 → stricter Phase 1/1B/2 checks and benchmarks (native bridge, real IIRS, cross-instrument run, structured diagnosis, datum ran, run records required, `ok > 0`) |
 | D | Review RC30 → P1.22 split into P1.22 (docs) + P1.23 (code text); total 74 prompts |
-| 2026-10-01 | P1.DL overran the 20 GB disk budget (47.3 GB added); human raised CLARIFY Q17 to 60 GB for `data/raw/`, keeping everything. G40 large-raster rule; P1.15 gains `scripts/probe_raster.py` + two harness tests; downloads LLD §2.4 records what P1.DL fetched and §3 adds a running budget check |
+| 2026-10-01 | P1.DL overran the 20 GB disk budget (47.3 GB added); human raised CLARIFY Q17 to 60 GB, then 120 GB, for `data/raw/`, keeping everything. G40 large-raster rule; P1.15 gains `scripts/probe_raster.py` + two harness tests; downloads LLD §2.4 records what P1.DL fetched and §3 adds a running budget check |

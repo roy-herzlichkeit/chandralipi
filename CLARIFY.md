@@ -60,6 +60,7 @@ ANSWER: Use as much as possible without crashing the system.
 Q17 | May Opus sessions download data or reach the network? What is the extra disk budget? | No network for Opus. Downloads are scripts that Opus writes and a human runs. Extra disk ≤ 20 GB. | The PRADAN sessions use live cookies, and earlier carts overran the disk (D, HANDOFF §1.4). Harnesses must be offline-deterministic. | M
 ANSWER: ISRO limits the download to human hands, but it is commendable to do downloads by human hands if Opus provides procedure and names of files to be downloaded from NASA and SELENE (validated paths)
 ANSWER (2026-10-01, disk budget revised): the P1.DL session added 47.3 GB under `data/raw/` (implementer `du -sb`, `.fable/inbox_P1DL_20260930.md` §2), exceeding the 20 GB limit. The human chose to **raise the extra-disk budget to 60 GB for `data/raw/` as a whole and keep every download, zips included**. `du -sb data/raw` = 56 849 815 846 B on 2026-10-01 (architect, M).
+ANSWER (2026-10-01, later): budget doubled to **120 GB** (120 000 000 000 B) for `data/raw/` as a whole.
 
 ## Quality bar & benchmark metrics
 
