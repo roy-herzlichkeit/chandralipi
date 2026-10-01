@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from lunar_reg.results import PairResult
+    from lunar_reg.results import PairResult, StoreReport
 
 logger = logging.getLogger(__name__)
 
@@ -292,6 +292,8 @@ def register_pair(
             src_pts=raw.src_pts,
             dst_pts=raw.dst_pts,
             inlier_mask=refit_mask,
+            ransac_mask=ransac_mask,
+            pre_ecc_transform=detail["pre_ecc_matrix"],
             transform=transform.matrix,
             metrics=metrics.as_dict(),
             uniformity=uniformity.as_dict(),
@@ -335,6 +337,8 @@ class BatchReport:
     """What a batch run produced, including what it could not."""
 
     outcomes: list = field(default_factory=list)
+    #: What persisting the batch did to the store, when ``run_batch`` had a root.
+    store: StoreReport | None = None
 
     @property
     def results(self) -> list:
@@ -360,6 +364,8 @@ class BatchReport:
             lines.append(f"  {status}: {len(group)}  e.g. {sample.pair_id}: {sample.detail}")
         if not counts:
             lines.append("  no failures")
+        if self.store is not None:
+            lines.append(self.store.report())
         return "\n".join(lines)
 
 
@@ -367,9 +373,11 @@ def run_batch(pairs, config: PipelineConfig | None = None, root=None) -> BatchRe
     """Register many pairs and optionally persist them.
 
     ``pairs`` is an iterable of dicts accepted as keyword arguments by
-    :func:`register_pair`.
+    :func:`register_pair`. With ``root``, OK results go to the store
+    (:func:`~lunar_reg.results.save_results`) and failures are appended to
+    ``failures.parquet`` (:func:`~lunar_reg.results.save_failures`).
     """
-    from lunar_reg.results import save_results
+    from lunar_reg.results import save_failures, save_results
 
     report = BatchReport()
     for spec in pairs:
@@ -378,8 +386,9 @@ def run_batch(pairs, config: PipelineConfig | None = None, root=None) -> BatchRe
         if not outcome.ok:
             logger.warning("%s: %s (%s)", outcome.pair_id, outcome.status.value, outcome.detail)
 
-    if root is not None and report.results:
-        save_results(report.results, root)
+    if root is not None:
+        report.store = save_results(report.results, root)
+        save_failures(report.failures, root)
     return report
 
 

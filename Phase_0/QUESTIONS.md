@@ -26,3 +26,8 @@ what I did meanwhile: nothing in error_budget.py. scripts/ci.sh is green (497 pa
 context: Phase_0/harness/check_P0.09.sh (`repo_pytest ... tests/test_pipeline.py ...`); tests/test_pipeline.py::test_every_available_detector_produces_usable_matches[asift]; DECISIONS.md G18
 question: That one parametrised case takes 64 s on its own, and 64.13 s on the untouched base (phase-base-approved, measured in a temporary worktree), so P0.09 did not cause it. The check passes but breaks the < 30 s budget. Should the ASIFT case get a marker / smaller input, or should the check exclude it (`-k "not asift"`)? Both need a plan or harness change I may not make.
 what I did meanwhile: nothing; check_P0.09 passes as written (exit 0).
+
+## Q-P0.10-1  Re-running run_vikram / build_demo_results now refuses existing pair ids
+context: CONTRACTS.md C04/C05 (`save_results(..., overwrite=False)`); scripts/run_vikram.py:391, scripts/build_demo_results.py:115 (changed only as LLD §6 lists)
+question: With refuse-to-overwrite as the default, a second run of either script into a store that already holds the same pair ids raises FileExistsError (checked for the whole batch before anything is written, so nothing is half-saved). Should those scripts gain an `--overwrite` flag or write to a fresh root per run? Not in P0.10's DO, so left as is.
+what I did meanwhile: save_results checks every target before writing any (a clash stops the batch cleanly); live store untouched (13 v1 pairs load read-only under the v2 reader).

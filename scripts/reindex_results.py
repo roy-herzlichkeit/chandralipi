@@ -12,6 +12,12 @@ writes a fresh index covering all of them. It never deletes a result
     python scripts/reindex_results.py                     # index every .npz found
     python scripts/reindex_results.py --exclude-synthetic # move synthetic aside, index the rest
     python scripts/reindex_results.py --dry-run           # report only, write nothing
+    python scripts/reindex_results.py --force             # write even if unreadable files
+                                                          # would shrink the index
+
+When some ``.npz`` fail to load and the rebuilt index would have fewer rows
+than the current one, the current index is KEPT and the script exits 1;
+``--force`` writes it anyway.
 """
 
 from __future__ import annotations
@@ -23,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from lunar_reg.results import load_all_pairs, write_index  # noqa: E402
+from lunar_reg.results import load_all_pairs, reindex  # noqa: E402
 
 DEFAULT_ROOT = Path("data/processed/results")
 DEFAULT_STASH = Path("data/processed/results_ch2_synthetic_backup/pairs")
@@ -33,11 +39,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
     parser.add_argument(
-        "--exclude-synthetic", action="store_true",
+        "--exclude-synthetic",
+        action="store_true",
         help="move synthetic pairs to --stash-dir and index only the rest",
     )
     parser.add_argument("--stash-dir", type=Path, default=DEFAULT_STASH)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="write the index even when unreadable files would make it shrink",
+    )
     args = parser.parse_args()
 
     pairs_dir = args.root / "pairs"
@@ -66,20 +78,31 @@ def main() -> int:
         if not args.dry_run:
             args.stash_dir.mkdir(parents=True, exist_ok=True)
             for pair_id in synthetic:
-                shutil.move(str(pairs_dir / f"{pair_id}.npz"),
-                            str(args.stash_dir / f"{pair_id}.npz"))
-        print(f"  {'would move' if args.dry_run else 'moved'} {len(synthetic)} synthetic "
-              f"pair(s) -> {args.stash_dir}")
+                shutil.move(
+                    str(pairs_dir / f"{pair_id}.npz"), str(args.stash_dir / f"{pair_id}.npz")
+                )
+        print(
+            f"  {'would move' if args.dry_run else 'moved'} {len(synthetic)} synthetic "
+            f"pair(s) -> {args.stash_dir}"
+        )
 
     if args.dry_run:
         print(f"\ndry run: would write {len(keep)} row(s) to {args.root / 'index.parquet'}")
         return 0
 
-    frame = write_index(keep, args.root)
-    print(f"\nwrote {len(frame)} row(s) to {args.root / 'index.parquet'}")
+    # After any synthetic move, the .npz left on disk are exactly ``keep``.
+    store = reindex(args.root, force=args.force)
+    print()
+    print(store.report())
+    if not store.index_written:
+        return 1
+    frame = store.frame
     if len(frame):
-        cols = [c for c in ("pair_id", "source_sensor", "reference_sensor", "matcher", "synthetic")
-                if c in frame.columns]
+        cols = [
+            c
+            for c in ("pair_id", "source_sensor", "reference_sensor", "matcher", "synthetic")
+            if c in frame.columns
+        ]
         print(frame[cols].to_string(index=False))
     return 0
 

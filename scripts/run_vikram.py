@@ -388,8 +388,9 @@ def main(argv=None) -> int:
                          if row["status"] == "ok" else str(row["detail"])[:90]))
 
     if results:
-        frame = save_results(results, RESULTS_ROOT)
-        print(f"\nsaved {len(results)} result(s); index now covers {len(frame)} pair(s)")
+        store = save_results(results, RESULTS_ROOT)
+        print()
+        print(store.report())
     failed = [o for o in outcomes if o["status"] != "ok"]
     print(f"{len(outcomes)} run(s): {len(outcomes) - len(failed)} ok, {len(failed)} not ok")
     for o in failed:

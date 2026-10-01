@@ -144,10 +144,10 @@ def test_second_save_results_does_not_drop_the_first_batch(tmp_path):
 def test_reindex_rebuilds_from_disk_ignoring_a_stale_index(tmp_path):
     save_results([_result(pair_id="a"), _result(pair_id="b")], tmp_path)
     # Simulate a stale index that lost a pair whose .npz is still present.
-    save_results([_result(pair_id="a")], tmp_path, reindex_all=False)
+    save_results([_result(pair_id="a")], tmp_path, reindex_all=False, overwrite=True)
     assert set(load_index(tmp_path)["pair_id"]) == {"a"}
 
-    frame = reindex(tmp_path)
+    frame = reindex(tmp_path).frame
     assert set(frame["pair_id"]) == {"a", "b"}
 
     results, failures = load_all_pairs(tmp_path)

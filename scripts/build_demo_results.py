@@ -20,7 +20,6 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from pathlib import Path
 
 from lunar_reg.eval.scenes import illumination_pair
 from lunar_reg.ingest.pseudo_gt import NOMINAL_GSD_M
@@ -112,8 +111,11 @@ def main(argv=None) -> int:
     combined = BatchReport(outcomes=outcomes)
     print(combined.report())
     if combined.results:
-        frame = save_results(combined.results, args.root)
-        print(f"\nwrote {len(frame)} row(s) to {Path(args.root) / 'index.parquet'}\n")
+        store = save_results(combined.results, args.root)
+        print()
+        print(store.report())
+        print()
+        frame = store.frame
         columns = [
             c for c in ("pair_id", "n_inliers", "m_rmse_px", "x_true_rms_px",
                         "u_score", "c_p95_px", "x_ecc_prefilter")
