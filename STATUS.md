@@ -1,13 +1,13 @@
 # STATUS
 
-current: P1.13
+current: P1.14
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.12
+last_done: P1.13
 notes:
-- P1.12: new src/lunar_reg/eval/agreement.py (C14 AgreementResult + cross_matcher_agreement, LLD §2 agreement_for_stored); pre-ECC transforms only; probes = 4 corners + centre via Transform.apply (placeholder model name); eval/__init__.py NOT changed (outside fence) -> import from lunar_reg.eval.agreement.
-- Skipped with one WARNING per matcher: non-finite entry, singular 3x3 (|det|<1e-12), or a probe mapped to a non-finite point. A matrix that is not 3x3 or 2x3 raises ValueError.
-- agreement_for_stored also raises ValueError on duplicate matcher name among usable results, or when no usable result has source_image; v1 records skipped (one INFO line); all-v1 -> n_matchers=0, NaN, fails. Extra beyond LLD -> list as LLD deviations in the review pack.
-- Q-P1.12-1 (non-blocking): duplicate matcher raises, so P1.16's Exp-1 gate must pass one result per matcher (and one source/reference pair per call) unless the architect chooses variant-keyed names.
-- scripts/ci.sh: 819 passed (log: scratchpad p1/ci_P1.12.log); check_P1.12 < 1 s.
+- P1.13: new src/lunar_reg/pairs.py (C11 PrepStatus/WindowPair/PrepOutcome/prepare_window_pair; PriorSource re-exported from ingest.overlap) + PrepDiagnostics (counts, first sample, report()); P1.16 should record each outcome and print report() every run. Windowed reads only, decimated (Resampling.average, nearest for mask) at shrink factor >= 4.
+- Prior source: explicit geometry_grid_path wins; else grid looked up under <product>/geometry, then the label dir's parent, found by a case-insensitive timestamp token (real LIDs use lower-case 't'); no token -> no discovery (Q-P1.13-2); no grid -> label corners. Unreadable grid -> READ_FAILED (no fallback); grid not covering corners -> NO_FOOTPRINT. source_id from the lower-case LID.
+- Q-P1.13-1 (non-blocking): all-nodata source window returns OK with all-False source_valid (C11 has no member); pca no longer raises on it. Extras beyond LLD listed there -> review pack LLD deviations.
+- scripts/run_vikram.py not touched (P1.16 switches it over).
+- scripts/ci.sh: 852 passed (log: scratchpad p1/ci_P1.13.log); check_P1.13 ~11 s.

@@ -18,7 +18,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 12 | P1.10 | presets inside register_pair | P1.09 | harness/check_P1.10.sh | done |
 | 13 | P1.11 | reference sun geometry | P1.04 | harness/check_P1.11.sh | done |
 | 14 | P1.12 | cross-matcher agreement | P1.00 | harness/check_P1.12.sh | done |
-| 15 | P1.13 | window-pair preparation | P1.04, P1.06, P1.08 | harness/check_P1.13.sh | todo |
+| 15 | P1.13 | window-pair preparation | P1.04, P1.06, P1.08 | harness/check_P1.13.sh | done |
 | 16 | P1.14 | matcher registry + SuperGlue opt-in | P1.00 | harness/check_P1.14.sh | todo |
 | 17 | P1.15 | TMC-2 + IIRS skip-if-absent | P1.03, P1.09 | harness/check_P1.15.sh | todo |
 | 18 | P1.16 | site runner | P1.10, P1.11, P1.12, P1.13, P1.14 | harness/check_P1.16.sh | todo |
