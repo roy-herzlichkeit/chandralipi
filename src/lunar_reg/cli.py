@@ -58,47 +58,165 @@ def cmd_inspect(args) -> int:
     return 0
 
 
-def cmd_register(args) -> int:
-    """Register a source product against a reference and report metrics."""
+#: How ``lunar-reg register`` prepares each input (recorded in the result's extra).
+REGISTER_INPUT_PREP = (
+    "band 1; non-positive / nodata / non-finite pixels invalid; INTER_AREA downsample so the "
+    "longest side <= max_px; to_uint8(valid=data>0)"
+)
 
-    from lunar_reg.align.estimate import estimate_transform
-    from lunar_reg.eval.metrics import compute_metrics
-    from lunar_reg.eval.uniformity import compute_uniformity
+
+def _read_for_register(path: Path, max_px: int):
+    """Band 1 of ``path`` as uint8 plus its validity mask and the downsample factor.
+
+    Rasterio opens GeoTIFFs; PDS4 goes through :func:`~lunar_reg.ingest.pds4.open_product`
+    (which also resolves a ``.IMG`` to its label). Invalid pixels (``<= 0``, the
+    dataset's nodata value, non-finite) are NaN before an ``INTER_AREA``
+    downsample to a longest side of at most ``max_px``, so they never blend into
+    valid ones; the stretch is ``to_uint8(valid=data > 0)``.
+    """
+    import cv2
+    import numpy as np
+
     from lunar_reg.ingest.pds4 import open_product
-    from lunar_reg.match import build_matcher
-    from lunar_reg.match.tiled import TiledMatcher
-    from lunar_reg.preprocess.radiometric import standard_chain
+    from lunar_reg.preprocess.radiometric import to_uint8
 
-    matcher = TiledMatcher(build_matcher(args.matcher), overlap=args.overlap)
+    with open_product(path) as dataset:
+        data = dataset.read(1)
+        nodata = dataset.nodata
+    data = data.astype(np.float32)
+    invalid = ~np.isfinite(data) | (data <= 0)
+    if nodata is not None and np.isfinite(nodata):
+        invalid |= data == np.float32(nodata)
+    data[invalid] = np.nan
+    height, width = data.shape
+    factor = max(1.0, max(height, width) / float(max_px))
+    if factor > 1.0:
+        size = (max(1, round(width / factor)), max(1, round(height / factor)))
+        data = cv2.resize(data, size, interpolation=cv2.INTER_AREA)
+    valid = np.isfinite(data) & (data > 0)
+    return to_uint8(data, valid=valid), valid, factor
 
-    with open_product(args.source) as src, open_product(args.reference) as ref:
-        result = matcher.match_datasets(src, ref, preprocess=standard_chain)
-        shape = (src.height, src.width)
 
-    if len(result) < 4:
-        print(
-            f"only {len(result)} correspondences found; cannot estimate a transform",
-            file=sys.stderr,
-        )
-        return 1
+def _register_pair_id(source: Path, reference: Path, matcher: str) -> str:
+    """``<source stem>-<reference stem>_<matcher>`` reduced to the store's pair-id alphabet."""
+    import re
 
-    transform, result = estimate_transform(result, model=args.model, threshold_px=args.threshold)
-    metrics = compute_metrics(result, transform)
-    uniformity = compute_uniformity(result.inliers().src_pts, shape)
+    raw = f"{source.stem}-{reference.stem}_{matcher}"
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", raw)
+    return cleaned if cleaned[:1].isalnum() else f"p{cleaned}"
 
-    report = {
-        "source": str(args.source),
-        "reference": str(args.reference),
-        "metrics": metrics.as_dict(),
-        "uniformity": uniformity.as_dict(),
-        "transform": transform.matrix.tolist(),
+
+def _plain_group(group: dict) -> dict:
+    """A metrics/extra dict with the results-index conversion rules (P0.10 ``_plain_for_index``)."""
+    from lunar_reg.results import _plain_for_index
+
+    out = {}
+    for key, value in group.items():
+        try:
+            out[str(key)] = _plain_for_index(str(key), value)
+        except TypeError:
+            out[str(key)] = str(value)
+    return out
+
+
+def register_document(outcome) -> dict:
+    """The ``--output`` JSON of ``lunar-reg register`` (exactly the LLD §3 keys)."""
+    import numpy as np
+
+    result = outcome.result
+    extra = dict(outcome.extra)
+    if result is not None:
+        extra = {**extra, **result.extra}
+    return {
+        "pair_id": outcome.pair_id,
+        "status": outcome.status.value,
+        "detail": outcome.detail,
+        "stage": outcome.extra.get("stage"),
+        "metrics": _plain_group(result.metrics) if result is not None else {},
+        "uniformity": _plain_group(result.uniformity) if result is not None else {},
+        "conditioning": _plain_group(result.conditioning) if result is not None else {},
+        "transform": (
+            np.asarray(result.transform, dtype=float).tolist() if result is not None else None
+        ),
+        "extra": _plain_group(extra),
     }
-    text = json.dumps(report, indent=2)
-    print(text)
+
+
+def cmd_register(args) -> int:
+    """Register a source image against a reference with :func:`~lunar_reg.pipeline.register_pair`.
+
+    Prints the classified outcome and its key metrics on every run; exit 0 only
+    when the pair registered (``RunStatus.OK``).
+    """
+    from lunar_reg.pipeline import PipelineConfig, register_pair
+    from lunar_reg.provenance import ValueSource
+
+    source, source_valid, source_factor = _read_for_register(args.source, args.max_px)
+    reference, reference_valid, reference_factor = _read_for_register(
+        args.reference, args.max_px
+    )
+    pair_id = args.pair_id or _register_pair_id(args.source, args.reference, args.matcher)
+    extra = {
+        "input_prep": REGISTER_INPUT_PREP,
+        "max_px": int(args.max_px),
+        "source_file": str(args.source),
+        "reference_file": str(args.reference),
+        "source_downsample": float(source_factor),
+        "reference_downsample": float(reference_factor),
+        "downsample_source": ValueSource.COMPUTED.value,
+    }
+    config = PipelineConfig(
+        matcher=args.matcher,
+        model=args.model,
+        ransac_threshold_px=args.threshold,
+        preprocess=args.preprocess,
+        extra=extra,
+    )
+    outcome = register_pair(
+        source,
+        reference,
+        pair_id,
+        config,
+        source_id=args.source.stem,
+        reference_id=args.reference.stem,
+        source_valid=source_valid,
+        reference_valid=reference_valid,
+    )
+
+    doc = register_document(outcome)
+    print(f"{pair_id}: {doc['status']} (stage {doc['stage']})")
+    if outcome.detail:
+        print(f"  detail: {outcome.detail}")
+    print(
+        f"  input: source {source.shape[1]}x{source.shape[0]} (downsample {source_factor:.3g}), "
+        f"reference {reference.shape[1]}x{reference.shape[0]} "
+        f"(downsample {reference_factor:.3g})"
+    )
+    if outcome.ok:
+        m = doc["metrics"]
+        print(
+            f"  matches {m.get('n_matches')}, inliers {m.get('n_inliers')}, "
+            f"rmse {m.get('rmse_px')} px, median {m.get('median_px')} px (self-residual)"
+        )
+        print(f"  uniformity score {doc['uniformity'].get('score')}")
+
+    if args.save_root:
+        from lunar_reg.results import save_failures, save_results
+
+        if outcome.ok:
+            try:
+                print(save_results([outcome.result], args.save_root).report())
+            except FileExistsError as exc:
+                print(f"  NOT saved: {exc}")
+        else:
+            path = save_failures([outcome], args.save_root)
+            print(f"  failure recorded in {path}")
+
     if args.output:
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.output).write_text(text)
-    return 0
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(doc, indent=2, allow_nan=True) + "\n")
+        print(f"wrote {args.output}")
+    return 0 if outcome.ok else 1
 
 
 def cmd_probe_label(args) -> int:
@@ -188,9 +306,15 @@ def cmd_overlap(args) -> int:
             if poly is not None:
                 by_id[poly.product_id] = poly
         n_cropped = 0
+        # A pair whose footprint cannot be rebuilt from the manifest is counted
+        # and named, never dropped silently (A115).
+        n_skipped, skipped_sample = 0, ""
         for _, row in pairs.head(args.limit).iterrows():
             src, ref = by_id.get(row["source_id"]), by_id.get(row["reference_id"])
             if src is None or ref is None:
+                n_skipped += 1
+                if not skipped_sample:
+                    skipped_sample = str(row["source_id"] if src is None else row["reference_id"])
                 continue
             summary = crop_to_overlap(intersect(src, ref), args.crop_dir)
             for side, entry in summary["sides"].items():
@@ -198,6 +322,10 @@ def cmd_overlap(args) -> int:
                     print(f"  crop {side} {entry['product_id']}: {entry['error']}")
                 else:
                     n_cropped += 1
+        if n_skipped:
+            print(f"skipped {n_skipped}, e.g. {skipped_sample} (footprint cannot be rebuilt)")
+        else:
+            print("skipped 0")
         print(f"\ncropped {n_cropped} image(s) into {args.crop_dir}")
 
     # Non-zero exit when nothing worked but something was attempted, so a CI
@@ -263,6 +391,8 @@ def cmd_preprocess(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    from lunar_reg.preprocess.presets import PRESET_NAMES
+
     parser = argparse.ArgumentParser(prog="lunar-reg", description=__doc__)
     parser.add_argument("-v", "--verbose", action="store_true")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -273,13 +403,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_inspect.add_argument("label", type=Path, help="path to the PDS4 XML label")
     p_inspect.set_defaults(func=cmd_inspect)
 
-    p_reg = sub.add_parser("register", help="register a source product to a reference")
-    p_reg.add_argument("source", type=Path)
+    p_reg = sub.add_parser("register", help="register a source image to a reference")
+    p_reg.add_argument("source", type=Path, help="GeoTIFF, PDS4 label or other raster")
     p_reg.add_argument("reference", type=Path)
-    p_reg.add_argument("--matcher", default="loftr", help="loftr | lightglue | sift | akaze | orb")
+    p_reg.add_argument("--matcher", default="sift", help="any name in lunar_reg.match")
     p_reg.add_argument("--model", default="homography", help="homography | affine | partial_affine")
-    p_reg.add_argument("--threshold", type=float, default=2.0, help="RANSAC threshold in px")
-    p_reg.add_argument("--overlap", type=float, default=0.25, help="tile overlap fraction")
+    p_reg.add_argument("--threshold", type=float, default=3.0, help="RANSAC threshold in px")
+    p_reg.add_argument("--preprocess", default="none", choices=list(PRESET_NAMES))
+    p_reg.add_argument("--max-px", type=int, default=1152,
+                       help="downsample each image so its longest side is at most this")
+    p_reg.add_argument("--save-root", type=Path, help="results store to save the outcome in")
+    p_reg.add_argument("--pair-id", help="pair id (default: <source>-<reference>_<matcher>)")
     p_reg.add_argument("--output", type=Path, help="write the JSON report here")
     p_reg.set_defaults(func=cmd_register)
 
