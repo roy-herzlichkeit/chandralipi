@@ -118,17 +118,14 @@ LEARNED_MATCHERS: tuple[str, ...] = ("lightglue", "disk", "loftr")
 
 
 def _build_matcher(name: str):
-    """Classical matchers by default; LightGlue/LoFTR when named explicitly.
+    """Any matcher by name, through the one registry :func:`lunar_reg.match.build_matcher`.
 
-    Learned matchers import torch lazily, so classical-only runs stay light.
+    Kept as a module-level function so tests can monkeypatch it. Learned
+    matchers import torch lazily, so classical-only runs stay light.
     """
-    if name.lower().startswith(LEARNED_MATCHERS):
-        from lunar_reg.match.learned import build_matcher
+    from lunar_reg.match import build_matcher
 
-        return build_matcher(name)
-    from lunar_reg.match.classical import build_classical
-
-    return build_classical(name)
+    return build_matcher(name)
 
 
 def _describe(exc: BaseException) -> str:
@@ -251,6 +248,9 @@ def register_pair(
     except Exception as exc:  # noqa: BLE001 - a matcher failing is an outcome
         return fail(RunStatus.MATCHER_ERROR, "match", _describe(exc))
     counts["n_raw_matches"] = len(raw)
+    licence = raw.meta.get("licence")
+    if licence is not None:
+        base["licence"] = licence  # G11: SuperGlue outcomes carry their licence
     if len(raw) < config.min_matches:
         detail = (
             f"{config.matcher} returned {len(raw)} correspondence(s), "
@@ -380,6 +380,7 @@ def register_pair(
                 "reference_sun_azimuth": None if reference_sun is None else reference_sun[0],
                 "reference_sun_elevation": None if reference_sun is None else reference_sun[1],
                 **_scalar_meta(raw.meta),
+                **({} if licence is None else {"licence": licence}),
             },
         )
     except Exception as exc:  # noqa: BLE001 - an evaluation failure is an outcome

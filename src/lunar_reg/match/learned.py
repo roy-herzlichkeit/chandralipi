@@ -266,17 +266,3 @@ class LightGlueMatcher:
             matcher=self.name,
             meta=meta,
         )
-
-
-def build_matcher(name: str, **kwargs):
-    """Construct a matcher by name, for config-driven runs and the CLI."""
-    from lunar_reg.match.classical import ClassicalMatcher
-
-    name = name.lower()
-    if name.startswith("loftr"):
-        return LoFTRMatcher(**kwargs)
-    if name.startswith(("lightglue", "disk")):
-        return LightGlueMatcher(**kwargs)
-    if name in {"sift", "akaze", "orb"}:
-        return ClassicalMatcher(detector=name, **kwargs)
-    raise ValueError(f"unknown matcher {name!r}")

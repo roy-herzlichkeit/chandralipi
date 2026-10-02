@@ -39,7 +39,12 @@ anything distributed.
 
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import logging
+import os
+import sys
+from pathlib import Path
 
 import numpy as np
 
@@ -54,6 +59,18 @@ SUPERGLUE_LICENCE = (
     "(magicleap/SuperGluePretrainedNetwork). Forbids distribution; derivatives "
     "become the property of Magic Leap, Inc."
 )
+
+#: Carried in every SuperGlue ``MatchResult.meta["licence"]`` and copied by
+#: ``register_pair`` into ``extra["licence"]`` (DECISIONS G11, CONTRACTS C04).
+LICENCE_TAG = "SuperGlue weights: Magic Leap, noncommercial research only"
+
+#: Environment variable naming a local checkout of
+#: ``magicleap/SuperGluePretrainedNetwork``; the default for ``weights_dir``.
+SUPERGLUE_DIR_ENV = "SUPERGLUE_DIR"
+
+#: Package name the checkout's ``models/`` directory is loaded under. Unique so
+#: it cannot collide with any other ``models`` package; never left in sys.modules.
+_PACKAGE = "_superglue_models"
 
 _LICENCE_REFUSAL = f"""SuperGlue is licence-encumbered and is disabled by default.
 
@@ -72,13 +89,60 @@ the academic/non-profit noncommercial grant, construct with:
 You must also install the weights yourself; this project does not vendor them,
 because redistribution is exactly what the licence forbids."""
 
+_IMPORT_HELP = (
+    "Could not import SuperGlue. This project does not vendor it -- its "
+    "licence forbids redistribution. Clone "
+    "magicleap/SuperGluePretrainedNetwork yourself and pass its path as "
+    "weights_dir=..., having satisfied yourself that your use falls inside "
+    "the academic/non-profit noncommercial grant. "
+    "For a distributable pipeline use LightGlueMatcher instead."
+)
+
+
+def _drop_package_modules() -> None:
+    for name in [n for n in sys.modules if n == _PACKAGE or n.startswith(_PACKAGE + ".")]:
+        del sys.modules[name]
+
+
+def _load_matching_class(weights_dir: str | os.PathLike | None):
+    """``Matching`` from ``<weights_dir>/models``, without touching ``sys.path``.
+
+    The ``models`` directory is loaded as the package ``_superglue_models``,
+    registered in ``sys.modules`` only while ``_superglue_models.matching`` (and
+    the sibling modules it imports relatively) load, then removed again.
+    """
+    if not weights_dir:
+        raise ImportError(_IMPORT_HELP)
+    models_dir = Path(weights_dir) / "models"
+    init = models_dir / "__init__.py"
+    if not init.is_file():
+        raise ImportError(_IMPORT_HELP)
+    spec = importlib.util.spec_from_file_location(
+        _PACKAGE, init, submodule_search_locations=[str(models_dir)]
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(_IMPORT_HELP)
+    _drop_package_modules()
+    package = importlib.util.module_from_spec(spec)
+    sys.modules[_PACKAGE] = package
+    try:
+        spec.loader.exec_module(package)
+        matching = importlib.import_module(f"{_PACKAGE}.matching")
+        return matching.Matching
+    except (ImportError, AttributeError) as exc:
+        raise ImportError(_IMPORT_HELP) from exc
+    finally:
+        _drop_package_modules()
+
 
 class SuperGlueMatcher:
     """SuperPoint + SuperGlue. **Licence-gated; not for anything distributed.**
 
-    Refuses to construct unless ``acknowledge_noncommercial_licence=True``, and
+    Refuses to construct unless ``accept_noncommercial_licence=True`` (the old
+    keyword ``acknowledge_noncommercial_licence=True`` is still accepted), and
     never vendors the weights -- the licence forbids redistribution, so the
-    weights must be obtained separately and pointed at with ``weights_dir``.
+    weights must be obtained separately and pointed at with ``weights_dir``
+    (default: the ``SUPERGLUE_DIR`` environment variable).
 
     Prefer :class:`lunar_reg.match.learned.LightGlueMatcher` unless you
     specifically need a SuperGlue row for a local research comparison against
@@ -87,16 +151,20 @@ class SuperGlueMatcher:
 
     def __init__(
         self,
-        acknowledge_noncommercial_licence: bool = False,
+        accept_noncommercial_licence: bool = False,
         weights_dir: str | None = None,
         device: str | None = None,
         max_keypoints: int | None = None,
         weights: str = "outdoor",
         keypoint_threshold: float = 0.005,
         match_threshold: float = 0.2,
+        *,
+        acknowledge_noncommercial_licence: bool = False,
     ) -> None:
-        if not acknowledge_noncommercial_licence:
+        if not (accept_noncommercial_licence or acknowledge_noncommercial_licence):
             raise PermissionError(_LICENCE_REFUSAL)
+        if weights_dir is None:
+            weights_dir = os.environ.get(SUPERGLUE_DIR_ENV) or None
 
         self.device = device or get_device()
         self.max_keypoints = max_keypoints or plan_keypoint_budget(self.device)
@@ -121,21 +189,7 @@ class SuperGlueMatcher:
         if self._model is not None:
             return self._model
 
-        import sys
-
-        if self.weights_dir:
-            sys.path.insert(0, str(self.weights_dir))
-        try:
-            from models.matching import Matching  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise ImportError(
-                "Could not import SuperGlue. This project does not vendor it -- its "
-                "licence forbids redistribution. Clone "
-                "magicleap/SuperGluePretrainedNetwork yourself and pass its path as "
-                "weights_dir=..., having satisfied yourself that your use falls inside "
-                "the academic/non-profit noncommercial grant. "
-                "For a distributable pipeline use LightGlueMatcher instead."
-            ) from exc
+        Matching = _load_matching_class(self.weights_dir)  # noqa: N806 - a class
 
         import torch
 
@@ -176,20 +230,19 @@ class SuperGlueMatcher:
         if self.device == "cuda":
             torch.cuda.empty_cache()
 
+        meta = {"detector": "superglue", "device": self.device, "licence": LICENCE_TAG}
         valid = matches > -1
         if not valid.any():
-            return MatchResult.empty(self.name)
+            empty = MatchResult.empty(self.name)
+            empty.meta.update(meta)  # the licence travels with empty results too
+            return empty
 
         return MatchResult(
             src_pts=keypoints0[valid],
             dst_pts=keypoints1[matches[valid]],
             scores=confidence[valid],
             matcher=self.name,
-            meta={
-                "detector": "superglue",
-                "device": self.device,
-                "licence": "NONCOMMERCIAL RESEARCH ONLY -- do not distribute",
-            },
+            meta=meta,
         )
 
 

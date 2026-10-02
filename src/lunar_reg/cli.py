@@ -65,7 +65,7 @@ def cmd_register(args) -> int:
     from lunar_reg.eval.metrics import compute_metrics
     from lunar_reg.eval.uniformity import compute_uniformity
     from lunar_reg.ingest.pds4 import open_product
-    from lunar_reg.match.learned import build_matcher
+    from lunar_reg.match import build_matcher
     from lunar_reg.match.tiled import TiledMatcher
     from lunar_reg.preprocess.radiometric import standard_chain
 
