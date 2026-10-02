@@ -149,7 +149,7 @@ def test_register_pair_superglue_without_licence_is_matcher_error(monkeypatch):
 
     monkeypatch.delenv("SUPERGLUE_ACCEPT_NONCOMMERCIAL", raising=False)
     img = np.zeros((64, 64), np.uint8)
-    out = register_pair(img, img, "sg", PipelineConfig(matcher="superglue"))
+    out = register_pair(img, img, "sg", PipelineConfig(matcher="superglue", preprocess="none"))
     assert out.status is RunStatus.MATCHER_ERROR
     assert "licence" in out.detail.lower()
 
@@ -170,7 +170,7 @@ def test_register_pair_copies_licence_into_extra(monkeypatch):
 
     monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name: _Stub())
     img = np.zeros((64, 64), np.uint8)
-    out = register_pair(img, img, "sg", PipelineConfig(matcher="superglue"))
+    out = register_pair(img, img, "sg", PipelineConfig(matcher="superglue", preprocess="none"))
     assert out.status is RunStatus.TOO_FEW_MATCHES
     assert out.extra["licence"] == LICENCE_TAG
 

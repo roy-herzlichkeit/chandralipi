@@ -171,7 +171,8 @@ def test_unknown_preset_raises():
 
 
 def test_pipeline_config_default_is_none():
-    assert PipelineConfig().preprocess == "none"
+    # P1.19 sets the default from data/processed/ablation/ablation.json (G09).
+    assert PipelineConfig().preprocess == "ohrc_nac"
 
 
 def test_register_pair_preprocess_failure_is_classified(monkeypatch):

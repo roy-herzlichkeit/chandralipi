@@ -149,7 +149,7 @@ def test_eval_raising_is_eval_failed(monkeypatch, images):
 
 def test_empty_reason_reaches_the_detail():
     blank = np.zeros((128, 128), np.uint8)
-    out = register_pair(blank, blank, "blank", PipelineConfig(matcher="sift"))
+    out = register_pair(blank, blank, "blank", PipelineConfig(matcher="sift", preprocess="none"))
     assert out.status is RunStatus.TOO_FEW_MATCHES
     assert "reason: too_few_keypoints" in out.detail
     assert out.extra["n_raw_matches"] == 0 and out.extra["stage"] == "match"

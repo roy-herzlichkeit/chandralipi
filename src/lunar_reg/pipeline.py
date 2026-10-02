@@ -104,7 +104,11 @@ class PipelineConfig:
     #: Preprocessing preset run before matching, one of
     #: :data:`lunar_reg.preprocess.presets.PRESET_NAMES` (CONTRACTS C12). The
     #: default changes only from the P1.18 ablation (P1.19, DECISIONS G09).
-    preprocess: str = "none"
+    # Default from data/processed/ablation/ablation.json via choose_default_preset (P1.19):
+    # "anchor passes none=2 ohrc_nac=4 clahe_shadow=4; anchor tie between ohrc_nac,
+    # clahe_shadow; median synthetic truth_rms_px ohrc_nac=0.137 clahe_shadow=0.1373;
+    # ohrc_nac wins on synthetic"
+    preprocess: str = "ohrc_nac"
 
     def __post_init__(self) -> None:
         from lunar_reg.preprocess.presets import PRESET_NAMES

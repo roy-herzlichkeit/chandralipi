@@ -44,7 +44,12 @@ def _pair(**overrides) -> PairResult:
 
 def _blank_failure(pair_id: str = "blank"):
     blank = np.zeros((96, 96), np.uint8)
-    return register_pair(blank, blank, pair_id, PipelineConfig(matcher="sift", extra={"site": "t"}))
+    return register_pair(
+        blank,
+        blank,
+        pair_id,
+        PipelineConfig(matcher="sift", preprocess="none", extra={"site": "t"}),
+    )
 
 
 @pytest.mark.parametrize("bad", ["../x", ".x", "a/b", "", "a b"])
@@ -150,7 +155,7 @@ def test_run_batch_writes_failures_parquet(tmp_path):
     blank = np.zeros((96, 96), np.uint8)
     report = run_batch(
         [dict(source=blank, reference=blank, pair_id="blank")],
-        PipelineConfig(matcher="sift"),
+        PipelineConfig(matcher="sift", preprocess="none"),
         root=tmp_path,
     )
     assert len(report.failures) == 1
