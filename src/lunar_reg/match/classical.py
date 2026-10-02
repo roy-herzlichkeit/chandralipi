@@ -56,6 +56,15 @@ BF_TRAIN_LIMIT_SOURCE = ValueSource.MEASURED
 ASIFT_MAX_TOTAL_KEYPOINTS = 50_000
 ASIFT_MAX_TOTAL_KEYPOINTS_SOURCE = ValueSource.INFERRED
 
+#: OpenCV threads during ASIFT detection. ``cv2.AffineFeature`` runs SIFT over its
+#: affine views in parallel and its peak RAM grows with the thread count: on a
+#: 1834x1857 crop 1167 MB at 1 thread, 3670 MB at 4, 5595 MB at 8 (opencv 4.14.0,
+#: data/processed/probes/asift_memory_20261002.txt); the default 24 threads froze the
+#: 15 GiB host (Phase_1/QUESTIONS.md Q-P1.20-0, G18: host RAM <= 12 GB). Output is
+#: identical at any thread count, so the cap changes only memory and time.
+ASIFT_DETECT_THREADS = 4
+ASIFT_DETECT_THREADS_SOURCE = ValueSource.MEASURED
+
 
 @dataclass(frozen=True)
 class DetectorInfo:
@@ -190,7 +199,17 @@ class ClassicalMatcher:
         from lunar_reg.preprocess.radiometric import to_uint8
 
         arr = image if image.dtype == np.uint8 else to_uint8(image)
-        return self._get_detector().detectAndCompute(arr, None)
+        detector = self._get_detector()
+        if self.detector_name != "asift":
+            return detector.detectAndCompute(arr, None)
+        import cv2
+
+        previous = cv2.getNumThreads()
+        cv2.setNumThreads(max(1, min(previous, ASIFT_DETECT_THREADS)))
+        try:
+            return detector.detectAndCompute(arr, None)
+        finally:
+            cv2.setNumThreads(previous)
 
     def _cap(self, keypoints, descriptors) -> tuple[list, np.ndarray | None, int, bool]:
         """Keep at most ``max_total_keypoints``, the strongest by response (G42).
