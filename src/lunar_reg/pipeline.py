@@ -132,6 +132,25 @@ def _build_matcher(name: str):
     return build_matcher(name)
 
 
+def _degenerate_input(sides, nodata) -> str | None:
+    """``"<side>: <why>"`` for the first side whose valid pixels carry no information.
+
+    ``sides`` is ``((name, image, valid_mask_or_None), ...)``. Validity follows the
+    presets (given mask, else ``image != nodata``, finite pixels only). Raises
+    ``ValueError`` for a mask whose shape differs from its image.
+    """
+    from lunar_reg.preprocess.presets import _valid_mask
+
+    for name, image, valid in sides:
+        arr = np.asarray(image)
+        values = arr[_valid_mask(arr, valid, nodata)]
+        if values.size == 0:
+            return f"{name}: no valid pixel"
+        if values.min() == values.max():
+            return f"{name}: all valid pixels equal ({values.flat[0]!r})"
+    return None
+
+
 def _describe(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"
 
@@ -184,6 +203,11 @@ def register_pair(
     or a float input has non-finite pixels.
     A preset that fails is ``RunStatus.PREPROCESS_FAILED`` at stage
     ``"preprocess"`` (Phase_1/LLD/preprocess_presets.md §2).
+    An input that itself carries no information (no valid pixel, or all valid
+    pixels equal) is not a preset failure: the preset is skipped for both images,
+    the inputs go to matching unchanged, and ``extra["preprocess_skipped"]``
+    records why (human decision on Q-P1.19-3, option b). A preset that turns an
+    informative input into a degenerate output is still PREPROCESS_FAILED.
     """
     # Imported here, not at module level, so tests can monkeypatch the stages.
     from lunar_reg.align.estimate import estimate_transform
@@ -218,6 +242,19 @@ def register_pair(
         # Module attribute, not a name import, so tests can monkeypatch it.
         from lunar_reg.preprocess import presets
 
+        try:
+            why = _degenerate_input(
+                (("source", source, source_valid), ("reference", reference, reference_valid)),
+                config.nodata,
+            )
+        except Exception as exc:  # noqa: BLE001 - a bad mask/input is a preprocess outcome
+            return fail(RunStatus.PREPROCESS_FAILED, "preprocess", _describe(exc))
+        if why is not None:
+            # Q-P1.19-3 (b): nothing for a preset to work on; let matching
+            # classify the pair instead of reporting a preset failure.
+            base["preprocess_skipped"] = f"degenerate_input: {why}"
+            logger.info("%s: preset %r skipped (%s)", pair_id, config.preprocess, why)
+    if config.preprocess != "none" and "preprocess_skipped" not in base:
         try:
             pre = presets.apply_preset(
                 config.preprocess,
@@ -366,6 +403,11 @@ def register_pair(
                 **config.extra,
                 "preprocess": config.preprocess,
                 "preprocess_placeholders": placeholders,
+                **(
+                    {"preprocess_skipped": base["preprocess_skipped"]}
+                    if "preprocess_skipped" in base
+                    else {}
+                ),
                 "ecc_prefilter": prefilter,
                 "refine_stages": "+".join(detail.get("stages", [])),
                 "ecc_status": detail.get("ecc_status"),

@@ -118,15 +118,17 @@ def test_flat_image_without_nodata_is_degenerate(name, value):
     )
 
 
-def test_register_pair_all_zero_source_default_nodata_is_preprocess_failed():
+def test_register_pair_all_zero_source_default_nodata_skips_the_preset():
+    """Q-P1.19-3 (b): an all-zero source has no information, so the preset is
+    skipped and matching classifies the pair (no longer PREPROCESS_FAILED)."""
     src = np.zeros((128, 128), np.uint8)
     for name in ("ohrc_nac", "clahe_shadow"):
         cfg = PipelineConfig(matcher="sift", preprocess=name, n_bootstrap=0)
         assert cfg.nodata is None
         out = register_pair(src, _image(15, (128, 128)), "zz", cfg)
-        assert out.status is RunStatus.PREPROCESS_FAILED, (name, out.status, out.detail)
-        assert out.extra["stage"] == "preprocess"
-        assert "degenerate_output" in out.detail
+        assert out.status is RunStatus.TOO_FEW_MATCHES, (name, out.status, out.detail)
+        assert out.extra["stage"] == "match"
+        assert out.extra["preprocess_skipped"].startswith("degenerate_input: source:")
 
 
 @pytest.mark.parametrize("nan", [True, False])
