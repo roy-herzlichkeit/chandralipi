@@ -25,7 +25,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 19 | P1.17 | run_jaxa, ablation driver, cli register/inspect | P1.10, P1.16 | harness/check_P1.17.sh | done |
 | 20 | P1.24 | cross-instrument pairs at any site | P1.17 | harness/check_P1.24.sh | done |
 | 21 | P1.25 | keypoint cap for brute-force matching (ASIFT) | P1.24 | harness/check_P1.25.sh | done |
-| 22 | P1.18 | RUN: archive v1, ablation, JAXA re-run | P1.17, P1.24, P1.25 | harness/check_P1.18.sh | todo |
+| 22 | P1.18 | RUN: archive v1, ablation, JAXA re-run | P1.17, P1.24, P1.25 | harness/check_P1.18.sh | done |
 | 23 | P1.19 | RUN: apply preset default + anchor into live store | P1.18 | harness/check_P1.19.sh | todo |
 | 24 | P1.20 | RUN: 2023 diagnosis + exp-1 gate | P1.19 | harness/check_P1.20.sh | todo |
 | 25 | P1.21 | viewers | P1.20 | harness/check_P1.21.sh | todo |
