@@ -34,6 +34,9 @@ def test_ablation():
     assert len(doc["synthetic"]) == 120
     for row in doc["anchor"]:
         assert {"preset", "matcher", "status", "n_inliers", "u_score"} <= set(row)
+        # G42 / Q-P1.18-3: ASIFT is capped and may fail to register, but must not crash
+        if row["matcher"] == "asift":
+            assert row["status"] != "matcher_error", row
     _rr_ok(REPO / "data/processed/ablation/run_record.json")
 
 

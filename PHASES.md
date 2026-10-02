@@ -7,13 +7,13 @@ Order (G01): **0 → 1 → 2 → 1B → 3 → 4**. Each phase ends at a human re
 | phase | goal | TBDs | components (HLD) | prompts | depends on | contracts produced | contracts consumed | benchmark focus |
 |---|---|---|---|---|---|---|---|---|
 | 0 | Green reproducible baseline; fix every defect that changes stored numbers; freeze results schema v2 | 1.7 (dead code), 4.4 (seed) | K1–K4 | 13 (P0.00–P0.12) | — | C01–C07, C15 | — | suite green; count and ratio semantics on synthetic pairs with injected outliers; ECC model fidelity; determinism |
-| 1 | Real Chandrayaan-2 pipeline: downloads, catalog, NAC georeference, geometry grid, datum, preprocessing presets, sun geometry, agreement, SuperGlue, TMC-2/IIRS skip-if-absent, v2 re-run, 2023 diagnosis | 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8 exp-1/exp-2 | K5–K13, K20 | 26 (P1.00–P1.24 + P1.DL) | 0 | C08–C14, C20, C28 | C01–C07, C15 | 2024 anchor registers (≥ 20 inliers, U ≥ 0.7, agreement < 1 px); every 2023 failure classified and diagnosed; SYNTHETIC axis separate |
+| 1 | Real Chandrayaan-2 pipeline: downloads, catalog, NAC georeference, geometry grid, datum, preprocessing presets, sun geometry, agreement, SuperGlue, TMC-2/IIRS skip-if-absent, v2 re-run, 2023 diagnosis | 1.1, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8 exp-1/exp-2 | K5–K13, K20 | 27 (P1.00–P1.25 + P1.DL) | 0 | C08–C14, C20, C28 | C01–C07, C15 | 2024 anchor registers (≥ 20 inliers, U ≥ 0.7, agreement < 1 px); every 2023 failure classified and diagnosed; SYNTHETIC axis separate |
 | 2 | GPU integration: CUDA env, measured device profile, benchmark CLI, device/timing/VRAM/OOM in results, prior-driven tiling, native-GSD refinement, georeferenced warp, GPU end-to-end run | 2.1, 2.2, 2.3, 1.8 step 6 | K14–K16 | 12 (P2.00–P2.11) | 1 | C16–C19 | C01–C15 | measured VRAM profile; zero unclassified tile failures; native refinement within 1 coarse px of the 4 m transform |
 | 1B | Illumination bridge (gated by C20): DTM shaded-relief reference, pooled multi-matcher consensus, RIFT2 fixes and baseline | 1.8 steps 2–5, exp-3/4 | K17 | 7 (P1B.00–P1B.06) | 1, 2 | C21 | C04, C10–C14, C18–C20 | 2023 strips against the TBD 1.8 targets |
 | 3 | Single-host distributed: job descriptor, outcomes, planner, local queue, workers, reducer, fault injection, determinism | 3.1–3.5, 4.4 | K18 | 10 (P3.00–P3.09) | 2, 1B (built or skipped) | C22–C26 | C01–C06, C11, C15–C19 | 100 % correct classification under injected faults; reducer ≡ single-process within tolerance; order-independent transform |
 | 4 | Two hosts: Redis Streams transport, node cache, capacity routing, host config + runbook, idempotence, two-host run | 4.1–4.5 | K19 | 7 (P4.00–P4.06) | 3 | C27 | C15, C16, C22–C26 | WORKER_LOST reclaimed and counted; duplicate job → one result; bytes read per strip reported; heterogeneous fleet without OOM |
 
-Total prompts: **75** (13 + 26 + 12 + 7 + 10 + 7). P1.DL is out of sequence and never "next" in STATUS.
+Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and never "next" in STATUS.
 
 ## 2. Phase gates and special prompts
 
@@ -70,6 +70,7 @@ Total prompts: **75** (13 + 26 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 | P1.16 | site runner | src/lunar_reg/sites/__init__.py +, src/lunar_reg/sites/runner.py +, scripts/run_vikram.py ~ |
 | P1.17 | run_jaxa, ablation driver, cli register/inspect | scripts/run_jaxa.py +, scripts/run_ablation.py +, src/lunar_reg/cli.py ~ |
 | P1.24 | cross-instrument pairs at any site (G41; runs before P1.18) | configs/references.json +, src/lunar_reg/cross.py +, src/lunar_reg/ingest/lro.py ~, src/lunar_reg/pairs.py ~, src/lunar_reg/sites/runner.py ~, scripts/run_cross.py +, tests/test_cross_pairs.py + |
+| P1.25 | keypoint cap for brute-force matching (G42; runs before P1.18) | src/lunar_reg/match/classical.py ~, tests/test_classical_cap.py + |
 | P1.18 | RUN: archive v1, re-run v2, preset ablation | data/processed/** (artefacts only) |
 | P1.19 | RUN: apply preset default + anchor into live store | src/lunar_reg/pipeline.py ~, docs/PREPROCESS_ABLATION.md +, data/processed/** (artefacts only) |
 | P1.20 | RUN: 2023 diagnosis + exp-1 gate | data/processed/vikram/** +, docs/VIKRAM_2023_DIAGNOSIS.md + |
