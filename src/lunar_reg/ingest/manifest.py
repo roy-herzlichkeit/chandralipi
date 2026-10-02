@@ -10,9 +10,20 @@ Two columns exist specifically so that unverified metadata cannot masquerade as
 fact:
 
 ``geometry_resolved``
-    ``True`` only if at least one illumination field actually matched a path in
-    that product's label. ``False`` is the expected value until the mapping in
-    :mod:`lunar_reg.ingest.fieldmap` is confirmed against a real product.
+    Chandrayaan-2 (PDS4) rows: ``True`` only if at least one of sun azimuth,
+    sun elevation or incidence actually matched a path in that product's label.
+    Those three are VERIFIED against a real Chandrayaan-2 OHRC label (see
+    :mod:`lunar_reg.ingest.fieldmap` and ``lunar-reg fields``), so ``False``
+    means this label carries none of them under any mapped path. Emission and
+    phase angle are still UNVERIFIED and do not count towards this column for
+    PDS4 rows.
+
+    LRO (PDS3) rows, which ``lunar-reg manifest`` concatenates into the same
+    table: ``True`` if any of the five candidate keywords in
+    :data:`lunar_reg.ingest.lro.PDS3_GEOMETRY_KEYS_UNVERIFIED` matched --
+    emission and phase angle included. All of those keywords are still
+    UNVERIFIED (no real LROC label has been inspected), so ``True`` on an LRO
+    row means a guessed keyword matched, not that the value is verified.
 ``unresolved_fields``
     Comma-joined names of every mapped field that matched nothing.
 

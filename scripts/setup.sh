@@ -117,7 +117,7 @@ PY
 else
   info "no --data given; skipping the data copy"
   [ -f data/processed/results/index.parquet ] \
-    || printf '\033[33mnote:\033[0m data/processed/results is empty. Copy a bundle with --data, or run:  .venv/bin/python scripts/build_demo_results.py\n'
+    || printf '\033[33mnote:\033[0m data/processed/results is empty. Copy a bundle with --data <bundle>, or run:  .venv/bin/python scripts/run_vikram.py\n'
 fi
 
 # --- 5. verify ----------------------------------------------------------------
@@ -141,7 +141,7 @@ $(printf '\033[32m✓ setup complete\033[0m')
 
   run the dashboard:   ./scripts/run_dashboard.sh
   activate the venv:   source .venv/bin/activate
-  re-run the pipeline: .venv/bin/python scripts/build_demo_results.py
+  re-run the pipeline: .venv/bin/python scripts/run_vikram.py
 
 EOF
 

@@ -19,7 +19,7 @@ if [ ! -f data/processed/results/index.parquet ]; then
   printf '\033[33mwarning:\033[0m data/processed/results/index.parquet is missing.\n'
   printf '          The dashboard will open but show no pairs. Populate it with:\n'
   printf '            ./scripts/setup.sh --data <bundle>        (copy from another machine)\n'
-  printf '            .venv/bin/python scripts/build_demo_results.py   (regenerate locally)\n\n'
+  printf '            .venv/bin/python scripts/run_vikram.py           (regenerate locally)\n\n'
 fi
 
 exec "$STREAMLIT" run dashboard/app.py "$@"

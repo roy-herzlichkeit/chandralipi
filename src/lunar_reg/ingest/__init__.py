@@ -2,17 +2,30 @@
 
 Metadata trust
 --------------
-Array structure is read against the documented PDS4/PDS3 schemas and was
-cross-checked against GDAL's own drivers. Illumination and footprint geometry
-are **unverified** -- no real Chandrayaan-2 or LRO product has been inspected
-by this project. See :mod:`lunar_reg.ingest.fieldmap` for the provenance of
-each field, and run ``lunar-reg probe-label`` on a real product to replace the
-guesses with fact.
+Every mapped label field carries a :class:`Provenance`; ``lunar-reg fields``
+prints the current breakdown (saved output: ``docs/results/fields_20261002.txt``,
+"27 mapped fields: 5 documented, 2 unverified, 20 verified"). Per field group,
+as recorded in :mod:`lunar_reg.ingest.fieldmap`:
 
-The one exception is :mod:`lunar_reg.ingest.geometry_grid`: every Chandrayaan-2
-product bundles a per-observation ground-coordinate grid whose own PDS4 label
-declares its columns, so that geometry is read rather than guessed. Prefer it
-over the four-corner footprint wherever it is available.
+* identification and array structure -- VERIFIED by a label written to the
+  documented PDS4 schema and read back by GDAL's PDS4 driver; ``instrument``,
+  ``target``, ``start_time``, ``stop_time`` and ``array_offset`` are
+  DOCUMENTED (standard PDS4 elements, not exercised here);
+* sun azimuth, sun elevation, incidence and the eight footprint corners --
+  VERIFIED 2026-09-05 against a real Chandrayaan-2 OHRC label with
+  ``lunar-reg probe-label``;
+* the IIRS first-band centre wavelength and width -- VERIFIED 2026-10-02 against
+  a real IIRS label (``docs/probes/ch2_iir_nci_20221226T0416479474_d_img_d32.txt``);
+* emission and phase angle -- UNVERIFIED: absent from the probed OHRC label, so
+  their candidate paths are still guesses.
+
+Geodesy on footprints uses the lunar sphere returned by
+:func:`lunar_reg.constants.moon_datum` (re-exported here as ``moon_datum``).
+
+:mod:`lunar_reg.ingest.geometry_grid` reads the per-observation ground-coordinate
+grid that every Chandrayaan-2 product bundles, whose own PDS4 label declares its
+columns, so that geometry is read rather than inferred from four corners. Prefer
+it over the four-corner footprint wherever it is available.
 """
 
 from lunar_reg.constants import moon_datum

@@ -4,10 +4,10 @@ current: P1.23
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.22
+last_done: P1.23
 notes:
-- P1.22: new docs/results/ holds saved sources: ci_20261002.txt (984 passed, 21 deselected, ruff clean), fields/params/catalog_20261002.txt, live_store_20261002.txt (16 index rows, 31 failures, all synthetic=False), live_store_pairs_20261002.txt (4 distinct image pairs), vikram_2024.md, jaxa_wac_2026-09-08.md.
-- README: provenance table = pasted `lunar-reg fields` block; known-gap 3 (polar) deleted; synthetic-flag explanation replaces "no CH-2 product"; OHRC/NAC row drops PCA; self_residual_subpixel wording; links point to docs/results/.
-- CONTEXT.md rewritten with cited sources (Size = [INSERT RESULT]); CONTEXT_HANDOFF.md has "Current status, 2026-10-02" table, sections 0-7 are history (Superseded on §0, §1.4, §3, §4).
-- web/public/data/results.json regenerated (16 pairs, 31 failures, 0 load errors).
-- For P1.23: src/lunar_reg/preprocess/config.py:11 docstring still says ohrc_nac_config includes PCA, but the code does not.
+- P1.23 was the last prompt of phase 1; §Phase end (verify.sh, benchmark/run.sh, REVIEW_PACK_1.md, tag phase-1-done) is pending.
+- P1.23: setup.sh/up.sh/run_dashboard.sh hints now say `setup.sh --data <bundle>` or `scripts/run_vikram.py` (no build_demo_results.py); .gitignore already had Phase_*/benchmark/out/ (unchanged).
+- ingest/__init__, fieldmap, manifest docstrings state per-field-group status citing `lunar-reg fields` (docs/results/fields_20261002.txt: 27 fields, 5 documented, 2 unverified, 20 verified) and moon_datum(); config.py no longer claims PCA for ohrc_nac_config. Review fixes: manifest.py geometry_resolved docstring splits PDS4 from LRO PDS3 rows; fieldmap.py marks incidence VERIFIED; new tests/test_ingest_status_text.py.
+- Docstring/comment/hint-string edits only (the harness AST check passes). config.py was not ruff-formatted because that would reflow existing code lines.
+- Q-P1.23-1 (non-blocking): the stale pds4.py docstrings (A116) are outside the P1.23 file fence and were left unchanged.

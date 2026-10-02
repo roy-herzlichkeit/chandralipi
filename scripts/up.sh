@@ -75,7 +75,7 @@ if [ -f data/processed/results/index.parquet ]; then
   "$VPY" scripts/export_web_data.py
 else
   warn "data/processed/results is empty — dashboards will start with no pairs."
-  warn "populate it with:  ./scripts/setup.sh --data <bundle>   or   $VPY scripts/build_demo_results.py"
+  warn "populate it with:  ./scripts/setup.sh --data <bundle>   or   $VPY scripts/run_vikram.py"
 fi
 
 # --- 3. launch both, tear both down together -------------------------------

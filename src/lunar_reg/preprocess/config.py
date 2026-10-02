@@ -8,7 +8,8 @@ Two presets mirror the paper's own structure. Makharia et al. do **not** apply
 one universal chain -- they apply a common core (4.1) to everything and then a
 *different* specialised set (4.2) per sensor pair:
 
-* :func:`ohrc_nac_config` -- core + CLAHE, inversion, dilation, PCA
+* :func:`ohrc_nac_config` -- core + CLAHE, inversion, dilation; no band
+  reduction (it sets ``band_reduction=False``)
 * :func:`iirs_wac_config` -- core + histogram matching, shadow normalisation,
   log transform
 
@@ -142,8 +143,9 @@ class PreprocessConfig:
 def ohrc_nac_config(**overrides) -> PreprocessConfig:
     """The paper's OHRC/LROC-NAC configuration (its section 4.2 A).
 
-    Core pipeline plus CLAHE, inversion, dilation. Shadow normalisation and log
-    transform belong to the other track and are off.
+    Core pipeline plus CLAHE, inversion, dilation. Band reduction is off
+    (``band_reduction=False``). Shadow normalisation and log transform belong to
+    the other track and are off.
     """
     base = PreprocessConfig(
         label="paper/ohrc_nac",

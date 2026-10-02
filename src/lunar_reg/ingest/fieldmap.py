@@ -13,17 +13,33 @@ which candidate path actually matched. Nothing here is trusted silently.
 
 What has actually been verified
 -------------------------------
-The fields marked :attr:`Provenance.VERIFIED` were confirmed in-session by
-hand-writing a PDS4 label to the documented schema and having GDAL's
-independent PDS4 driver read it back correctly (right shape, dtype, and pixel
-values). That is real cross-validation of the structural layer.
+``lunar-reg fields`` prints the current breakdown (saved output:
+``docs/results/fields_20261002.txt``, "27 mapped fields: 5 documented,
+2 unverified, 20 verified"). The fields marked :attr:`Provenance.VERIFIED` were
+confirmed in one of three ways, recorded beside each group below:
 
-The fields marked :attr:`Provenance.UNVERIFIED` are **placeholders**. No
-Chandrayaan-2 or LRO product has been inspected. Their candidate paths are
-starting guesses, not knowledge, and the manifest reports them as unresolved
-until a real label confirms or replaces them. Run ``lunar-reg probe-label`` on
-a real product to generate the correct mapping -- see
-:mod:`lunar_reg.ingest.probe`.
+* identification and array structure -- a PDS4 label hand-written to the
+  documented schema and read back correctly by GDAL's independent PDS4 driver
+  (right shape, dtype and pixel values);
+* sun azimuth, sun elevation, incidence and the eight footprint corners --
+  ``lunar-reg probe-label`` on a real Chandrayaan-2 OHRC label (2026-09-05);
+* the IIRS first-band centre wavelength and width -- ``lunar-reg probe-label
+  --all`` on a real IIRS label (2026-10-02,
+  ``docs/probes/ch2_iir_nci_20221226T0416479474_d_img_d32.txt``).
+
+The fields marked :attr:`Provenance.DOCUMENTED` (``instrument``, ``target``,
+``start_time``, ``stop_time``, ``array_offset``) are standard PDS4 elements that
+no check here has exercised.
+
+The fields marked :attr:`Provenance.UNVERIFIED` (``emission_angle_deg``,
+``phase_angle_deg``) are **placeholders**: neither element is present in the
+probed OHRC label, so their candidate paths are starting guesses, not
+knowledge, and the manifest reports them as unresolved until a real label
+confirms or replaces them. Run ``lunar-reg probe-label`` on a real product to
+generate the correct mapping -- see :mod:`lunar_reg.ingest.probe`.
+
+Footprint geodesy downstream of these fields uses the lunar sphere from
+:func:`lunar_reg.constants.moon_datum`.
 """
 
 from __future__ import annotations
@@ -184,9 +200,10 @@ ARRAY_FIELDS: tuple[Field, ...] = (
 #   Observation_Area/Mission_Area/Product_Parameters/sun_elevation
 #   Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/*
 #
-# Three fields did NOT resolve and remain UNVERIFIED below: incidence (present
-# under a different name, now added), emission and phase angle (absent from this
-# label entirely -- one label is not evidence of absence across the archive).
+# Incidence did not resolve under the original guess `incidence_angle`; ISRO
+# names it `solar_incidence`, which is now mapped and VERIFIED below. Two fields
+# remain UNVERIFIED: emission and phase angle (absent from this label entirely --
+# one label is not evidence of absence across the archive).
 #
 # The pipeline's illumination handling does not depend on these values -- CLAHE
 # and shadow suppression are unconditional -- so an unresolved geometry block
