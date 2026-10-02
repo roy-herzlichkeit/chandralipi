@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -470,6 +470,123 @@ def georeference_from_label(label_path: str | Path) -> GeoReference:
         note=note,
     )
     logger.info("%s: georeference %s (%s)", label_path.name, geo.source.value, note)
+    return geo
+
+
+#: Largest raster-vs-label bound disagreement, in pixels, still counted as agreement (LLD §2).
+RASTER_LABEL_TOLERANCE_PX = 1.5
+RASTER_LABEL_TOLERANCE_PX_SOURCE = ValueSource.INFERRED
+
+_PDS3_BOUND_KEYS = (
+    "MAXIMUM_LATITUDE",
+    "MINIMUM_LATITUDE",
+    "WESTERNMOST_LONGITUDE",
+    "EASTERNMOST_LONGITUDE",
+)
+
+
+def georeference_from_raster(path: str | Path) -> GeoReference:
+    """Georeference a map-projected raster from its GDAL tags (C10, P1.24).
+
+    Accepts a north-up sphere ``stere``/``eqc`` CRS only. ``source`` is
+    ``DOCUMENTED`` when a PDS3 label (``path`` itself when it is a ``.lbl``,
+    else ``<stem>.lbl``) carries all four bounding keywords and the raster's
+    outer corners agree with them within
+    :data:`RASTER_LABEL_TOLERANCE_PX` pixels; otherwise ``INFERRED`` with the
+    reason in ``note``. Never for the NAC PDS4 orthos, whose GDAL transform is
+    wrong (S12): those use :func:`georeference_from_label`.
+    """
+    import rasterio
+    from rasterio.errors import RasterioError
+
+    path = Path(path)
+    try:
+        with rasterio.open(path) as ds:
+            crs, transform, width, height = ds.crs, ds.transform, ds.width, ds.height
+    except (OSError, RasterioError) as exc:
+        raise LabelGeoreferenceError(f"{path.name}: cannot open raster: {exc}") from exc
+    if crs is None:
+        raise LabelGeoreferenceError(f"{path.name}: raster has no CRS")
+    proj4 = crs.to_proj4().replace("+no_defs=True", "+no_defs")
+    if not ("+proj=stere" in proj4 or "+proj=eqc" in proj4) or "+R=" not in proj4:
+        raise LabelGeoreferenceError(
+            f"{path.name}: unsupported CRS {proj4!r} (need +proj=stere or +proj=eqc on a +R sphere)"
+        )
+    t = transform
+    if not (t.b == 0 and t.d == 0 and t.a > 0 and t.e < 0):
+        raise LabelGeoreferenceError(
+            f"{path.name}: transform is not north-up (a={t.a}, b={t.b}, d={t.d}, e={t.e})"
+        )
+    psx, psy = float(t.a), float(-t.e)
+    geo = GeoReference(
+        crs_proj4=proj4,
+        x0_m=float(t.c),
+        y0_m=float(t.f),
+        pixel_size_x_m=psx,
+        pixel_size_y_m=psy,
+        width=int(width),
+        height=int(height),
+        source=ValueSource.INFERRED,
+        note="raster tags not cross-checked (no PDS3 bounding keywords)",
+    )
+
+    label = path if path.suffix.lower() == ".lbl" else path.with_suffix(".lbl")
+    keywords = parse_pds3_keywords(label) if label.exists() else {}
+    bounds = {k: _as_float(keywords.get(k)) for k in _PDS3_BOUND_KEYS}
+    if any(v is None for v in bounds.values()):
+        logger.info("%s: georeference %s (%s)", path.name, geo.source.value, geo.note)
+        return geo
+
+    radius_m = float(re.search(r"\+R=(\S+)", proj4).group(1))
+    lon, lat = geo.pixel_to_lonlat(
+        col=np.array([0.0, width, 0.0, width]), row=np.array([0.0, 0.0, height, height])
+    )
+    if not (np.all(np.isfinite(lon)) and np.all(np.isfinite(lat))):
+        return replace(geo, note="raster corners do not project to lon/lat; not cross-checked")
+    lon = np.mod(lon, 360.0)
+
+    def dlon(a: float, b: float) -> float:
+        return abs((np.mod(a, 360.0) - np.mod(b, 360.0) + 180.0) % 360.0 - 180.0)
+
+    deg = np.pi / 180.0
+    mean_lat = np.radians(0.5 * (bounds["MAXIMUM_LATITUDE"] + bounds["MINIMUM_LATITUDE"]))
+    d_lat_m = (
+        max(
+            abs(float(lat.max()) - bounds["MAXIMUM_LATITUDE"]),
+            abs(float(lat.min()) - bounds["MINIMUM_LATITUDE"]),
+        )
+        * radius_m
+        * deg
+    )
+    d_lon_m = (
+        max(
+            dlon(float(lon.min()), bounds["WESTERNMOST_LONGITUDE"]),
+            dlon(float(lon.max()), bounds["EASTERNMOST_LONGITUDE"]),
+        )
+        * radius_m
+        * np.cos(mean_lat)
+        * deg
+    )
+    residual_m = float(max(d_lat_m, d_lon_m))
+    residual_px = residual_m / min(psx, psy)
+    if residual_px <= RASTER_LABEL_TOLERANCE_PX:
+        geo = replace(
+            geo,
+            source=ValueSource.DOCUMENTED,
+            note=(
+                f"raster tags agree with PDS3 label bounds within {residual_m:.1f} m "
+                f"({residual_px:.2f} px)"
+            ),
+        )
+    else:
+        geo = replace(
+            geo,
+            note=(
+                f"raster tags disagree with PDS3 label bounds ({label.name}) by {residual_m:.1f} m "
+                f"({residual_px:.2f} px > {RASTER_LABEL_TOLERANCE_PX} px)"
+            ),
+        )
+    logger.info("%s: georeference %s (%s)", path.name, geo.source.value, geo.note)
     return geo
 
 

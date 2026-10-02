@@ -1,0 +1,7 @@
+{"schema": 1, "references": [
+ {"name": "lro_nac_m1442997156", "path": "data/raw/reference/lro_nac_vikram/NAC_DTM_VIKRAMSITE1_M1442997156_100CM.xml", "georef": "label", "sensor": "LRO_NAC_ORTHO", "independent": true},
+ {"name": "lro_nac_m1443025251", "path": "data/raw/reference/lro_nac_vikram/NAC_DTM_VIKRAMSITE1_M1443025251_100CM.xml", "georef": "label", "sensor": "LRO_NAC_ORTHO", "independent": true},
+ {"name": "selene_tc_ortho_s66e030", "path": "data/raw/reference/selene_tc_ortho/TCO_MAP_02_S66E030S69E033SC.lbl", "georef": "raster", "sensor": "SELENE_TC_ORTHO", "independent": true},
+ {"name": "selene_tc_ortho_s69e030", "path": "data/raw/reference/selene_tc_ortho/TCO_MAP_02_S69E030S72E033SC.lbl", "georef": "raster", "sensor": "SELENE_TC_ORTHO", "independent": true},
+ {"name": "tmc2_ortho_20231027", "path": "data/raw/ch2/tmc2/ch2_tmc_ndn_20231027T1315134884_d_oth_d18/data/derived/20231027/ch2_tmc_ndn_20231027T1315134884_d_oth_d18.tif", "georef": "raster", "sensor": "TMC2_ORTHO", "independent": false}
+]}

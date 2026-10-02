@@ -364,6 +364,7 @@ def prepare_window_pair(
     margin_m: float,
     shift_m: tuple[float, float] = (0.0, 0.0),
     centre_line: int | None = None,
+    centre_sample: int | None = None,
     geometry_grid_path=None,
     band_reduction: str = "first",
 ) -> PrepOutcome:
@@ -373,6 +374,8 @@ def prepare_window_pair(
     raster (NAC label or GeoTIFF; only its pixels are read, the georeference is
     ``reference_geo``). ``shift_m = (east, south)`` moves the reference crop;
     the returned ``prior`` is always the unshifted label/grid prior.
+    ``centre_line`` / ``centre_sample`` centre the source window (default: the
+    product's middle line / sample); the window is clamped inside the product.
     """
     import rasterio
     from rasterio.errors import RasterioError
@@ -423,10 +426,14 @@ def prepare_window_pair(
         centre_line = lines // 2
     if not 0 <= centre_line < lines:
         raise ValueError(f"centre_line {centre_line} outside the product's 0..{lines - 1}")
+    if centre_sample is None:
+        centre_sample = samples // 2
+    if not 0 <= centre_sample < samples:
+        raise ValueError(f"centre_sample {centre_sample} outside the product's 0..{samples - 1}")
     win = min(max(1, round(window_m / src_gsd)), lines)
     win_s = min(win, samples)
     l0 = min(max(int(centre_line) - win // 2, 0), lines - win)
-    s0 = samples // 2 - win_s // 2
+    s0 = min(max(int(centre_sample) - win_s // 2, 0), samples - win_s)
 
     # 3. ground position of the window corners (corner convention, run_vikram order)
     cs = np.array([s0, s0 + win_s, s0, s0 + win_s], dtype=np.float64)

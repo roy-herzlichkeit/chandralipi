@@ -23,7 +23,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 17 | P1.15 | TMC-2 + IIRS skip-if-absent | P1.03, P1.09 | harness/check_P1.15.sh | done |
 | 18 | P1.16 | site runner | P1.10, P1.11, P1.12, P1.13, P1.14 | harness/check_P1.16.sh | done |
 | 19 | P1.17 | run_jaxa, ablation driver, cli register/inspect | P1.10, P1.16 | harness/check_P1.17.sh | done |
-| 20 | P1.24 | cross-instrument pairs at any site | P1.17 | harness/check_P1.24.sh | todo |
+| 20 | P1.24 | cross-instrument pairs at any site | P1.17 | harness/check_P1.24.sh | done |
 | 21 | P1.25 | keypoint cap for brute-force matching (ASIFT) | P1.24 | harness/check_P1.25.sh | todo |
 | 22 | P1.18 | RUN: archive v1, ablation, JAXA re-run | P1.17, P1.24, P1.25 | harness/check_P1.18.sh | todo |
 | 23 | P1.19 | RUN: apply preset default + anchor into live store | P1.18 | harness/check_P1.19.sh | todo |

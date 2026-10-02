@@ -30,7 +30,8 @@ prints :meth:`SiteReport.report` on every run.
 the C20 exp-1 gate document.
 
 Test seam (LLD §1): ``build_catalog``, ``georeference_from_label``,
-``prepare_window_pair``, ``register_pair`` and ``sun_from_label`` are imported by
+``georeference_from_raster``, ``prepare_window_pair``, ``register_pair`` and
+``sun_from_label`` are imported by
 name at module level and called through this module's attributes, so tests can
 monkeypatch them here.
 """
@@ -51,7 +52,7 @@ import cv2
 import numpy as np
 
 from lunar_reg.ingest.catalog import InstrumentStatus, ProductCatalog, build_catalog
-from lunar_reg.ingest.lro import GeoReference, georeference_from_label
+from lunar_reg.ingest.lro import GeoReference, georeference_from_label, georeference_from_raster
 from lunar_reg.ingest.pds4 import read_label
 from lunar_reg.ingest.sun import FRAME_NORTH, SunGeometry, sun_from_label
 from lunar_reg.pairs import (
@@ -168,6 +169,12 @@ class SiteConfig:
     label_convention_json: Path | None = Path(
         "data/processed/vikram/reference_sun/label_convention.json"
     )
+    # P1.24 (cross-instrument pairs, G41)
+    reference_georef: str = "label"  # "label" (PDS4 cartography) | "raster" (GDAL tags)
+    reference_name: str = ""
+    reference_independent: bool = True
+    # product_id -> (centre_line, centre_sample); None = every product, centred as before
+    centres: dict[str, tuple[int, int]] | None = None
 
 
 @dataclass
@@ -445,12 +452,21 @@ class _Tally:
         self.counts[key] = self.counts.get(key, 0) + 1
 
 
+def _centre_kwargs(entry, cfg: SiteConfig) -> dict:
+    """``centre_line``/``centre_sample`` for ``entry`` when ``cfg.centres`` names it (P1.24)."""
+    if cfg.centres is None:
+        return {}
+    line, sample = cfg.centres[entry.product_id]
+    return {"centre_line": int(line), "centre_sample": int(sample)}
+
+
 def _coarse(entry, cfg: SiteConfig, geo: GeoReference, tag: str):
     """Coarse pass (LLD §2 step 4a): ``(shift or None, note)``."""
     prep = prepare_window_pair(
         entry.label_path, cfg.reference_label, geo,
         gsd_m=cfg.coarse_gsd_m, window_m=cfg.window_m, margin_m=cfg.coarse_margin_m,
         geometry_grid_path=entry.geometry_grid_path, band_reduction=cfg.band_reduction,
+        **_centre_kwargs(entry, cfg),
     )  # fmt: skip
     if prep.status is not PrepStatus.OK:
         return None, f"coarse pass failed (prep {prep.status.value})"
@@ -505,6 +521,7 @@ def _run_product(entry, cfg: SiteConfig, geo: GeoReference, ref_sun: dict | None
         entry.label_path, cfg.reference_label, geo,
         gsd_m=cfg.gsd_m, window_m=cfg.window_m, margin_m=cfg.margin_m, shift_m=shift,
         geometry_grid_path=entry.geometry_grid_path, band_reduction=cfg.band_reduction,
+        **_centre_kwargs(entry, cfg),
     )  # fmt: skip
     tally.prep.record(prep, entry.product_id)
     if search_prior is None:
@@ -550,6 +567,10 @@ def _run_product(entry, cfg: SiteConfig, geo: GeoReference, ref_sun: dict | None
         "margin_m": float(cfg.margin_m),
         "coarse_pass": coarse_note,
         "search_prior": search_prior,
+        "reference_name": cfg.reference_name,
+        "reference_independent": bool(cfg.reference_independent),
+        "reference_georef_source": geo.source.value,
+        "reference_georef_note": geo.note,
         **sun_extra,
     }
     variant = _variant(cfg.model, cfg.preprocess)
@@ -642,7 +663,14 @@ def run_site(cfg: SiteConfig) -> SiteReport:
     # 1. catalog
     catalog = build_catalog(cfg.raw_root)
     # 2. reference georeference: LabelGeoreferenceError propagates (setup error)
-    geo = georeference_from_label(cfg.reference_label)
+    if cfg.reference_georef == "raster":
+        geo = georeference_from_raster(cfg.reference_label)
+    elif cfg.reference_georef == "label":
+        geo = georeference_from_label(cfg.reference_label)
+    else:
+        raise ValueError(
+            f"reference_georef must be 'label' or 'raster', got {cfg.reference_georef!r}"
+        )
     # 3. reference sun and label convention
     ref_sun = _load_json_key(cfg.reference_sun_json, "sun", "reference sun JSON")
     convention = _load_json_key(cfg.label_convention_json, "convention", "label convention JSON")
@@ -658,6 +686,9 @@ def run_site(cfg: SiteConfig) -> SiteReport:
             continue
         for entry in catalog.products(inst):
             if entry.level not in cfg.levels or cfg.only not in entry.product_id:
+                continue
+            if cfg.centres is not None and entry.product_id not in cfg.centres:
+                tally.bump("not_in_centres")
                 continue
             runs.append(_run_product(entry, cfg, geo, ref_sun, convention, tally))
 
