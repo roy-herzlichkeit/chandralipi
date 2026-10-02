@@ -1,10 +1,238 @@
 {
- "generatedUtc": "2026-09-09T09:21:46+00:00",
- "sourceDirectory": "/home/herzlichkeit/Desktop/Projects/sih/data/processed/results",
+ "generatedUtc": "2026-10-02T17:36:09+00:00",
+ "sourceDirectory": "data/processed/results",
  "extrapolationGatePx": 1.0,
- "nPairs": 9,
+ "nPairs": 16,
  "allSynthetic": false,
  "pairs": [
+  {
+   "id": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac",
+   "sourceId": "ch2_ohr_nrp_20240425t1406019344_d_img_d18",
+   "referenceId": "NAC_DTM_VIKRAMSITE1_M1442997156_100CM",
+   "sourceSensor": "CH2_OHRC_RAW",
+   "referenceSensor": "LRO_NAC_ORTHO",
+   "matcher": "akaze",
+   "licence": null,
+   "synthetic": false,
+   "notes": "Real data. No ground truth: RMSE is the fit's self-residual. label_offset_m compares the matched transform with the label-corner + corrected-NAC-georeference prior.",
+   "case": "",
+   "nMatches": 260,
+   "nInliers": 178,
+   "inlierRatio": 0.6846153846153846,
+   "rmseSelf": 0.6276069436214102,
+   "rmseTruth": null,
+   "uniformity": 0.8697483655586097,
+   "extrapolationP95": 0.6021485255427017,
+   "eccPrefilter": "none",
+   "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
+   "images": {
+    "matches": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_matches.jpg",
+    "checkerboard": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_checker.jpg",
+    "source": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_src.jpg",
+    "reference": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_ref.jpg",
+    "conditioning": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_cond.jpg"
+   }
+  },
+  {
+   "id": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac",
+   "sourceId": "ch2_ohr_nrp_20240425t1406019344_d_img_d18",
+   "referenceId": "NAC_DTM_VIKRAMSITE1_M1442997156_100CM",
+   "sourceSensor": "CH2_OHRC_RAW",
+   "referenceSensor": "LRO_NAC_ORTHO",
+   "matcher": "asift",
+   "licence": null,
+   "synthetic": false,
+   "notes": "Real data. No ground truth: RMSE is the fit's self-residual. label_offset_m compares the matched transform with the label-corner + corrected-NAC-georeference prior.",
+   "case": "",
+   "nMatches": 281,
+   "nInliers": 225,
+   "inlierRatio": 0.800711743772242,
+   "rmseSelf": 0.6139986208262699,
+   "rmseTruth": null,
+   "uniformity": 0.8269117861159914,
+   "extrapolationP95": 0.29612165228544435,
+   "eccPrefilter": "none",
+   "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
+   "images": {
+    "matches": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_matches.jpg",
+    "checkerboard": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_checker.jpg",
+    "source": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_src.jpg",
+    "reference": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_ref.jpg",
+    "conditioning": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_cond.jpg"
+   }
+  },
+  {
+   "id": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac",
+   "sourceId": "ch2_ohr_nrp_20240425t1406019344_d_img_d18",
+   "referenceId": "NAC_DTM_VIKRAMSITE1_M1442997156_100CM",
+   "sourceSensor": "CH2_OHRC_RAW",
+   "referenceSensor": "LRO_NAC_ORTHO",
+   "matcher": "lightglue",
+   "licence": null,
+   "synthetic": false,
+   "notes": "Real data. No ground truth: RMSE is the fit's self-residual. label_offset_m compares the matched transform with the label-corner + corrected-NAC-georeference prior.",
+   "case": "",
+   "nMatches": 620,
+   "nInliers": 403,
+   "inlierRatio": 0.65,
+   "rmseSelf": 0.706930331806504,
+   "rmseTruth": null,
+   "uniformity": 0.8576430443970531,
+   "extrapolationP95": 0.32845566544637456,
+   "eccPrefilter": "none",
+   "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
+   "images": {
+    "matches": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_matches.jpg",
+    "checkerboard": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_checker.jpg",
+    "source": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_src.jpg",
+    "reference": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_ref.jpg",
+    "conditioning": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_cond.jpg"
+   }
+  },
+  {
+   "id": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac",
+   "sourceId": "ch2_ohr_nrp_20240425t1406019344_d_img_d18",
+   "referenceId": "NAC_DTM_VIKRAMSITE1_M1442997156_100CM",
+   "sourceSensor": "CH2_OHRC_RAW",
+   "referenceSensor": "LRO_NAC_ORTHO",
+   "matcher": "sift",
+   "licence": null,
+   "synthetic": false,
+   "notes": "Real data. No ground truth: RMSE is the fit's self-residual. label_offset_m compares the matched transform with the label-corner + corrected-NAC-georeference prior.",
+   "case": "",
+   "nMatches": 196,
+   "nInliers": 167,
+   "inlierRatio": 0.8520408163265306,
+   "rmseSelf": 0.6105255909794854,
+   "rmseTruth": null,
+   "uniformity": 0.8542415180548597,
+   "extrapolationP95": 0.4379342971498057,
+   "eccPrefilter": "none",
+   "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
+   "images": {
+    "matches": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_matches.jpg",
+    "checkerboard": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_checker.jpg",
+    "source": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_src.jpg",
+    "reference": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_ref.jpg",
+    "conditioning": "CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_cond.jpg"
+   }
+  },
+  {
+   "id": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_akaze",
+   "sourceId": "ch2_tmc_ncf_20231026t0943001971_d_img_d18",
+   "referenceId": "ch2_tmc_ndn_20231027T1315134884_d_oth_d18",
+   "sourceSensor": "CH2_TMC2_CALIBRATED",
+   "referenceSensor": "TMC2_ORTHO",
+   "matcher": "akaze",
+   "licence": null,
+   "synthetic": false,
+   "notes": "Real data. No ground truth: RMSE is the fit's self-residual. label_offset_m compares the matched transform with the label-corner + corrected-NAC-georeference prior.",
+   "case": "",
+   "nMatches": 207,
+   "nInliers": 105,
+   "inlierRatio": 0.5072463768115942,
+   "rmseSelf": 0.8156150995305893,
+   "rmseTruth": null,
+   "uniformity": 0.651293627119193,
+   "extrapolationP95": 1.1509170571365563,
+   "eccPrefilter": "none",
+   "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
+   "images": {
+    "matches": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_akaze_matches.jpg",
+    "checkerboard": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_akaze_checker.jpg",
+    "source": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_akaze_src.jpg",
+    "reference": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_akaze_ref.jpg",
+    "conditioning": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_akaze_cond.jpg"
+   }
+  },
+  {
+   "id": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_sift",
+   "sourceId": "ch2_tmc_ncf_20231026t0943001971_d_img_d18",
+   "referenceId": "ch2_tmc_ndn_20231027T1315134884_d_oth_d18",
+   "sourceSensor": "CH2_TMC2_CALIBRATED",
+   "referenceSensor": "TMC2_ORTHO",
+   "matcher": "sift",
+   "licence": null,
+   "synthetic": false,
+   "notes": "Real data. No ground truth: RMSE is the fit's self-residual. label_offset_m compares the matched transform with the label-corner + corrected-NAC-georeference prior.",
+   "case": "",
+   "nMatches": 520,
+   "nInliers": 313,
+   "inlierRatio": 0.6019230769230769,
+   "rmseSelf": 0.8629774846736636,
+   "rmseTruth": null,
+   "uniformity": 0.7808066584984318,
+   "extrapolationP95": 0.682008738599625,
+   "eccPrefilter": "none",
+   "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
+   "images": {
+    "matches": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_sift_matches.jpg",
+    "checkerboard": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_sift_checker.jpg",
+    "source": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_sift_src.jpg",
+    "reference": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_sift_ref.jpg",
+    "conditioning": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_sift_cond.jpg"
+   }
+  },
   {
    "id": "JAXA_SELENE_TC-JAXA_SELENE_TC_akaze",
    "sourceId": "TC1S2B0_01_05504N194E0230",
@@ -12,18 +240,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "JAXA_SELENE_TC",
    "matcher": "akaze",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real same-sensor registration: two independent JAXA/Kaguya Terrain Camera passes (~2 hours apart) over the same real lunar ground, genuine geometric overlap confirmed from their PDS footprints, not synthetic.",
+   "notes": "",
    "case": "",
-   "nMatches": 279,
-   "nInliers": 279,
-   "inlierRatio": 1.0,
-   "rmseSelf": 0.7056632641064373,
+   "nMatches": 735,
+   "nInliers": 619,
+   "inlierRatio": 0.8421768707482993,
+   "rmseSelf": 0.5723866255367467,
    "rmseTruth": null,
-   "uniformity": 0.46269682724590727,
-   "extrapolationP95": 0.7822029660871296,
-   "eccPrefilter": "",
+   "uniformity": 0.8473919646876326,
+   "extrapolationP95": 0.20450633143169358,
+   "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_checker.jpg",
@@ -39,18 +278,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "JAXA_SELENE_TC",
    "matcher": "asift",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real same-sensor registration: two independent JAXA/Kaguya Terrain Camera passes (~2 hours apart) over the same real lunar ground, genuine geometric overlap confirmed from their PDS footprints, not synthetic.",
+   "notes": "",
    "case": "",
-   "nMatches": 3660,
-   "nInliers": 3659,
-   "inlierRatio": 0.9997267759562841,
-   "rmseSelf": 0.7013611969508339,
+   "nMatches": 4883,
+   "nInliers": 3859,
+   "inlierRatio": 0.7902928527544543,
+   "rmseSelf": 0.6070697510554618,
    "rmseTruth": null,
-   "uniformity": 0.5039515459689785,
-   "extrapolationP95": 0.233070547843357,
-   "eccPrefilter": "",
+   "uniformity": 0.870910063113627,
+   "extrapolationP95": 0.07757984811530762,
+   "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-JAXA_SELENE_TC_asift_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-JAXA_SELENE_TC_asift_checker.jpg",
@@ -66,18 +316,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "JAXA_SELENE_TC",
    "matcher": "lightglue",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real same-sensor registration: two independent JAXA/Kaguya Terrain Camera passes (~2 hours apart) over the same real lunar ground, genuine geometric overlap confirmed from their PDS footprints, not synthetic.",
+   "notes": "",
    "case": "",
-   "nMatches": 275,
-   "nInliers": 274,
-   "inlierRatio": 0.9963636363636363,
-   "rmseSelf": 0.8045238336173205,
+   "nMatches": 1264,
+   "nInliers": 874,
+   "inlierRatio": 0.6914556962025317,
+   "rmseSelf": 0.714878020071898,
    "rmseTruth": null,
-   "uniformity": 0.4897591841054022,
-   "extrapolationP95": 0.9771494325760418,
-   "eccPrefilter": "",
+   "uniformity": 0.8583525972237362,
+   "extrapolationP95": 0.24913774319529547,
+   "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-JAXA_SELENE_TC_lightglue_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-JAXA_SELENE_TC_lightglue_checker.jpg",
@@ -93,18 +354,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "JAXA_SELENE_TC",
    "matcher": "loftr",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real same-sensor registration: two independent JAXA/Kaguya Terrain Camera passes (~2 hours apart) over the same real lunar ground, genuine geometric overlap confirmed from their PDS footprints, not synthetic.",
+   "notes": "",
    "case": "",
-   "nMatches": 1783,
-   "nInliers": 1762,
-   "inlierRatio": 0.9882220975883342,
-   "rmseSelf": 6.054462068429495,
+   "nMatches": 5144,
+   "nInliers": 4636,
+   "inlierRatio": 0.9012441679626749,
+   "rmseSelf": 0.6088321305244473,
    "rmseTruth": null,
-   "uniformity": 0.4921420889211974,
-   "extrapolationP95": 0.8821541939247433,
-   "eccPrefilter": "",
+   "uniformity": 0.9894687098399939,
+   "extrapolationP95": 0.0670624539915589,
+   "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-JAXA_SELENE_TC_loftr_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-JAXA_SELENE_TC_loftr_checker.jpg",
@@ -120,18 +392,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "JAXA_SELENE_TC",
    "matcher": "sift",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real same-sensor registration: two independent JAXA/Kaguya Terrain Camera passes (~2 hours apart) over the same real lunar ground, genuine geometric overlap confirmed from their PDS footprints, not synthetic.",
+   "notes": "",
    "case": "",
-   "nMatches": 542,
-   "nInliers": 542,
-   "inlierRatio": 1.0,
-   "rmseSelf": 0.45553859208792213,
+   "nMatches": 552,
+   "nInliers": 507,
+   "inlierRatio": 0.9184782608695652,
+   "rmseSelf": 0.5633412083677559,
    "rmseTruth": null,
-   "uniformity": 0.5131223340460033,
-   "extrapolationP95": 0.2936373294484006,
-   "eccPrefilter": "",
+   "uniformity": 0.8946781984517703,
+   "extrapolationP95": 0.18929766173194706,
+   "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-JAXA_SELENE_TC_sift_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-JAXA_SELENE_TC_sift_checker.jpg",
@@ -141,24 +424,73 @@
    }
   },
   {
+   "id": "JAXA_SELENE_TC-LRO_WAC_akaze",
+   "sourceId": "TC1S2B0_01_05600N005E1008",
+   "referenceId": "lro_wac_100m_lon99.3-101.4E_lat-0.5-1.3N",
+   "sourceSensor": "JAXA_SELENE_TC",
+   "referenceSensor": "LRO_WAC",
+   "matcher": "akaze",
+   "licence": null,
+   "synthetic": false,
+   "notes": "",
+   "case": "",
+   "nMatches": 35,
+   "nInliers": 34,
+   "inlierRatio": 0.9714285714285714,
+   "rmseSelf": 0.9246607637845572,
+   "rmseTruth": null,
+   "uniformity": 0.5840916976401287,
+   "extrapolationP95": 2.898453747277284,
+   "eccPrefilter": "none",
+   "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
+   "images": {
+    "matches": "JAXA_SELENE_TC-LRO_WAC_akaze_matches.jpg",
+    "checkerboard": "JAXA_SELENE_TC-LRO_WAC_akaze_checker.jpg",
+    "source": "JAXA_SELENE_TC-LRO_WAC_akaze_src.jpg",
+    "reference": "JAXA_SELENE_TC-LRO_WAC_akaze_ref.jpg",
+    "conditioning": "JAXA_SELENE_TC-LRO_WAC_akaze_cond.jpg"
+   }
+  },
+  {
    "id": "JAXA_SELENE_TC-LRO_WAC_asift",
    "sourceId": "TC1S2B0_01_05600N005E1008",
    "referenceId": "lro_wac_100m_lon99.3-101.4E_lat-0.5-1.3N",
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "LRO_WAC",
    "matcher": "asift",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real cross-mission registration: JAXA/Kaguya Terrain Camera vs NASA LRO WAC global mosaic, both real downloaded imagery at the same real lunar location (lon ~99.3-101.4E, lat ~-0.5-1.3N). TC reprojected onto WAC's CRS and resampled to WAC's ~100 m/px before matching. No Chandrayaan-2/ISRO data involved -- PRADAN/CH2Browse access was blocked by network conditions.",
+   "notes": "",
    "case": "",
-   "nMatches": 29,
-   "nInliers": 29,
-   "inlierRatio": 1.0,
-   "rmseSelf": 2.208199289870837,
+   "nMatches": 619,
+   "nInliers": 512,
+   "inlierRatio": 0.827140549273021,
+   "rmseSelf": 0.51263193472356,
    "rmseTruth": null,
-   "uniformity": 0.23747490558758666,
-   "extrapolationP95": 12.211282131499466,
+   "uniformity": 0.694005662462093,
+   "extrapolationP95": 0.5779469867615779,
    "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-LRO_WAC_asift_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-LRO_WAC_asift_checker.jpg",
@@ -174,18 +506,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "LRO_WAC",
    "matcher": "lightglue",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real cross-mission registration: JAXA/Kaguya Terrain Camera vs NASA LRO WAC global mosaic, lon ~99.3-101.4E lat ~-0.5-1.3N. ISRO/PRADAN archive access was unavailable.",
+   "notes": "",
    "case": "",
-   "nMatches": 741,
-   "nInliers": 719,
-   "inlierRatio": 0.970310391363023,
-   "rmseSelf": 2.306832000967863,
+   "nMatches": 1021,
+   "nInliers": 478,
+   "inlierRatio": 0.4681684622918707,
+   "rmseSelf": 0.9481100597794996,
    "rmseTruth": null,
-   "uniformity": 0.8531665497593267,
-   "extrapolationP95": 0.31719400471527787,
-   "eccPrefilter": "",
+   "uniformity": 0.8373493017211379,
+   "extrapolationP95": 0.2943406234341554,
+   "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-LRO_WAC_lightglue_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-LRO_WAC_lightglue_checker.jpg",
@@ -201,18 +544,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "LRO_WAC",
    "matcher": "loftr",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real cross-mission registration: JAXA/Kaguya Terrain Camera vs NASA LRO WAC global mosaic, lon ~99.3-101.4E lat ~-0.5-1.3N. ISRO/PRADAN archive access was unavailable.",
+   "notes": "",
    "case": "",
-   "nMatches": 17,
-   "nInliers": 13,
-   "inlierRatio": 0.7647058823529411,
-   "rmseSelf": 4.031414491846926,
+   "nMatches": 649,
+   "nInliers": 425,
+   "inlierRatio": 0.6548536209553159,
+   "rmseSelf": 0.6189738915957004,
    "rmseTruth": null,
-   "uniformity": 0.2878092986252211,
-   "extrapolationP95": 89.66463259363557,
-   "eccPrefilter": "",
+   "uniformity": 0.7907099689834173,
+   "extrapolationP95": 0.47215951911909343,
+   "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-LRO_WAC_loftr_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-LRO_WAC_loftr_checker.jpg",
@@ -228,18 +582,29 @@
    "sourceSensor": "JAXA_SELENE_TC",
    "referenceSensor": "LRO_WAC",
    "matcher": "sift",
+   "licence": null,
    "synthetic": false,
-   "notes": "Real cross-mission registration: JAXA/Kaguya Terrain Camera vs NASA LRO WAC global mosaic, both real downloaded imagery at the same real lunar location (lon ~99.3-101.4E, lat ~-0.5-1.3N). TC reprojected onto WAC's CRS and resampled to WAC's ~100 m/px before matching. No Chandrayaan-2/ISRO data involved -- PRADAN/CH2Browse access was blocked by network conditions.",
+   "notes": "",
    "case": "",
-   "nMatches": 16,
-   "nInliers": 16,
-   "inlierRatio": 1.0,
-   "rmseSelf": 3.049744688539392,
+   "nMatches": 149,
+   "nInliers": 130,
+   "inlierRatio": 0.87248322147651,
+   "rmseSelf": 0.4692519313319326,
    "rmseTruth": null,
-   "uniformity": 0.24603688164537982,
-   "extrapolationP95": 25.412786556663164,
+   "uniformity": 0.7018654028558767,
+   "extrapolationP95": 0.672939139729188,
    "eccPrefilter": "none",
    "sunAzimuthDelta": null,
+   "conditioningModel": {
+    "value": "homography",
+    "source": "measured",
+    "note": "metrics['model'] of the stored run"
+   },
+   "conditioningPointsOutside": {
+    "value": 0,
+    "source": "computed",
+    "note": "inlier source points outside round(thumbnail shape / source_scale)"
+   },
    "images": {
     "matches": "JAXA_SELENE_TC-LRO_WAC_sift_matches.jpg",
     "checkerboard": "JAXA_SELENE_TC-LRO_WAC_sift_checker.jpg",
@@ -248,5 +613,226 @@
     "conditioning": "JAXA_SELENE_TC-LRO_WAC_sift_cond.jpg"
    }
   }
- ]
+ ],
+ "nFailures": 31,
+ "failures": [
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 0 correspondence(s), below the minimum of 8; reason: no_ratio_survivors",
+   "stage": "match",
+   "pair_id": "CH2_IIRS_CALIBRATED_20221226T0416479474-TMC2_ORTHO_sift",
+   "created_utc": "2026-10-02T12:55:52+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "akaze returned 0 correspondence(s), below the minimum of 8; reason: no_ratio_survivors",
+   "stage": "match",
+   "pair_id": "CH2_IIRS_CALIBRATED_20221226T0416479474-TMC2_ORTHO_akaze",
+   "created_utc": "2026-10-02T12:55:52+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 6 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_IIRS_CALIBRATED_20221226T0416479474-TMC2_ORTHO_lightglue",
+   "created_utc": "2026-10-02T12:55:52+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 1 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_IIRS_CALIBRATED_20230125T1944138897-TMC2_ORTHO_sift",
+   "created_utc": "2026-10-02T12:55:58+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "akaze returned 0 correspondence(s), below the minimum of 8; reason: no_ratio_survivors",
+   "stage": "match",
+   "pair_id": "CH2_IIRS_CALIBRATED_20230125T1944138897-TMC2_ORTHO_akaze",
+   "created_utc": "2026-10-02T12:55:58+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 7 of 12 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_IIRS_CALIBRATED_20230125T1944138897-TMC2_ORTHO_lightglue",
+   "created_utc": "2026-10-02T12:55:58+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 6 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_TMC2_CALIBRATED_20231026T0943001971-TMC2_ORTHO_lightglue",
+   "created_utc": "2026-10-02T12:56:01+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 4 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_RAW_20230823T1450475804-LRO_NAC_ORTHO_sift",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 9 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_RAW_20230823T1450475804-LRO_NAC_ORTHO_akaze",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "asift returned 7 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_RAW_20230823T1450475804-LRO_NAC_ORTHO_asift",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 0 correspondence(s), below the minimum of 8; reason: no_lightglue_matches",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_RAW_20230823T1450475804-LRO_NAC_ORTHO_lightglue",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 4 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285085-LRO_NAC_ORTHO_sift",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 10 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285085-LRO_NAC_ORTHO_akaze",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 11 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285085-LRO_NAC_ORTHO_asift",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 2 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285085-LRO_NAC_ORTHO_lightglue",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 7 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285315-LRO_NAC_ORTHO_sift",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 8 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285315-LRO_NAC_ORTHO_akaze",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 12 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285315-LRO_NAC_ORTHO_asift",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 0 correspondence(s), below the minimum of 8; reason: no_lightglue_matches",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_RAW_20230823T1647285315-LRO_NAC_ORTHO_lightglue",
+   "created_utc": "2026-10-02T13:56:39+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 3 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_CAL_20230823T1450475804-LRO_NAC_ORTHO_sift",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 9 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_CAL_20230823T1450475804-LRO_NAC_ORTHO_akaze",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 8 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_CAL_20230823T1450475804-LRO_NAC_ORTHO_asift",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 2 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_CAL_20230823T1450475804-LRO_NAC_ORTHO_lightglue",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 4 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285085-LRO_NAC_ORTHO_sift",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 10 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285085-LRO_NAC_ORTHO_akaze",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 9 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285085-LRO_NAC_ORTHO_asift",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 1 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285085-LRO_NAC_ORTHO_lightglue",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "sift returned 6 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285315-LRO_NAC_ORTHO_sift",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_inliers",
+   "detail": "RANSAC kept 4 of 11 matches",
+   "stage": "estimate",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285315-LRO_NAC_ORTHO_akaze",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "asift returned 7 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285315-LRO_NAC_ORTHO_asift",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  },
+  {
+   "status": "too_few_matches",
+   "detail": "lightglue returned 3 correspondence(s), below the minimum of 8",
+   "stage": "match",
+   "pair_id": "CH2_OHRC_CAL_20230823T1647285315-LRO_NAC_ORTHO_lightglue",
+   "created_utc": "2026-10-02T13:57:45+00:00"
+  }
+ ],
+ "nLoadErrors": 0
 }

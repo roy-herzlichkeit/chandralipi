@@ -1,13 +1,13 @@
 # STATUS
 
-current: P1.21
+current: P1.22
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.20
+last_done: P1.21
 notes:
-- P1.20 gate: BUILD_1B, 0 of 3 strips passing, all status no_result (data/processed/vikram/exp1_gate.json); doc docs/VIKRAM_2023_DIAGNOSIS.md.
-- Cause class: ILLUMINATION_SUSPECTED for 20230823T1450475804, 20230823T1647285085 and 20230823T1647285315 (data/processed/vikram/exp1/diagnosis.json; run record data/processed/vikram/exp1/diagnosis_run/run_record.json).
-- Reference sun: SPICE azimuth 327.09 deg north_clockwise (COMPUTED), DTM-fit peak_margin 0.046 (data/processed/vikram/reference_sun/reference_sun.json).
-- Fourth-attempt artefacts checked and kept; only the gate step re-run (old files in data/processed/vikram/p1_20_attempt4_gate_superseded/). exp-1a console has 3 recovered CUDA allocator OOM warnings (noted in the doc).
-- Open: Q-P1.20-1 (exp-1 ran with preset none) and Q-P1.20-2 (whether the classification needs a run record; now provided).
+- P1.21: side_by_side_matches takes src_scale/ref_scale; new figures.thumbnail_transform (S_ref@T@inv(S_src)) and points_outside used by both viewers; conditioning maps use metrics['model'] and the full-resolution shape.
+- export_web_data.py swaps .export_tmp in atomically (rollback if the results.json rename fails; recovery finishes a swap killed between the renames), exports failures/nFailures/licence/nLoadErrors and a relative sourceDirectory. Live export: 16 pairs, 31 failures, 0 load errors, sourceDirectory data/processed/results (web/public/data/results.json).
+- Dashboard has a "Failed runs" table and a licence pill. Synthetic wording is now "this scene is synthetic (generated)" in demo.py and app.py. reindex --exclude-synthetic never overwrites a stash file (_<created_utc> suffix, otherwise refuses).
+- Open: Q-P1.21-1 (web/src cannot show the licence or failures without a source change) and Q-P1.21-2 (load_all_pairs returns no paths; the scan is replayed).
+- 5 touched files were ruff-formatted in full, which reformats some lines that were already there. CI: 976 passed.

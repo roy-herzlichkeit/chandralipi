@@ -47,10 +47,16 @@ def side_by_side_matches(
     dst_pts: np.ndarray,
     inlier_mask: np.ndarray | None = None,
     max_lines: int = 120,
-    scale: float = 1.0,
+    src_scale: float = 1.0,
+    ref_scale: float = 1.0,
     draw_outliers: bool = True,
 ) -> np.ndarray:
     """Two images side by side with correspondence lines drawn between them.
+
+    ``src_pts`` and ``dst_pts`` are in full-resolution pixels of their own image.
+    A stored result keeps each image as a thumbnail with its own downscale
+    (``extra["source_scale"]`` and ``extra["reference_scale"]``), and the two
+    usually differ, so each side's points are multiplied by that side's scale.
 
     ``max_lines`` subsamples for legibility. The subsample is **evenly spaced
     through the point order, not random**, so the figure is reproducible and two
@@ -63,13 +69,14 @@ def side_by_side_matches(
     height = max(left.shape[0], right.shape[0])
     canvas = np.zeros((height, left.shape[1] + right.shape[1], 3), dtype=np.uint8)
     canvas[: left.shape[0], : left.shape[1]] = left
-    canvas[: right.shape[0], left.shape[1]:] = right
+    canvas[: right.shape[0], left.shape[1] :] = right
     offset = left.shape[1]
 
-    src = np.asarray(src_pts, dtype=np.float64) * scale
-    dst = np.asarray(dst_pts, dtype=np.float64) * scale
+    src = np.asarray(src_pts, dtype=np.float64).reshape(-1, 2) * float(src_scale)
+    dst = np.asarray(dst_pts, dtype=np.float64).reshape(-1, 2) * float(ref_scale)
     mask = (
-        np.ones(len(src), dtype=bool) if inlier_mask is None
+        np.ones(len(src), dtype=bool)
+        if inlier_mask is None
         else np.asarray(inlier_mask, dtype=bool)
     )
 
@@ -93,6 +100,33 @@ def side_by_side_matches(
     return canvas
 
 
+def thumbnail_transform(
+    transform: np.ndarray, src_scale: float = 1.0, ref_scale: float = 1.0
+) -> np.ndarray:
+    """A full-resolution source->reference transform re-expressed between thumbnails.
+
+    Returns ``S_ref @ T @ inv(S_src)`` with ``S = diag(scale, scale, 1)``: a
+    thumbnail pixel is scaled back to full source resolution, mapped, and scaled
+    down into the reference thumbnail. Drawing the stored transform on the
+    thumbnails without this would misplace every pixel whenever the two scales
+    differ, and the error would look like a registration failure.
+    """
+    matrix = np.asarray(transform, dtype=np.float64)
+    if matrix.shape == (2, 3):
+        matrix = np.vstack([matrix, [0.0, 0.0, 1.0]])
+    s_src = np.diag([float(src_scale), float(src_scale), 1.0])
+    s_ref = np.diag([float(ref_scale), float(ref_scale), 1.0])
+    return s_ref @ matrix @ np.linalg.inv(s_src)
+
+
+def points_outside(points: np.ndarray, shape: tuple[int, int]) -> int:
+    """How many ``(x, y)`` points fall outside an image of ``shape`` (rows, cols)."""
+    pts = np.asarray(points, dtype=np.float64).reshape(-1, 2)
+    rows, cols = int(shape[0]), int(shape[1])
+    inside = (pts[:, 0] >= 0) & (pts[:, 0] < cols) & (pts[:, 1] >= 0) & (pts[:, 1] < rows)
+    return int((~inside).sum())
+
+
 def warp_source(source: np.ndarray, transform: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
     """Warp the source into the reference frame."""
     import cv2
@@ -101,9 +135,7 @@ def warp_source(source: np.ndarray, transform: np.ndarray, shape: tuple[int, int
     if matrix.shape == (2, 3):
         matrix = np.vstack([matrix, [0.0, 0.0, 1.0]])
     rows, cols = shape
-    return cv2.warpPerspective(
-        np.asarray(source), matrix, (cols, rows), flags=cv2.INTER_CUBIC
-    )
+    return cv2.warpPerspective(np.asarray(source), matrix, (cols, rows), flags=cv2.INTER_CUBIC)
 
 
 def checkerboard(
@@ -195,7 +227,9 @@ __all__ = [
     "checkerboard",
     "coverage_heatmap",
     "overlay_heatmap",
+    "points_outside",
     "side_by_side_matches",
+    "thumbnail_transform",
     "to_rgb",
     "warp_source",
 ]

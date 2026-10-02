@@ -40,6 +40,7 @@ def main(argv=None) -> int:
         checkerboard,
         coverage_heatmap,
         overlay_heatmap,
+        points_outside,
         side_by_side_matches,
     )
 
@@ -59,8 +60,10 @@ def main(argv=None) -> int:
 
     source_sun, reference_sun = CASES[args.case]
     source, reference, truth, _ = illumination_pair(
-        shape=(args.size, args.size), seed=args.seed,
-        source_sun=source_sun, reference_sun=reference_sun,
+        shape=(args.size, args.size),
+        seed=args.seed,
+        source_sun=source_sun,
+        reference_sun=reference_sun,
     )
 
     ratio = scale_ratio(args.source_sensor, args.reference_sensor)
@@ -68,28 +71,36 @@ def main(argv=None) -> int:
     print(rule)
     print("SIH26166  Multi-modal, sun-angle and scale invariant image correspondence")
     print(rule)
-    print(f"  source     : {args.source_sensor} @ {NOMINAL_GSD_M.get(args.source_sensor)} m/px, "
-          f"sun az {source_sun[0]:.0f} el {source_sun[1]:.0f}")
-    print(f"  reference  : {args.reference_sensor} @ "
-          f"{NOMINAL_GSD_M.get(args.reference_sensor)} m/px, "
-          f"sun az {reference_sun[0]:.0f} el {reference_sun[1]:.0f}")
+    print(
+        f"  source     : {args.source_sensor} @ {NOMINAL_GSD_M.get(args.source_sensor)} m/px, "
+        f"sun az {source_sun[0]:.0f} el {source_sun[1]:.0f}"
+    )
+    print(
+        f"  reference  : {args.reference_sensor} @ "
+        f"{NOMINAL_GSD_M.get(args.reference_sensor)} m/px, "
+        f"sun az {reference_sun[0]:.0f} el {reference_sun[1]:.0f}"
+    )
     print(f"  sun azimuth difference : {abs(source_sun[0] - reference_sun[0]):.0f} deg")
     print(f"  nominal scale ratio    : {ratio:.0f}x" if ratio else "  scale ratio: unknown")
     print(f"  matcher    : {args.matcher}")
     print()
-    print("  SYNTHETIC SCENE. No Chandrayaan-2 product was available to this project,")
-    print("  so the terrain is generated and lit under controlled sun angles. That is")
-    print("  also why a ground-truth transform exists here and the accuracy line below")
-    print("  can be printed at all -- on real data that line is not measurable.")
+    print("  SYNTHETIC SCENE: this scene is synthetic (generated). The terrain is a")
+    print("  rendered height field lit under controlled sun angles, not a Chandrayaan-2")
+    print("  product. That is why a ground-truth transform exists here and the accuracy")
+    print("  line below can be printed at all -- on real data that line is not measurable.")
     print(rule)
 
     outcome = register_pair(
-        source, reference, pair_id=f"demo_{args.case}_{args.matcher}",
-        config=PipelineConfig(matcher=args.matcher,
-                              gsd_m=NOMINAL_GSD_M.get(args.source_sensor)),
-        source_sensor=args.source_sensor, reference_sensor=args.reference_sensor,
-        source_sun=source_sun, reference_sun=reference_sun,
-        synthetic=True, notes=f"demo, {args.case}",
+        source,
+        reference,
+        pair_id=f"demo_{args.case}_{args.matcher}",
+        config=PipelineConfig(matcher=args.matcher, gsd_m=NOMINAL_GSD_M.get(args.source_sensor)),
+        source_sensor=args.source_sensor,
+        reference_sensor=args.reference_sensor,
+        source_sun=source_sun,
+        reference_sun=reference_sun,
+        synthetic=True,
+        notes=f"demo, {args.case}",
     )
 
     if not outcome.ok:
@@ -105,19 +116,23 @@ def main(argv=None) -> int:
 
     print("\n  RESULTS")
     print(f"    matches                    {result.n_matches}")
-    print(f"    inliers                    {result.n_inliers} "
-          f"({metrics['inlier_ratio']:.1%})")
-    print(f"    RMSE, self-residual        {metrics['rmse_px']:.4f} px"
-          f"   <- the metric Makharia et al. report")
-    print(f"    RMSE, vs ground truth      {true_rms:.4f} px"
-          f"   <- the honest accuracy")
+    print(f"    inliers                    {result.n_inliers} ({metrics['inlier_ratio']:.1%})")
+    print(
+        f"    RMSE, self-residual        {metrics['rmse_px']:.4f} px"
+        f"   <- the metric Makharia et al. report"
+    )
+    print(f"    RMSE, vs ground truth      {true_rms:.4f} px   <- the honest accuracy")
     print(f"    uniformity U               {uniformity['score']:.3f}")
-    print(f"    extrapolation p95          {conditioning.get('p95_px', float('nan')):.3f} px"
-          f"   (gate {EXTRAPOLATION_GATE_PX} px)")
+    print(
+        f"    extrapolation p95          {conditioning.get('p95_px', float('nan')):.3f} px"
+        f"   (gate {EXTRAPOLATION_GATE_PX} px)"
+    )
     print(f"    ECC prefilter chosen       {result.extra.get('ecc_prefilter')}")
-    verdict = "SUB-PIXEL ACROSS THE IMAGE" if (
-        true_rms < 1.0 and conditioning.get("p95_px", np.inf) <= EXTRAPOLATION_GATE_PX
-    ) else "sub-pixel at the matched points, NOT established across the image"
+    verdict = (
+        "SUB-PIXEL ACROSS THE IMAGE"
+        if (true_rms < 1.0 and conditioning.get("p95_px", np.inf) <= EXTRAPOLATION_GATE_PX)
+        else "sub-pixel at the matched points, NOT established across the image"
+    )
     print(f"    verdict                    {verdict}")
 
     if metrics["rmse_px"] > 0 and true_rms > 0:
@@ -135,8 +150,16 @@ def main(argv=None) -> int:
         "03_blend.png": blend(source, reference, result.transform),
     }
     if mask is not None and mask.sum() >= 8:
+        # The demo renders the full-resolution scene (scale 1), so the source
+        # shape is the full-resolution frame the points live in.
+        n_outside = points_outside(result.src_pts[mask], source.shape[:2])
+        if n_outside:
+            print(f"\n    {n_outside} inlier point(s) fall outside the source frame")
         spread = conditioning_map(
-            result.src_pts[mask], result.dst_pts[mask], source.shape[:2]
+            result.src_pts[mask],
+            result.dst_pts[mask],
+            source.shape[:2],
+            model=result.metrics["model"],
         )
         figures["04_conditioning.png"] = overlay_heatmap(
             source, coverage_heatmap(spread, source.shape[:2])
