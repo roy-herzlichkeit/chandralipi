@@ -1,0 +1,96 @@
+{
+ "ch2_tmc_cal_sp": [
+  {
+   "product_id": "ch2_tmc_nca_20230130T1900132182_d_img_d32",
+   "start": "2023-01-30T19:00:13Z",
+   "download": "ch2_tmc_nca_20230130T1900132182_d_img_d32.zip",
+   "nac_km2": 668.1,
+   "selene_km2": 4113.7,
+   "orbit": "15294"
+  },
+  {
+   "product_id": "ch2_tmc_ncf_20230130T1900132214_d_img_d32",
+   "start": "2023-01-30T19:00:13Z",
+   "download": "ch2_tmc_ncf_20230130T1900132214_d_img_d32.zip",
+   "nac_km2": 664.9,
+   "selene_km2": 4134.6,
+   "orbit": "15294"
+  },
+  {
+   "product_id": "ch2_tmc_ncn_20230130T1900132182_d_img_d32",
+   "start": "2023-01-30T19:00:13Z",
+   "download": "ch2_tmc_ncn_20230130T1900132182_d_img_d32.zip",
+   "nac_km2": 616.4,
+   "selene_km2": 3714.9,
+   "orbit": "15294"
+  }
+ ],
+ "ch2_tmc_derived_ortho_sp": [
+  {
+   "product_id": "ch2_tmc_ndn_20230130T1900132182_d_oth_d32",
+   "start": "2023-01-30T19:00:13Z",
+   "download": "ch2_tmc_ndn_20230130T1900132182_d_oth_d32.zip",
+   "nac_km2": 652.9,
+   "selene_km2": 3845.2,
+   "orbit": "15294"
+  }
+ ],
+ "ch2_iir_cal_sp": [
+  {
+   "product_id": "ch2_iir_nci_20201226T1745264921_d_img_d32",
+   "start": "2020-12-26T17:45:26Z",
+   "download": "ch2_iir_nci_20201226T1745264921_d_img_d32.zip",
+   "nac_km2": 729.5,
+   "selene_km2": 1958.2,
+   "orbit": "5972"
+  },
+  {
+   "product_id": "ch2_iir_nci_20210719T1622353775_d_img_d32",
+   "start": "2021-07-19T16:22:35Z",
+   "download": "ch2_iir_nci_20210719T1622353775_d_img_d32.zip",
+   "nac_km2": 583.8,
+   "selene_km2": 1429.8,
+   "orbit": "8469"
+  },
+  {
+   "product_id": "ch2_iir_nci_20230130T1501406990_d_img_d32",
+   "start": "2023-01-30T15:01:40Z",
+   "download": "ch2_iir_nci_20230130T1501406990_d_img_d32.zip",
+   "nac_km2": 407.7,
+   "selene_km2": 767.0,
+   "orbit": "15292"
+  },
+  {
+   "product_id": "ch2_iir_nci_20210622T1256344234_d_img_d32",
+   "start": "2021-06-22T12:56:34Z",
+   "download": "ch2_iir_nci_20210622T1256344234_d_img_d32.zip",
+   "nac_km2": 400.2,
+   "selene_km2": 4017.7,
+   "orbit": "8138"
+  },
+  {
+   "product_id": "ch2_iir_nci_20210719T1424374912_d_img_d32",
+   "start": "2021-07-19T14:24:37Z",
+   "download": "ch2_iir_nci_20210719T1424374912_d_img_d32.zip",
+   "nac_km2": 7.5,
+   "selene_km2": 0.0,
+   "orbit": "8468"
+  },
+  {
+   "product_id": "ch2_iir_nci_20210622T1454378054_d_img_d32",
+   "start": "2021-06-22T14:54:37Z",
+   "download": "ch2_iir_nci_20210622T1454378054_d_img_d32.zip",
+   "nac_km2": 0.0,
+   "selene_km2": 1467.9,
+   "orbit": "8139"
+  },
+  {
+   "product_id": "ch2_iir_nci_20210622T1652404445_d_img_d32",
+   "start": "2021-06-22T16:52:40Z",
+   "download": "ch2_iir_nci_20210622T1652404445_d_img_d32.zip",
+   "nac_km2": 0.0,
+   "selene_km2": 7.4,
+   "orbit": "8140"
+  }
+ ]
+}

@@ -1,4 +1,4 @@
-"""P1.18 — RUN artefacts: archive, ablation, JAXA v2 (Phase_1/LLD/runs.md §P1.18). Protected (G05)."""
+"""P1.18 — RUN artefacts: archive, ablation, JAXA v2, cross pairs (runs.md). Protected (G05)."""
 
 from __future__ import annotations
 
@@ -47,17 +47,30 @@ def test_jaxa_v2():
 
 
 def test_cross_instrument_record():
-    """Review RC10/RC11: other CH-2 instruments are run when present and recorded when absent."""
+    """G41: other CH-2 instruments are paired with every listed reference they overlap, at any
+    site; disjoint pairs are recorded with their distance; absent instruments are noted."""
     from lunar_reg.ingest.catalog import build_catalog
 
     rec_path = REPO / "data/processed/cross/run_record.json"
     _rr_ok(rec_path)
     rec = json.loads(rec_path.read_text())
-    keys = [k for k in rec["outcome_counts"] if k.startswith("instrument_")]
+    counts = rec["outcome_counts"]
+    overlaps = json.loads((REPO / "data/processed/cross/overlaps.json").read_text())
+    assert overlaps["schema"] == 1
+    cands = overlaps["candidates"]
     cat = build_catalog(REPO / "data/raw")
     for inst in ("TMC2", "IIRS"):
-        assert any(k.startswith(f"instrument_{inst}_") for k in keys), inst
-        if cat.status[inst].value == "present":
-            assert (REPO / f"data/processed/cross/overlap_ohrc_{inst.lower()}.parquet").exists()
-        else:
+        assert any(k.startswith(f"instrument_{inst}_") for k in counts), inst
+        if cat.status[inst].value != "present":
             assert f"{inst}: absent, not run" in rec["notes"]
+            continue
+        rows = [c for c in cands if c["instrument"] == inst]
+        assert rows, f"{inst} is present but has no overlap candidate"
+        for c in rows:
+            if c["status"] == "overlap":
+                runs = REPO / "data/processed/cross/runs" / c["reference"]
+                assert list(runs.glob("*/run_record.json")), f"no sub-run under {runs}"
+            elif c["status"] == "disjoint":
+                assert c["min_distance_km"] is not None
+                assert c["source_product_id"] in rec["notes"]
+    assert counts.get("pairs_run", 0) == sum(c["status"] == "overlap" for c in cands)

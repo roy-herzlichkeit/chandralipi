@@ -52,7 +52,12 @@ def test_C08_roundtrip(tmp_path, monkeypatch):
 
 
 def test_C08_statuses(tmp_path, monkeypatch):
-    from lunar_reg.ingest.downloads import DownloadStatus, record_failure, record_file, verify_downloads
+    from lunar_reg.ingest.downloads import (
+        DownloadStatus,
+        record_failure,
+        record_file,
+        verify_downloads,
+    )
 
     assert {m.value for m in DownloadStatus} == {
         "ok", "missing", "size_mismatch", "hash_mismatch", "unrecorded", "http_error"}
@@ -170,6 +175,13 @@ def test_C10_missing_pixel_scale(tmp_path):
 
 
 @pytest.mark.data
+def test_C10_raster_exists():
+    from lunar_reg.ingest import lro
+
+    params = inspect.signature(lro.georeference_from_raster).parameters
+    assert list(params) == ["path"]
+
+
 def test_C10_real_nac_sign():
     from lunar_reg.ingest.lro import georeference_from_label
     from lunar_reg.provenance import ValueSource
@@ -188,7 +200,13 @@ def test_C10_real_nac_sign():
 
 
 def test_C11_members():
-    from lunar_reg.pairs import PrepOutcome, PrepStatus, PriorSource, WindowPair, prepare_window_pair
+    from lunar_reg.pairs import (
+        PrepOutcome,
+        PrepStatus,
+        PriorSource,
+        WindowPair,
+        prepare_window_pair,
+    )
 
     assert {m.value for m in PriorSource} == {"geometry_grid", "label_corners", "bbox"}
     assert {m.value for m in PrepStatus} == {"ok", "label_unreadable", "no_footprint",
@@ -202,8 +220,8 @@ def test_C11_members():
         assert key in names, key
     assert [f.name for f in dataclasses.fields(PrepOutcome)] == ["status", "pair", "detail"]
     params = inspect.signature(prepare_window_pair).parameters
-    for key in ("gsd_m", "window_m", "margin_m", "shift_m", "centre_line", "geometry_grid_path",
-                "band_reduction"):
+    for key in ("gsd_m", "window_m", "margin_m", "shift_m", "centre_line", "centre_sample",
+                "geometry_grid_path", "band_reduction"):
         assert key in params and params[key].kind is inspect.Parameter.KEYWORD_ONLY
 
 
@@ -379,3 +397,22 @@ def test_C20_schema():
     if not path.exists():
         pytest.skip("exp1_gate.json not produced yet (P1.20)")
     validate_c20(json.loads(path.read_text()))
+
+
+def test_C28_members():
+    from lunar_reg.cross import OverlapCandidate, OverlapStatus
+
+    assert [m.name for m in OverlapStatus] == ["OVERLAP", "DISJOINT", "NO_GRID", "GRID_UNREADABLE",
+                                               "REFERENCE_MISSING", "REFERENCE_UNREADABLE"]
+    assert [f.name for f in dataclasses.fields(OverlapCandidate)] == [
+        "source_product_id", "instrument", "level", "reference", "status", "n_nodes", "n_inside",
+        "centre_line", "centre_sample", "centre_lat", "centre_lon", "min_distance_km",
+        "overlap_km2", "overlap_source", "reference_independent", "reference_georef_source",
+        "detail"]
+
+
+def test_C28_references_schema():
+    doc = json.loads((REPO / "configs/references.json").read_text())
+    assert doc["schema"] == 1
+    for row in doc["references"]:
+        assert set(row) == {"name", "path", "georef", "sensor", "independent"}

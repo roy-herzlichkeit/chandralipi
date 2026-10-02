@@ -33,6 +33,7 @@ Index
 | C25 | `process_job`, `run_worker` | `src/lunar_reg/distributed/worker.py` | P3.05 | 3, 4 |
 | C26 | `reduce_run`, `ReduceOutcome` | `src/lunar_reg/distributed/reducer.py` | P3.06 | 3, 4 |
 | C27 | `RedisJobQueue`, `configs/hosts.json` schema | `src/lunar_reg/distributed/redis_queue.py` | P4.01 / P4.04 | 4 |
+| C28 | `OverlapStatus`, `ReferenceSpec`, `OverlapCandidate`, `find_overlaps`; `configs/references.json`; `data/processed/cross/overlaps.json` | `src/lunar_reg/cross.py` | P1.24 | 1 (P1.18 run step), later phases optional |
 
 ---
 
@@ -337,9 +338,10 @@ class GeoReference:
     def from_dict(cls, d: dict) -> GeoReference
 class LabelGeoreferenceError(ValueError): ...
 def georeference_from_label(label_path) -> GeoReference
+def georeference_from_raster(path) -> GeoReference   # P1.24: GDAL raster tags (stere/eqc sphere, north-up); DOCUMENTED only when a PDS3 label's bounding keywords agree within 1.5 px, else INFERRED with the reason in note; never for NAC PDS4 orthos (S12)
 ```
 Pixel coordinates use the corner convention: `(col, row) = (0, 0)` is the outer corner of the first pixel. The upper-left x sign is chosen by the rule in `Phase_1/LLD/lro_georeference.md` (fit to `cart:Bounding_Coordinates`); `source` is `DOCUMENTED` when the label value is used as written and `INFERRED` when its sign is flipped.
-Test: `test_C10_synthetic_label`, `test_C10_roundtrip` (+ data-marked `test_C10_real_nac_sign`).
+Test: `test_C10_synthetic_label`, `test_C10_roundtrip`, `test_C10_raster_exists` (+ data-marked `test_C10_real_nac_sign`).
 
 ## C11 — window-pair preparation (P1.06 `PriorSource`; P1.13 the rest)
 ```python
@@ -376,6 +378,7 @@ def prepare_window_pair(source_label, reference_path, reference_geo: GeoReferenc
                         gsd_m: float, window_m: float, margin_m: float,
                         shift_m: tuple[float, float] = (0.0, 0.0),
                         centre_line: int | None = None,
+                        centre_sample: int | None = None,   # P1.24; None = samples // 2
                         geometry_grid_path=None,
                         band_reduction: str = "first") -> PrepOutcome   # "first" | "mean" | "pca" for multi-band sources
 ```
@@ -717,3 +720,36 @@ Routing is by **tier streams**, never by skipping entries (G36). `put(job, tier:
             "gpus": [{"index": 0, "name": "...", "profile": "configs/device_profiles/<slug>.json"}]}]}
 ```
 Test: `test_C27_fakeredis_protocol_conformance` (runs the C24 behaviour suite against `RedisJobQueue` on fakeredis), `test_C27_hosts_example_schema`.
+
+## C28 — cross-instrument overlaps (P1.24)
+```python
+class OverlapStatus(str, Enum):
+    OVERLAP = "overlap"; DISJOINT = "disjoint"; NO_GRID = "no_grid"; GRID_UNREADABLE = "grid_unreadable"
+    REFERENCE_MISSING = "reference_missing"; REFERENCE_UNREADABLE = "reference_unreadable"
+    is_failure -> bool   # GRID_UNREADABLE, REFERENCE_UNREADABLE
+@dataclass(frozen=True)
+class ReferenceSpec: name: str; path: str; georef: str; sensor: str; independent: bool   # georef: "label" | "raster"
+def load_references(path="configs/references.json") -> list[ReferenceSpec]
+@dataclass
+class OverlapCandidate:
+    source_product_id: str; instrument: str; level: str; reference: str; status: OverlapStatus
+    n_nodes: int; n_inside: int; centre_line: int | None; centre_sample: int | None
+    centre_lat: float | None; centre_lon: float | None; min_distance_km: float | None
+    overlap_km2: float | None; overlap_source: str; reference_independent: bool
+    reference_georef_source: str | None; detail: str = ""
+    def as_dict(self) -> dict
+@dataclass
+class ReferenceValidity: factor: int; mask: np.ndarray; fill_value: float | None; fill_source: str
+def reference_validity(spec, geo) -> ReferenceValidity           # one decimated read (G40)
+def overlap_for_grid(product_id, instrument, level, grid, spec, geo, valid, *,
+                     min_inside: int = 4, nominal_gsd_m: float) -> OverlapCandidate
+@dataclass
+class OverlapReport:
+    candidates: list[OverlapCandidate]; counts: dict[str, int]; samples: dict[str, str]
+    def report(self) -> str
+    def to_json(self) -> str     # {"schema": 1, "candidates": [as_dict(), ...]} sorted by (reference, source_product_id)
+def find_overlaps(raw_root, references, *, instruments=("OHRC", "TMC2", "IIRS"),
+                  levels=("raw", "calibrated"), min_inside: int = 4) -> OverlapReport
+```
+`configs/references.json`: `{"schema": 1, "references": [{"name", "path", "georef", "sensor", "independent"}, …]}`. Overlap is tested in the reference's own projection, never in lon/lat (G41).
+Test: `test_C28_members`, `test_C28_references_schema` (+ `Phase_1/harness/tests/test_P1_24.py`).

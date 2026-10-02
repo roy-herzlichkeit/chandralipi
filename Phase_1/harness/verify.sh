@@ -7,9 +7,12 @@ mkdir -p "$OUT"
 
 manifest_check
 require_tag "$BASE"
-if ! git diff --quiet "$BASE"..HEAD -- "$PHASE_REL/harness" "$PHASE_REL/benchmark/RUBRIC.md" \
+# G05: an architect revision mid-phase is tagged phase-1-harness-r<n>; the guard starts at the newest.
+HBASE="$(git tag -l 'phase-1-harness-r*' --sort=-v:refname | head -n 1)"
+HBASE="${HBASE:-$BASE}"
+if ! git diff --quiet "$HBASE"..HEAD -- "$PHASE_REL/harness" "$PHASE_REL/benchmark/RUBRIC.md" \
      "$PHASE_REL/benchmark/run.sh" "$PHASE_REL/benchmark/score.py"; then
-  fail "harness/benchmark changed since $BASE (G05)"
+  fail "harness/benchmark changed since $HBASE (G05)"
 fi
 
 echo "== CPU suite (scripts/ci.sh)"
