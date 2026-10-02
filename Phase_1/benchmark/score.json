@@ -1,0 +1,168 @@
+{
+  "axes": {
+    "correctness": {
+      "detail": {
+        "cpu_suite": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 987,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "d_export.py: 2 warnings\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n987 passed, 21 deselected, 259 warnings in 69.95s (0:01:09)\n"
+        },
+        "harness": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 160,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "est_P1_15.py::test_incremental_pca_route\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = writer(\n\nPhase_1/harness/tests/test_P1_15.py::test_incremental_pca_route\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\nPhase_1/harness/tests/test_P1_15.py::test_probe_raster_synthetic\nPhase_1/harness/tests/test_P1_17.py::test_cli_register\nPhase_1/harness/tests/test_P1_17.py::test_cli_register_failure_exit\nPhase_1/harness/tests/test_P1_24.py::test_raster_georef_rejects\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    dataset = writer(\n\nPhase_1/harness/tests/test_P1_16.py::test_run_site_ok\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n160 passed, 41 warnings in 8.69s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.35
+    },
+    "quality": {
+      "detail": {
+        "parts": {
+          "anchor": {
+            "agreement_px": 0.7874350187769755,
+            "best_matcher": "lightglue",
+            "n_inliers": 403,
+            "n_matchers": 4,
+            "u_score": 0.8576430443970531,
+            "value": 1.0
+          },
+          "datum_checked": {
+            "failed": 0,
+            "passed": 1,
+            "skip_reasons": {},
+            "skipped": 0,
+            "value": 1.0
+          },
+          "diagnosed_2023": {
+            "decision": "BUILD_1B",
+            "per_strip": {
+              "20230823T1450475804": {
+                "class": "ILLUMINATION_SUSPECTED",
+                "counted": true,
+                "doc": [
+                  "ILLUMINATION_SUSPECTED"
+                ],
+                "passes": false
+              },
+              "20230823T1647285085": {
+                "class": "ILLUMINATION_SUSPECTED",
+                "counted": true,
+                "doc": [
+                  "ILLUMINATION_SUSPECTED"
+                ],
+                "passes": false
+              },
+              "20230823T1647285315": {
+                "class": "ILLUMINATION_SUSPECTED",
+                "counted": true,
+                "doc": [
+                  "ILLUMINATION_SUSPECTED"
+                ],
+                "passes": false
+              }
+            },
+            "value": 1.0
+          },
+          "failures_persisted": {
+            "failures_rows": 31,
+            "missing_run_records": [],
+            "run_record_failures": 12,
+            "value": 1.0
+          },
+          "skip_if_absent": {
+            "recorded": [
+              "instrument_IIRS_present",
+              "instrument_TMC2_present"
+            ],
+            "statuses": {
+              "IIRS": "present",
+              "LRO_NAC": "present",
+              "LRO_NAC_DTM": "present",
+              "OHRC": "present",
+              "SELENE_TC": "partial",
+              "TMC2": "present"
+            },
+            "value": 1.0
+          }
+        },
+        "pass": {
+          "anchor": true,
+          "datum_checked": true,
+          "diagnosed_2023": true,
+          "failures_persisted": true,
+          "skip_if_absent": true
+        },
+        "thresholds": {
+          "anchor": 1.0,
+          "datum_checked": 1.0,
+          "diagnosed_2023": 1.0,
+          "failures_persisted": 1.0,
+          "skip_if_absent": 1.0
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.4
+    },
+    "spec_conformance": {
+      "detail": {
+        "contracts": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 53,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": ".....................................................                    [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_contracts_P0.py::test_C15_roundtrip\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n53 passed, 1 warning in 3.63s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.25
+    },
+    "synthetic": {
+      "detail": {
+        "label": "SYNTHETIC \u2014 truth-based error on generated scenes, never merged with real-data axes (Q19)",
+        "median": 0.1282203576013162,
+        "metric": "median truth_rms_px of the default preset over ablation synthetic rows with azimuth delta <= 30 deg",
+        "n": 26,
+        "preset": "ohrc_nac"
+      },
+      "direction": "<=",
+      "pass": true,
+      "threshold": 0.5,
+      "value": 0.1282203576013162,
+      "weight": 0.0
+    }
+  },
+  "created_utc": "2026-10-02T20:39:33+00:00",
+  "git_sha": "b7ca12eadb23bc367fdcefc1aed061db41955120",
+  "pass": true,
+  "phase": "1",
+  "provenance": "measured",
+  "schema": 1,
+  "skips": {
+    "count": 0,
+    "reasons": {}
+  },
+  "weighted_total": 1.0
+}

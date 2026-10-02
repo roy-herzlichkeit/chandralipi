@@ -1,0 +1,740 @@
+# REVIEW_PACK_1
+
+## Diff range
+
+`phase-0-approved..HEAD` (DECISIONS.md G07; HEAD = b7ca12e before this pack commit)
+
+```
+ .fable/ode_sdndtm_20261002.json                    |    1 +
+ .fable/site_overlaps_preview_20261002.json         | 9354 ++++++++++++++++++++
+ .fable/tools/read_esri_shp.py                      |   56 +
+ .fable/vikram_candidates_20261002.json             |   96 +
+ CLARIFY.md                                         |    1 +
+ CONTEXT.md                                         |   96 +-
+ CONTEXT_HANDOFF.md                                 |  110 +-
+ CONTRACTS.md                                       |   38 +-
+ DECISIONS.md                                       |    4 +-
+ FABLE_NOTES.md                                     |    7 +-
+ PHASES.md                                          |    6 +-
+ PLAN_PROGRESS.md                                   |    4 +-
+ Phase_1/ASSUMPTIONS.md                             |    2 +-
+ Phase_1/DOWNLOAD_BRIEF_TMC2_IIRS_VIKRAM.md         |   87 +
+ Phase_1/LLD/asift_cap.md                           |   40 +
+ Phase_1/LLD/cross_pairs.md                         |  170 +
+ Phase_1/LLD/downloads.md                           |    2 +-
+ Phase_1/LLD/runs.md                                |   14 +-
+ Phase_1/QUESTIONS.md                               |  244 +
+ Phase_1/agent_briefs/A1_find_common_sites.md       |   94 +
+ Phase_1/agent_briefs/A2_build_download_list.md     |   47 +
+ Phase_1/harness/MANIFEST.sha256                    |   10 +-
+ Phase_1/harness/check_P1.24.sh                     |   14 +
+ Phase_1/harness/check_P1.25.sh                     |   10 +
+ Phase_1/harness/tests/test_P1_18.py                |   30 +-
+ Phase_1/harness/tests/test_P1_24.py                |  206 +
+ Phase_1/harness/tests/test_P1_25.py                |   73 +
+ Phase_1/harness/tests/test_contracts_P1.py         |   45 +-
+ Phase_1/harness/verify.sh                          |    7 +-
+ Phase_1/prompts/INDEX.md                           |   50 +-
+ Phase_1/prompts/P1.18_run_ablation.md              |    8 +-
+ Phase_1/prompts/P1.24_cross_pairs.md               |   15 +
+ Phase_1/prompts/P1.25_asift_cap.md                 |   10 +
+ README.md                                          |  105 +-
+ STATUS.md                                          |   12 +-
+ configs/references.json                            |    7 +
+ dashboard/app.py                                   |  184 +-
+ docs/DATUM.md                                      |  128 +
+ docs/PREPROCESS_ABLATION.md                        |  164 +
+ docs/VIKRAM_2023_DIAGNOSIS.md                      |  320 +
+ .../ch2_iir_nci_20221226T0416479474_d_img_d32.txt  |  952 ++
+ .../ch2_tmc_ncn_20230521T0857294318_d_img_d32.txt  |  173 +
+ ...c_ndn_20231027T1315134884_d_dtm_d18_raster.json |   64 +
+ ...c_ndn_20231027T1315134884_d_oth_d18_raster.json |   64 +
+ docs/results/catalog_20261002.txt                  |   10 +
+ docs/results/ci_20261002.txt                       |  145 +
+ docs/results/fields_20261002.txt                   |    5 +
+ docs/results/jaxa_wac_2026-09-08.md                |  155 +
+ docs/results/live_store_20261002.txt               |   17 +
+ docs/results/live_store_pairs_20261002.txt         |    9 +
+ docs/results/params_20261002.txt                   |   43 +
+ docs/results/vikram_2024.md                        |  116 +
+ pyproject.toml                                     |    3 +
+ scripts/demo.py                                    |   81 +-
+ scripts/export_web_data.py                         |  347 +-
+ scripts/fetch_public.py                            |  416 +
+ scripts/fit_reference_sun.py                       |  517 ++
+ scripts/probe_raster.py                            |  210 +
+ scripts/reindex_results.py                         |   78 +-
+ scripts/run_ablation.py                            |  320 +
+ scripts/run_cross.py                               |  236 +
+ scripts/run_dashboard.sh                           |    2 +-
+ scripts/run_jaxa.py                                |  419 +
+ scripts/run_vikram.py                              |  266 +-
+ scripts/setup.sh                                   |    4 +-
+ scripts/up.sh                                      |    2 +-
+ scripts/verify_downloads.py                        |   52 +
+ src/lunar_reg/cli.py                               |  229 +-
+ src/lunar_reg/constants.py                         |   52 +
+ src/lunar_reg/cross.py                             |  546 ++
+ src/lunar_reg/eval/agreement.py                    |  183 +
+ src/lunar_reg/ingest/__init__.py                   |   33 +-
+ src/lunar_reg/ingest/catalog.py                    |  367 +
+ src/lunar_reg/ingest/downloads.py                  |  434 +
+ src/lunar_reg/ingest/fieldmap.py                   |   83 +-
+ src/lunar_reg/ingest/geometry_grid.py              |  284 +-
+ src/lunar_reg/ingest/lro.py                        |  509 +-
+ src/lunar_reg/ingest/manifest.py                   |  133 +-
+ src/lunar_reg/ingest/overlap.py                    |  476 +-
+ src/lunar_reg/ingest/pds4.py                       |   30 +
+ src/lunar_reg/ingest/pseudo_gt.py                  |    8 +-
+ src/lunar_reg/ingest/sun.py                        |  391 +
+ src/lunar_reg/match/__init__.py                    |   66 +-
+ src/lunar_reg/match/classical.py                   |   86 +-
+ src/lunar_reg/match/learned.py                     |   14 -
+ src/lunar_reg/match/superglue.py                   |  103 +-
+ src/lunar_reg/pairs.py                             |  599 ++
+ src/lunar_reg/pipeline.py                          |  127 +-
+ src/lunar_reg/preprocess/config.py                 |   11 +-
+ src/lunar_reg/preprocess/georeference.py           |  221 +-
+ src/lunar_reg/preprocess/hyperspectral.py          |   14 +-
+ src/lunar_reg/preprocess/pipeline.py               |  480 +-
+ src/lunar_reg/preprocess/presets.py                |  348 +
+ src/lunar_reg/preprocess/radiometric.py            |  185 +-
+ src/lunar_reg/preprocess/resample.py               |   34 +-
+ src/lunar_reg/preprocess/shadow.py                 |  129 +-
+ src/lunar_reg/sites/__init__.py                    |   16 +
+ src/lunar_reg/sites/runner.py                      |  870 ++
+ src/lunar_reg/viz/figures.py                       |   50 +-
+ tests/test_agreement.py                            |  176 +
+ tests/test_asift_threads.py                        |   90 +
+ tests/test_catalog.py                              |  291 +
+ tests/test_classical_cap.py                        |  114 +
+ tests/test_cli_and_jaxa.py                         |  419 +
+ tests/test_cross_pairs.py                          |  344 +
+ tests/test_datum.py                                |  188 +
+ tests/test_degenerate_input.py                     |   84 +
+ tests/test_docs_status.py                          |   52 +
+ tests/test_downloads.py                            |  325 +
+ tests/test_fetch_public.py                         |  315 +
+ tests/test_geometry_grid.py                        |   11 +-
+ tests/test_geometry_grid_fixes.py                  |  279 +
+ tests/test_ingest_labels.py                        |    9 +-
+ tests/test_ingest_status_text.py                   |   41 +
+ tests/test_lro_georeference.py                     |  245 +
+ tests/test_matcher_registry.py                     |  206 +
+ tests/test_overlap.py                              |    3 +-
+ tests/test_overlap_fixes.py                        |  420 +
+ tests/test_p1_20_diagnosis_provenance.py           |   78 +
+ tests/test_pairs.py                                |  553 ++
+ tests/test_pipeline_counts.py                      |    2 +-
+ tests/test_preprocess_geometry.py                  |  459 +
+ tests/test_preprocess_nodata.py                    |  343 +
+ tests/test_presets.py                              |  309 +
+ tests/test_results_v2.py                           |    9 +-
+ tests/test_run_vikram_geometry.py                  |   42 +-
+ tests/test_site_runner.py                          |  561 ++
+ tests/test_sun.py                                  |  465 +
+ tests/test_tmc2_iirs.py                            |  325 +
+ tests/test_viewers.py                              |  376 +
+ ...344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_checker.jpg |  Bin 0 -> 165627 bytes
+ ...019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_cond.jpg |  Bin 0 -> 156076 bytes
+ ...344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_matches.jpg |  Bin 0 -> 123979 bytes
+ ...6019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_ref.jpg |  Bin 0 -> 73965 bytes
+ ...6019344-LRO_NAC_ORTHO_akaze_pp-ohrc_nac_src.jpg |  Bin 0 -> 77699 bytes
+ ...344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_checker.jpg |  Bin 0 -> 165628 bytes
+ ...019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_cond.jpg |  Bin 0 -> 154154 bytes
+ ...344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_matches.jpg |  Bin 0 -> 124786 bytes
+ ...6019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_ref.jpg |  Bin 0 -> 73965 bytes
+ ...6019344-LRO_NAC_ORTHO_asift_pp-ohrc_nac_src.jpg |  Bin 0 -> 77699 bytes
+ ...LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_checker.jpg |  Bin 0 -> 165618 bytes
+ ...44-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_cond.jpg |  Bin 0 -> 154250 bytes
+ ...LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_matches.jpg |  Bin 0 -> 124326 bytes
+ ...344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_ref.jpg |  Bin 0 -> 73965 bytes
+ ...344-LRO_NAC_ORTHO_lightglue_pp-ohrc_nac_src.jpg |  Bin 0 -> 77699 bytes
+ ...9344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_checker.jpg |  Bin 0 -> 165625 bytes
+ ...6019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_cond.jpg |  Bin 0 -> 154727 bytes
+ ...9344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_matches.jpg |  Bin 0 -> 123974 bytes
+ ...06019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_ref.jpg |  Bin 0 -> 73965 bytes
+ ...06019344-LRO_NAC_ORTHO_sift_pp-ohrc_nac_src.jpg |  Bin 0 -> 77699 bytes
+ ...0231026T0943001971-TMC2_ORTHO_akaze_checker.jpg |  Bin 0 -> 114090 bytes
+ ...D_20231026T0943001971-TMC2_ORTHO_akaze_cond.jpg |  Bin 0 -> 45300 bytes
+ ...0231026T0943001971-TMC2_ORTHO_akaze_matches.jpg |  Bin 0 -> 109820 bytes
+ ...ED_20231026T0943001971-TMC2_ORTHO_akaze_ref.jpg |  Bin 0 -> 59847 bytes
+ ...ED_20231026T0943001971-TMC2_ORTHO_akaze_src.jpg |  Bin 0 -> 57947 bytes
+ ...20231026T0943001971-TMC2_ORTHO_sift_checker.jpg |  Bin 0 -> 114084 bytes
+ ...ED_20231026T0943001971-TMC2_ORTHO_sift_cond.jpg |  Bin 0 -> 44695 bytes
+ ...20231026T0943001971-TMC2_ORTHO_sift_matches.jpg |  Bin 0 -> 110484 bytes
+ ...TED_20231026T0943001971-TMC2_ORTHO_sift_ref.jpg |  Bin 0 -> 59847 bytes
+ ...TED_20231026T0943001971-TMC2_ORTHO_sift_src.jpg |  Bin 0 -> 57947 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_checker.jpg |  Bin 157095 -> 76067 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_cond.jpg   |  Bin 134085 -> 54072 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_matches.jpg |  Bin 117119 -> 167190 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_ref.jpg    |  Bin 75989 -> 28236 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_src.jpg    |  Bin 62458 -> 25665 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_asift_checker.jpg |  Bin 157087 -> 76033 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_asift_cond.jpg   |  Bin 130958 -> 53600 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_asift_matches.jpg |  Bin 119890 -> 164774 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_asift_ref.jpg    |  Bin 75989 -> 28236 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_asift_src.jpg    |  Bin 62458 -> 25665 bytes
+ ..._SELENE_TC-JAXA_SELENE_TC_lightglue_checker.jpg |  Bin 158471 -> 76043 bytes
+ ...AXA_SELENE_TC-JAXA_SELENE_TC_lightglue_cond.jpg |  Bin 134093 -> 54278 bytes
+ ..._SELENE_TC-JAXA_SELENE_TC_lightglue_matches.jpg |  Bin 122732 -> 169926 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_lightglue_ref.jpg |  Bin 76163 -> 28236 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_lightglue_src.jpg |  Bin 62439 -> 25665 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_loftr_checker.jpg |  Bin 157106 -> 76038 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_loftr_cond.jpg   |  Bin 133668 -> 53448 bytes
+ ...JAXA_SELENE_TC-JAXA_SELENE_TC_loftr_matches.jpg |  Bin 120109 -> 172243 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_loftr_ref.jpg    |  Bin 75989 -> 28236 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_loftr_src.jpg    |  Bin 62458 -> 25665 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_sift_checker.jpg |  Bin 157113 -> 76076 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_sift_cond.jpg    |  Bin 132106 -> 54009 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_sift_matches.jpg |  Bin 121009 -> 167454 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_sift_ref.jpg     |  Bin 75989 -> 28236 bytes
+ .../JAXA_SELENE_TC-JAXA_SELENE_TC_sift_src.jpg     |  Bin 62458 -> 25665 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_akaze_checker.jpg |  Bin 0 -> 30549 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_akaze_cond.jpg    |  Bin 0 -> 26614 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_akaze_matches.jpg |  Bin 0 -> 70036 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_akaze_ref.jpg     |  Bin 0 -> 19923 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_akaze_src.jpg     |  Bin 0 -> 22211 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_asift_checker.jpg |  Bin 44838 -> 29988 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_asift_cond.jpg    |  Bin 25298 -> 26693 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_asift_matches.jpg |  Bin 61920 -> 78192 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_asift_ref.jpg     |  Bin 23577 -> 19923 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_asift_src.jpg     |  Bin 20873 -> 22211 bytes
+ .../JAXA_SELENE_TC-LRO_WAC_lightglue_checker.jpg   |  Bin 45386 -> 30558 bytes
+ .../JAXA_SELENE_TC-LRO_WAC_lightglue_cond.jpg      |  Bin 24327 -> 26085 bytes
+ .../JAXA_SELENE_TC-LRO_WAC_lightglue_matches.jpg   |  Bin 90687 -> 85816 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_lightglue_ref.jpg |  Bin 24313 -> 19923 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_lightglue_src.jpg |  Bin 20516 -> 22211 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_loftr_checker.jpg |  Bin 44829 -> 29668 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_loftr_cond.jpg    |  Bin 23564 -> 26323 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_loftr_matches.jpg |  Bin 64828 -> 89335 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_loftr_ref.jpg     |  Bin 23577 -> 19923 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_loftr_src.jpg     |  Bin 20873 -> 22211 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_sift_checker.jpg  |  Bin 44806 -> 29986 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_sift_cond.jpg     |  Bin 25923 -> 26882 bytes
+ .../pairs/JAXA_SELENE_TC-LRO_WAC_sift_matches.jpg  |  Bin 61301 -> 82341 bytes
+ .../data/pairs/JAXA_SELENE_TC-LRO_WAC_sift_ref.jpg |  Bin 23577 -> 19923 bytes
+ .../data/pairs/JAXA_SELENE_TC-LRO_WAC_sift_src.jpg |  Bin 20873 -> 22211 bytes
+ web/public/data/results.json                       |  734 +-
+ 211 files changed, 30505 insertions(+), 1051 deletions(-)
+```
+
+## verify.sh
+
+Exit code: 0 (run at HEAD b7ca12e; `bash Phase_1/harness/verify.sh`)
+
+```
+    dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
+
+Phase_1/harness/tests/test_P1_15.py::test_incremental_pca_route
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+    rd = writer(
+
+Phase_1/harness/tests/test_P1_15.py::test_incremental_pca_route
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
+
+Phase_1/harness/tests/test_P1_15.py::test_probe_raster_synthetic
+Phase_1/harness/tests/test_P1_17.py::test_cli_register
+Phase_1/harness/tests/test_P1_17.py::test_cli_register_failure_exit
+Phase_1/harness/tests/test_P1_24.py::test_raster_georef_rejects
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+    dataset = writer(
+
+Phase_1/harness/tests/test_P1_16.py::test_run_site_ok
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+160 passed, 41 warnings in 8.22s
+== downloads manifest
+downloads: manifest data/raw/DOWNLOADS.json present; 211 file entries, 0 recorded failures; hash NOT checked; unrecorded scan on
+  ok                211  recorded and unchanged on disk
+  unrecorded          1  on disk under raw_root but in no manifest entry  <-- SUSPICIOUS  e.g. ch2/_pradan/payload.xhtml: under data/raw, in no entry
+== ruff on files changed since phase-0-approved
+All checks passed!
+CHECK OK: Phase 1 verify
+```
+
+## score.json
+
+```json
+{
+  "axes": {
+    "correctness": {
+      "detail": {
+        "cpu_suite": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 987,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "d_export.py: 2 warnings\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n987 passed, 21 deselected, 259 warnings in 69.95s (0:01:09)\n"
+        },
+        "harness": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 160,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "est_P1_15.py::test_incremental_pca_route\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = writer(\n\nPhase_1/harness/tests/test_P1_15.py::test_incremental_pca_route\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\nPhase_1/harness/tests/test_P1_15.py::test_probe_raster_synthetic\nPhase_1/harness/tests/test_P1_17.py::test_cli_register\nPhase_1/harness/tests/test_P1_17.py::test_cli_register_failure_exit\nPhase_1/harness/tests/test_P1_24.py::test_raster_georef_rejects\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    dataset = writer(\n\nPhase_1/harness/tests/test_P1_16.py::test_run_site_ok\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n160 passed, 41 warnings in 8.69s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.35
+    },
+    "quality": {
+      "detail": {
+        "parts": {
+          "anchor": {
+            "agreement_px": 0.7874350187769755,
+            "best_matcher": "lightglue",
+            "n_inliers": 403,
+            "n_matchers": 4,
+            "u_score": 0.8576430443970531,
+            "value": 1.0
+          },
+          "datum_checked": {
+            "failed": 0,
+            "passed": 1,
+            "skip_reasons": {},
+            "skipped": 0,
+            "value": 1.0
+          },
+          "diagnosed_2023": {
+            "decision": "BUILD_1B",
+            "per_strip": {
+              "20230823T1450475804": {
+                "class": "ILLUMINATION_SUSPECTED",
+                "counted": true,
+                "doc": [
+                  "ILLUMINATION_SUSPECTED"
+                ],
+                "passes": false
+              },
+              "20230823T1647285085": {
+                "class": "ILLUMINATION_SUSPECTED",
+                "counted": true,
+                "doc": [
+                  "ILLUMINATION_SUSPECTED"
+                ],
+                "passes": false
+              },
+              "20230823T1647285315": {
+                "class": "ILLUMINATION_SUSPECTED",
+                "counted": true,
+                "doc": [
+                  "ILLUMINATION_SUSPECTED"
+                ],
+                "passes": false
+              }
+            },
+            "value": 1.0
+          },
+          "failures_persisted": {
+            "failures_rows": 31,
+            "missing_run_records": [],
+            "run_record_failures": 12,
+            "value": 1.0
+          },
+          "skip_if_absent": {
+            "recorded": [
+              "instrument_IIRS_present",
+              "instrument_TMC2_present"
+            ],
+            "statuses": {
+              "IIRS": "present",
+              "LRO_NAC": "present",
+              "LRO_NAC_DTM": "present",
+              "OHRC": "present",
+              "SELENE_TC": "partial",
+              "TMC2": "present"
+            },
+            "value": 1.0
+          }
+        },
+        "pass": {
+          "anchor": true,
+          "datum_checked": true,
+          "diagnosed_2023": true,
+          "failures_persisted": true,
+          "skip_if_absent": true
+        },
+        "thresholds": {
+          "anchor": 1.0,
+          "datum_checked": 1.0,
+          "diagnosed_2023": 1.0,
+          "failures_persisted": 1.0,
+          "skip_if_absent": 1.0
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.4
+    },
+    "spec_conformance": {
+      "detail": {
+        "contracts": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 53,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": ".....................................................                    [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_contracts_P0.py::test_C15_roundtrip\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n53 passed, 1 warning in 3.63s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.25
+    },
+    "synthetic": {
+      "detail": {
+        "label": "SYNTHETIC \u2014 truth-based error on generated scenes, never merged with real-data axes (Q19)",
+        "median": 0.1282203576013162,
+        "metric": "median truth_rms_px of the default preset over ablation synthetic rows with azimuth delta <= 30 deg",
+        "n": 26,
+        "preset": "ohrc_nac"
+      },
+      "direction": "<=",
+      "pass": true,
+      "threshold": 0.5,
+      "value": 0.1282203576013162,
+      "weight": 0.0
+    }
+  },
+  "created_utc": "2026-10-02T20:39:33+00:00",
+  "git_sha": "b7ca12eadb23bc367fdcefc1aed061db41955120",
+  "pass": true,
+  "phase": "1",
+  "provenance": "measured",
+  "schema": 1,
+  "skips": {
+    "count": 0,
+    "reasons": {}
+  },
+  "weighted_total": 1.0
+}
+```
+
+## QUESTIONS
+
+# Phase 1 — questions
+
+Implementers append entries here (format in root `CLAUDE.md` §Doubts). Empty at plan time.
+
+## Q-P1.01-1  DownloadStatus has no member for a recorded file that exists but cannot be read
+context: CONTRACTS.md C08 (`DownloadStatus`); src/lunar_reg/ingest/downloads.py `verify_downloads` (the `except OSError` branch)
+question: A recorded file that is present but unreadable (permission denied, I/O error while hashing, removed mid-run) used to raise out of `verify_downloads`, so the CLI never printed `report()`. C08 freezes the enum, so there is no `UNREADABLE` member. Should C08 gain `UNREADABLE = "unreadable"` (is_failure), as C09 `InstrumentStatus` already has?
+what I did meanwhile: such entries are recorded as `MISSING` (a failure, so the CLI exits 1) with the sample `"<path>: unreadable: <OSError>"`, and the MISSING description now reads "recorded but not on disk or unreadable (see sample)". Reversible: adding the member later only changes which status that branch records.
+
+## Q-P1.02-1  C08 has no source/instrument/role values for the NAIF SPICE kernels
+context: CONTRACTS.md C08 (`source`, `instrument`, `role` lists); Phase_1/LLD/downloads.md §2.2 rows `spice_lsk`, `spice_pck`, `spice_de440s`; scripts/fetch_public.py `_RECORD_AS`
+question: `record_file` rejects values outside the frozen C08 lists, and none of them names NAIF (source), SPICE kernels (instrument) or a kernel (role). Should C08 gain `source "NAIF"`, `instrument "SPICE"` and `role "kernel"` (or which existing values should the kernels carry)?
+what I did meanwhile: the three kernels are recorded with `source "PDS_IMG"` (NAIF is a PDS node; the only generic PDS value), `instrument "DOC"`, `role "misc"`, `product_id` = file stem, and the real `naif.jpl.nasa.gov` URL in `url`, so the true origin is in every entry. No code reads these fields today. Reversible: change `_RECORD_AS["spice_"]` and re-record the three files with `record_file` (which replaces an entry with the same path).
+
+## Q-P1.02-2  FetchStatus gains PRESENT_UNRECORDED (not in LLD §5's member list)
+context: Phase_1/LLD/downloads.md §5 (outcome enum, resume rule); CLAUDE.md §Rules "data" (never overwrite under data/raw/)
+question: LLD §5 defines SKIPPED_PRESENT only for a destination that DOWNLOADS.json records with a matching size. A destination that exists but has no entry, or a different size, cannot be downloaded again without overwriting a file under `data/raw/`. Is a separate member right, and should it fail the run (exit 1 on a VALIDATED row)?
+what I did meanwhile: added `FetchStatus.PRESENT_UNRECORDED = "present_unrecorded"` (is_failure; no request is made, the file is left untouched, the report says "NOT overwritten"). Also: a Content-Length mismatch is recorded in `failures` via `record_failure(url, <HTTP status>, "size_mismatch: ...")` and the `.part` is removed (atomic-writes skill), so it shows up later as `http_error` in `verify_downloads.py`. Reversible: drop the member / the recording; no file on disk depends on either. Not hit in the real run (7 skipped_present, 3 downloaded; log scratchpad p1/fetch_public_P1.02.log).
+
+## Q-P1.03-1  Real SELENE_TC is PARTIAL: JAXA labels name `.img` but `.tif` is on disk; `.isis.lbl` sidecars match the glob
+context: Phase_1/LLD/catalog.md §2 (SELENE_TC glob `reference/jaxa_selene_tc*/*/*.lbl`; PARTIAL when `pds4._find_image` gives a non-existent path); src/lunar_reg/ingest/catalog.py `_minimal_read`
+question: The five JAXA `TC1S2B0_*.lbl` labels give `FILE_NAME = "<stem>.img"`, but the directory holds `<stem>.tif` (`.tif` is not in `pds4._IMG_SUFFIXES`). The glob also matches the two `<stem>.isis.lbl` ISIS cube labels, whose cube is not on disk. So the real run reports `SELENE_TC: partial, 9 product(s)` with 7 labels missing their data file (log: scratchpad p1/catalog_P1.03.stdout). Should the catalog accept a same-stem `.tif` for PDS3 labels and leave `*.isis.lbl` out of the SELENE_TC glob, or is PARTIAL the intended answer?
+what I did meanwhile: followed the LLD literally: PDS3 data file = `pds4._find_image(label, None)`, so these 7 count as "data file missing" (image_path None) and SELENE_TC is PARTIAL. It is not a failure (CLI exits 0), and no later prompt needs SELENE_TC PRESENT (P1.17 reads the `.tif` paths directly). Reversible: a suffix list / glob exclusion in catalog.py.
+
+## Q-P1.03-2  `product_type_of` types DTM and `_d_oth_` labels as "other", so `products(inst)` leaves them out
+context: Phase_1/LLD/catalog.md §1 (`product_type_of` rules); tests/test_ingest_labels.py (3 scan tests)
+question: By the §1 rules `NAC_DTM_VIKRAMSITE1.xml`, `ch2_tmc_ndn_*_d_dtm_*.xml` and `ch2_tmc_ndn_*_d_oth_*.xml` are "other". In the catalog they stay as entries with `product_type="other"` (counted as `not_a_data_product`), so `catalog.products("LRO_NAC_DTM")` (default `product_type="data"`) is empty, and `scan_lro_directory` no longer parses the DTM label. Is that intended, or should `_d_dtm_` / `_d_oth_` / the NAC DTM label count as "data"?
+what I did meanwhile: implemented the rules as written. Callers that need the DTMs can call `products(inst, product_type="other")`. The scan now parses only "data" labels, so in 3 existing tests in tests/test_ingest_labels.py (`test_scan_directory_finds_labels_and_skips_bad_ones`, `test_scan_directory_strict_reraises`, `test_ch2_and_lro_manifests_share_a_schema`) I renamed the fixture files from `good.xml`/`broken.xml`/`a.xml` to `*_d_img_d18.xml`. Their assertions did not change. Reversible: one rule line in `product_type_of`.
+
+## Q-P1.03-3  C09 "PARTIAL ... (or the reverse)" is not defined in LLD §2; how unlabelled data files are found and reported
+context: CONTRACTS.md C09 ("PARTIAL = labels without their data file (or the reverse)"); Phase_1/LLD/catalog.md §2 (defines only the label-side rule); src/lunar_reg/ingest/catalog.py `_unlabelled_data`, `ProductCatalog.__post_init__`
+question: LLD §2 does not say which files count as "data files" for the reverse case. Is this reading right: the label globs with the label suffix swapped for `.*`, kept when the suffix is in `pds4._IMG_SUFFIXES` (`.img`/`.qub`/`.dat`), a file being "labelled" when a found label resolved to it or a label of the same stem sits next to it? The list is exposed as `ProductCatalog.unlabelled_data` (a plain attribute set in `__post_init__`, NOT a dataclass field, so C09's field list is unchanged) and in the PARTIAL line of `report()`; there is no ScanStatus member for it (the LLD §1 enum is fixed).
+what I did meanwhile: implemented that reading (review finding on P1.03). Real `data/raw` is unchanged by it: 0 unlabelled data files, same 6 status lines (log line `unlabelled data files: {}` from `lunar-reg catalog`). Reversible: one helper and one attribute in catalog.py; `.tif` data files (LRO DTM, JAXA TC) are not considered, consistent with Q-P1.03-1.
+
+## Q-P1.04-1  The chosen upper-left x sign still leaves a ~0.9 km bounding-box residual on the real NAC label
+context: Phase_1/LLD/lro_georeference.md §3; src/lunar_reg/ingest/lro.py `georeference_from_label`, `_bbox_residual_m`
+question: On both real NAC ortho labels the §3 rule flips the sign (`source=inferred`, `x0_m=-11043.5`, as the LLD §6 test expects), but the note reads `bbox residual 935.4 m (other sign 23887.2 m)` (output: scratchpad p1/georef_P1.04.txt). So the label's `Bounding_Coordinates` are not exactly the densified raster boundary (perhaps the valid-data footprint). The rule decides the sign clearly, but the residual cannot be used as an origin-accuracy check. Is that acceptable, or should a later prompt add a threshold (e.g. fail when the chosen residual exceeds some value)?
+what I did meanwhile: implemented §3 as written (smaller residual wins, no threshold) and record both residuals in `GeoReference.note`. Reversible: a threshold would be one comparison in `georeference_from_label`.
+
+## Q-P1.06-1  After the A047 rewrap the overlap polygon is in the source's longitude convention; the corner window of a reference written in the other convention is OUTSIDE_PRODUCT
+context: Phase_1/LLD/overlap.md §3 rows A047 and A051 ("the ring unchanged for non-polar footprints"); src/lunar_reg/ingest/overlap.py `intersect`, `to_fit_plane`, `_corner_window`
+question: `intersect` now clips a 0..360 source against a -180..180 reference (test `test_a047_mixed_longitude_conventions_still_overlap`), and returns the polygon with longitudes near the source's first longitude (e.g. 352..356). `to_fit_plane` leaves a non-polar ring unchanged as the LLD says, so `pixel_window(reference, polygon)` applies the reference's corner matrix (fitted on -8..-2) to 352..356 and returns `OUTSIDE_PRODUCT`. Should `to_fit_plane` (non-polar) or `_corner_window` rewrap the ring to the footprint's own first corner longitude? For any ring already in the footprint's convention that is the identity.
+what I did meanwhile: followed the LLD literally (ring unchanged). The case is classified (`window_status = outside_product` in the crop entry), not silent, and no real catalog row mixes conventions as far as these tests show. Reversible: one `_rewrap_ring(ring, footprint.corners[0][1])` call in `to_fit_plane`'s non-polar branch.
+
+## Q-P1.06-2  Which WindowStatus for a corner footprint with fewer than 4 corners; extra `n_self_pairs_skipped` counter
+context: Phase_1/LLD/overlap.md §1 (`WindowStatus` members, fixed by harness test_P1_06::test_members) and §3 row A050 ("skip pairs with equal product_id"); src/lunar_reg/ingest/overlap.py `_corner_window`, `OverlapDiagnostics`
+question: (a) A WKT footprint with 3 vertices has no 4-corner homography; no member names that. Is `NO_PIXEL_SIZE` (detail "N corner(s); the corner homography needs 4") acceptable? (b) A050 says skip same-sensor pairs with equal `product_id`; convention 2 says never skip silently, and `OverlapStatus` members may not change. Is a plain counter `OverlapDiagnostics.n_self_pairs_skipped` (printed by `report()` when non-zero, not counted in `n_pairs_considered`) the right place?
+what I did meanwhile: (a) `NO_PIXEL_SIZE` with that detail; before P1.06 this case returned `None` with no reason. (b) added the counter field (appended, default 0) and one report line. Reversible: one status choice and one dataclass field.
+
+## Q-P1.06-3  A047 rewrap shifts each ring as a whole, not each longitude separately
+context: Phase_1/LLD/overlap.md §3 row A047 ("rewrap both rings' longitudes into (ref − 180, ref + 180]"); src/lunar_reg/ingest/overlap.py `_rewrap_ring`
+question: Read literally (each vertex moved into the interval on its own), A047 splits a reference ring that straddles the source's antipodal meridian (ref ± 180) into a planar quad nearly 360 deg wide. The clipper then reports products on opposite sides of the Moon as OK overlaps, and intersect(a,b) disagrees with intersect(b,a). Reviewer repro: OHRC lon 177.9..178.1 vs TMC2 lon -3..-1 gave `ok` with 180.8 km2. Is it acceptable to unwrap each ring so that no edge jumps by more than 180 deg, then shift it by one multiple of 360 so its MEAN longitude lies in (ref − 180, ref + 180]? A vertex of a straddling ring can then lie just outside the interval.
+what I did meanwhile: implemented the whole-ring shift. Tests: tests/test_overlap_fixes.py::test_a047_antipodal_pair_is_disjoint_in_both_orders, ::test_a047_antipodal_pair_is_not_reported_as_overlap, ::test_a047_rewrap_moves_the_ring_as_a_whole. The existing mixed-convention overlap test still passes. Reversible: one private helper.
+
+## Q-P1.07-1  "median distance ... of the strip centre" (LLD datum §3.5): median over which points?
+context: Phase_1/LLD/datum.md §3 step 5; tests/test_datum.py::test_east_positive_longitudes_on_real_ohrc_grid_and_nac
+question: The strip centre is a single point, so a median of its distance is undefined. Should the MEASURED line report the median over the 25 sub-grid image positions of step 1, the single strip-centre distance, or something else?
+what I did meanwhile: the printed "MEASURED grid-vs-corner offset (m)" line gives both: the median over the 25 sub-grid node image positions and the strip-centre distance (image line lines/2, sample samples/2); both are asserted < 5000 m. Label-corner positions come from scripts/run_vikram.py `label_corners` + `interp_latlon` (imported via importlib, unchanged) using the calibrated ncp image label's corners; both predictions go through the same NAC `GeoReference` (georeference_from_label). Reversible: changing which number is printed is a one-line test edit.
+
+## Q-P1.08-1  Masked edge cases the LLD table does not spell out: `normalize_shadows(method="none")`, non-finite pixels inside `valid`, valid outputs of `log_transform`
+context: Phase_1/LLD/preprocess_nodata.md §1-§2; src/lunar_reg/preprocess/shadow.py `normalize_shadows`, `_effective_valid`; src/lunar_reg/preprocess/radiometric.py `log_transform`
+question: (a) With `valid` given, should `method="none"` also return a float32 copy with NaN at invalid pixels ("every method honours valid; float output NaN at invalid"), or return the input untouched as it does without a mask? (b) Should a NaN/inf pixel that `valid` marks True count as valid? (c) `log_transform` only reserves 0 for invalid pixels; a valid pixel whose log value rounds below 1 is also 0. Should valid outputs be clipped to >= 1 like `to_uint8`/`apply_clahe`/`invert`?
+what I did meanwhile: (a) float32 copy, NaN at invalid, for every method including "none". (b) for float inputs the effective mask is `valid & isfinite(image)`; non-finite pixels are treated as nodata (0 / NaN in the output). A mask with no valid finite pixel logs one warning per function call (so `standard_chain` can log up to three) and returns all-0 / all-NaN. (c) followed the LLD literally (no clip). All three are reversible one-line changes; `valid=None` behaviour is unchanged and pinned by hash tests in tests/test_preprocess_nodata.py.
+
+## Q-P1.09-1  `PreprocessConfig.side` lives in `preprocess/config.py`, which the LLD file list does not name
+context: Phase_1/LLD/preprocess_geometry.md header ("Files: preprocess/pipeline.py, resample.py, georeference.py, constants.py") vs §3 ("`PreprocessConfig` gains `side`"); harness Phase_1/harness/tests/test_P1_09.py::test_reference_side_and_nominal_fallback constructs `PreprocessConfig(side="reference")`
+question: `PreprocessConfig` is defined in `src/lunar_reg/preprocess/config.py`, so §3 cannot be implemented without touching that file. Is the one-field addition there acceptable under the file fence?
+what I did meanwhile: added only `side: str = "source"` (with a comment) to `PreprocessConfig` in config.py; nothing else in that file changed. An unknown `side` value makes the resample step FAILED (ValueError text in the record). Reversible: one dataclass field.
+
+## Q-P1.09-2  Georeference: LLD pixel matrix `inv(dst_affine) @ src_affine` is only valid when both CRSs are equal, but the step only runs when they differ; `dst_nodata`
+context: Phase_1/LLD/preprocess_geometry.md §2 (georeference row) and §4; src/lunar_reg/preprocess/georeference.py `georeference`, `_pixel_transform`
+question: (a) The step is NOOP when the CRSs are equal, so the matrix is only ever recorded across two different CRSs, where `inv(dst_affine) @ src_affine` treats source CRS units (e.g. degrees) as destination units (metres) and is meaningless. Is it acceptable to record instead `inv(dst_affine) @ C @ src_affine`, where `C` is the least-squares affine fit of the source-CRS -> reference-CRS transform over a 5x5 grid of source pixel centres (reduces exactly to the LLD formula when the CRSs agree), with the fit's RMS residual in pixels recorded in the step detail (`pixel_transform_fit_rms_px`)? (b) With `dst_nodata` = the source nodata (0) rasterio initialises the destination to 0, which overwrites the NaN initialisation §4 asks for. Is `dst_nodata = NaN` (float32 destination, uncovered pixels NaN) the intended reading? (c) When `context.valid` is set, should georeference also reproject it (nearest) onto the reference grid, as resample does in §6?
+what I did meanwhile: (a) the fitted affine, pixel-centre convention, residual recorded; (b) `src_nodata` = `src_dataset.nodata` (0 when None), `dst_nodata = NaN`, float32 destination initialised to NaN; (c) yes: the pipeline's georeference step reprojects `context.valid` with nearest-neighbour onto the same grid (`georeference.reproject_valid_mask`: uint8 mask, nodata 0 on both sides, independent of `src_dataset.nodata`; pixels with no source are invalid) so later masked steps do not fail on a shape mismatch; a mask whose shape differs from the source grid makes the step FAILED. The reprojected mask is ANDed with `isfinite(output)`; when `context.valid` is None and the output has NaN pixels (reference pixels the source does not reach, source nodata), `context.valid` becomes `isfinite(output)` (all bands for a cube) so normalize/CLAHE keep them at 0 instead of turning them into data. Also: a geometric step whose output is DEGENERATE_OUTPUT still contributes its matrix to `pixel_transform` (the degenerate image is what `result.image` holds). Provenance (convention 1): `GeoreferenceResult.pixel_transform_source` is `inferred` for the cross-CRS fit and `unknown` when `pixel_transform` is None; `pixel_transform_fit_rms_px_source` is `computed` (`unknown` when the residual is None); both go into the step detail; `PreprocessResult.pixel_transform_source` is the weakest source over the composed steps (unknown < inferred < computed), so `computed` for resampling alone and `inferred` once georeference is in the product. All three are reversible local changes in georeference.py / pipeline.py `_step_georeference`.
+
+## Q-P1.09-3  Resample: the nearest-neighbour mask still marks some nodata-blended output pixels valid
+context: Phase_1/LLD/preprocess_geometry.md §6 ("resamples `context.valid` with nearest-neighbour"); src/lunar_reg/preprocess/resample.py `resample_mask`, `to_common_gsd` (INTER_AREA when shrinking)
+question: `to_common_gsd` averages nodata (0) into valid pixels at a mask edge. `resample_mask` now uses `cv2.INTER_NEAREST_EXACT` (pixel-centre geometry, matching `resample_pixel_transform`; plain INTER_NEAREST was offset by up to half an output pixel toward the origin), but an output pixel whose footprint is partly nodata is still marked valid when its centre sample is valid (factor 4, nodata from source col 43: output col 10 averages 3 valid + 1 nodata pixels and its centre sample, col 42, is valid). Should the mask be conservative instead (e.g. INTER_AREA on the float mask, valid only where the result is 1.0), or should `to_common_gsd` become nodata-aware? Either departs from the LLD's literal "nearest-neighbour".
+what I did meanwhile: kept nearest-neighbour as §6 states, switched to INTER_NEAREST_EXACT (test `test_resample_mask_uses_pixel_centre_geometry`). Reversible: one interpolation flag in `resample_mask`.
+
+## Q-P1.10-1  ECC nodata after a preset when `config.nodata` is set (LLD only names the mask case); `preprocess` also in `RunOutcome.extra`
+context: Phase_1/LLD/preprocess_presets.md §2 ("When `source_valid`/`reference_valid` are given and `config.nodata is None`, ECC gets `nodata=0`"); src/lunar_reg/pipeline.py `register_pair` stage 0
+question: (a) When `config.nodata` is set (e.g. -32768) the preset maps those pixels to 0, so passing the original `config.nodata` to ECC would mask nothing on the uint8 preset output. Is ECC meant to get `nodata=0` in that case too? (b) The LLD names `extra["preprocess"]` without saying which `extra`; failure rows (failures.parquet, the P1.18 ablation) need the preset name, so it is in both `RunOutcome.extra` (every outcome) and `PairResult.extra`. OK?
+what I did meanwhile: (a) after a preset other than "none", ECC gets `nodata=0` whenever a mask or `config.nodata` was given or a float input has NaN/inf pixels (presets make those 0), else `config.nodata` (None); `"none"` keeps today's behaviour exactly. (b) added to both. Reversible: one condition and one dict key in `register_pair`.
+
+## Q-P1.10-2  Presets classify a flat output (fewer than 2 distinct valid values) as DEGENERATE_OUTPUT
+context: Phase_1/LLD/preprocess_presets.md §4 ("an all-zero image -> ok False with a DEGENERATE detail"); src/lunar_reg/preprocess/presets.py `apply_preset`, `_constant_output`
+question: With `nodata=None` (register_pair's default `config.nodata`) an all-zero or flat image is all valid, the masked `to_uint8` maps it to a constant 1, and the P1.09 step check ("no finite non-zero valid pixel") does not fire, so the pair reached the matcher and came out TOO_FEW_MATCHES at stage "match". Is an extra preset-level check right: a non-"none" preset output whose valid pixels hold fewer than 2 distinct values is `degenerate_output` (history step `output_check`), so register_pair gives PREPROCESS_FAILED at stage "preprocess"?
+what I did meanwhile: added that check for "ohrc_nac" and "clahe_shadow" only ("none" stays an identity/stretch, today's behaviour). Also: non-finite pixels of a float input are now nodata in every `_valid_mask` branch (LLD preprocess_nodata.md §1). Tests: `test_flat_image_without_nodata_is_degenerate`, `test_register_pair_all_zero_source_default_nodata_is_preprocess_failed`, `test_nan_pixels_of_float_input_are_nodata`, `test_nan_under_given_mask_is_nodata`, `test_register_pair_nan_input_gives_ecc_nodata_zero`. Reversible: one helper and one call in `apply_preset`.
+
+## Q-P1.11-1  fit_reference_sun.py output keys beyond LLD §2 (provenance and raw/calibrated duplicates)
+context: Phase_1/LLD/sun_geometry.md §2 steps 3-5; scripts/fit_reference_sun.py `label_convention`, `main`; src/lunar_reg/ingest/sun.py `AZIMUTH_FIT_SOURCE`
+question: (a) `build_catalog` lists both the raw (nrp) and calibrated (ncp) label of each OHRC strip, so two `per_strip` rows share one `tag`; is an extra `product_id` key per row acceptable? (b) For convention 1 (provenance in code) `reference_sun.json` carries extra keys next to the LLD ones: `cross_checks.ode_elevation_source`, `ode_note`, `elevation_diff_source`, and in `dtm_fit` `spice_azimuth_grid_deg`, `source` ("inferred"), `note`. C13's `AzimuthFit` was kept field-for-field; its provenance is the module constant `ingest.sun.AZIMUTH_FIT_SOURCE = ValueSource.INFERRED`. (c) `sun_from_spice` drops a trailing `Z` from the UTC string before `str2et` (ODE's `UTC_start_time` ends in `Z`); the SPICE-to-grid conversion for `fit_minus_spice_deg` uses the SPICE point (ODE centre), not the DTM window centre. Are these right?
+what I did meanwhile: implemented as described. All are additive keys or local choices; removing them touches only the script/`sun.py` and no contract field.
+
+## Q-P1.12-1  `agreement_for_stored`: raise conditions and a skip beyond LLD §1–§2; P1.16 will pass several variants per matcher
+context: Phase_1/LLD/agreement.md §1 (skip rule), §2 (only the source/reference ValueError); src/lunar_reg/eval/agreement.py `agreement_for_stored`, `cross_matcher_agreement`; Phase_1/LLD/site_runner.md §1 (pair id `..._{matcher}{variant}`, variant `_<model>` / `_pp-<preset>`) and §3 (Exp-1 gate runs `agreement_for_stored` over every OK result of a strip)
+question: The code does three things the LLD does not name. (a) `agreement_for_stored` raises ValueError when two usable results (those with `pre_ecc_transform`) share a `matcher`, because §2 keys transforms by matcher name and a second one would silently replace the first. (b) It raises ValueError when no usable result has a `source_image` to take the shape from. (c) `cross_matcher_agreement` also skips, with the same one warning, a transform that maps a probe to a non-finite point (a non-singular homography with w = 0 at a probe). Because of (a), the P1.16 Exp-1 gate as written in site_runner §3 crashes on any strip registered with more than one model or preset (`sift` and `sift_pp-clahe_shadow` share source_id, reference_id and matcher). A strip whose results reach more than one reference would also hit §2's own source/reference ValueError. Which should it be? (1) Keep the raise; P1.16 then passes one result per matcher (for example the plain, no-variant pair id, or the variant of `best`) and one reference per call. (2) Key names by the pair-id variant (`sift`, `sift_pp-clahe_shadow`) so that every variant counts as a separate "matcher". That changes what `n_matchers` and `passes` mean: two presets of one matcher are not independent matchers.
+what I did meanwhile: kept the raise (option 1). The message names both pair_ids and says "pass one result per matcher". Results without `pre_ecc_transform` are dropped before the duplicate check. Kept (b) and (c). Tests: `test_stored_duplicate_matcher_rejected`, `test_stored_duplicate_matcher_only_counts_usable_results`, `test_stored_without_source_image_rejected`, `test_probe_mapping_to_non_finite_point_skipped`. Reversible: one loop in `agreement_for_stored`; no C14 field changes.
+
+## Q-P1.13-1  An all-nodata source window has no PrepStatus member; other choices beyond LLD pairs §1
+context: Phase_1/LLD/pairs.md §1 steps 3, 6, 9; CONTRACTS.md C11 `PrepStatus` (frozen); src/lunar_reg/pairs.py `_reduce`, `_find_grid`, `prepare_window_pair`
+question: (a) Step 9 checks only the reference's valid fraction, and C11 has no member for an empty source, so a source window that is all nodata comes back `OK` with an all-False `source_valid`. `reduce_bands(method="pca")` raised ValueError on such a cube, which would make a bad item raise. Should an empty source be a failure (needs a C11 member, e.g. `EMPTY_SOURCE`), or is it the caller's job (register_pair's preprocess check catches it later)? (b) The code also does several things the LLD does not name. It looks for the geometry grid under `<product>/geometry` (the CH-2 bundle layout, parent of the `data` dir) before the label dir's parent. A grid that exists but cannot be read is `READ_FAILED`, with no fallback to the label corners. A grid that does not cover the window corners (NaN) is `NO_FOOTPRINT`. Grid corner queries sit at index −0.5 (grid nodes are pixel centres), clamped to the grid range. `win` is clamped to `lines`, and `l0` to the product. `centre_line` outside the product raises ValueError. Rows use `psy` for the margin and shift. `PrepDiagnostics` (counts + first sample + `report()`) is added per the classified-outcomes skill. Are these right?
+what I did meanwhile: (a) with "pca" and no valid pixel the plane is all zeros (all invalid), the same as "first" and "mean"; the outcome stays `OK` per LLD/C11 (test `test_all_nodata_multiband_source_does_not_raise`). (b) implemented as described. All of this is reversible inside `pairs.py`; no C11 field or member was changed.
+
+## Q-P1.13-2  LLD pairs §1 step 3 says `find_geometry_files(label dir parent, product_id)`, but real LIDs never match its timestamp regex
+context: Phase_1/LLD/pairs.md §1 step 3; src/lunar_reg/ingest/geometry_grid.py `_TIMESTAMP_TOKEN = r"\d{8}T\d{10}"` (case-sensitive), `find_geometry_files`; src/lunar_reg/pairs.py `_grid_key`, `_find_grid`
+question: Every real CH-2 calibrated label's logical_identifier is lower case (`urn:isro:isda:ch2_cho.ohr:data_calibrated:ch2_ohr_ncp_20240425t1406019344_d_img_d18`, seen in all labels under data/raw/ch2/*/*/data/calibrated/), while the grid file names keep the upper-case `T`. Passed literally, as the LLD words it, `find_geometry_files` matches no token, logs a warning, and returns [], so the grid prior was never found on real data. With `product_id=None` it applies no filter and returns every grid under the root, including other products' grids. Should the LLD wording change to "this product's timestamp token (from product_id, else the label stem; case-insensitive)", and should `find_geometry_files` itself (outside P1.13's fence) match the token case-insensitively and refuse an unfiltered search?
+what I did meanwhile: `pairs._find_grid` derives the token itself (`_grid_key`: from product_id, else the label stem, matched case-insensitively, normalised to `T`) and passes that token as the id. With no token it skips discovery (label corners, or NO_FOOTPRINT without corners) and never runs an unfiltered search. On the 8 real calibrated labels under data/raw/ch2, every grid is now found. Tests now use the real lower-case LID form: `test_bundle_grid_found_from_real_lower_case_lid_without_token_warning`, `test_label_without_lid_uses_the_stem_token_for_the_grid`, `test_foreign_grid_next_to_a_label_without_lid_is_not_used`, `test_foreign_grid_in_bundle_is_not_used`. Reversible: two helpers in pairs.py; geometry_grid.py was not changed.
+
+## Q-P1.14-1  check_P1.14 passes but takes about 73 s, over the G18 30 s check budget, because of one existing ASIFT test
+context: Phase_1/harness/check_P1.14.sh line 8 (`repo_pytest ... tests/test_pipeline.py`); tests/test_pipeline.py:125 `test_every_available_detector_produces_usable_matches[asift]`; DECISIONS G18
+question: `bash Phase_1/harness/check_P1.14.sh` exits 0, but `pytest --durations` shows that one test, `test_every_available_detector_produces_usable_matches[asift]`, takes 62-67 s on this laptop (about 25 CPU-minutes of OpenCV `AffineFeature` threads; `OMP_NUM_THREADS=1` makes no difference). The rest of the check takes about 6 s. The test calls `ClassicalMatcher("asift")` directly and uses no code that P1.14 changes, so check_P1.10 and check_P0.09 (which also run tests/test_pipeline.py) hit the same cost. Should that parametrisation be marked slow, or excluded from the per-prompt checks, or run on a smaller synthetic pair? The harness and the existing test are outside P1.14's fence.
+what I did meanwhile: nothing. Neither the test nor the check was changed. The timings were measured in this session with `pytest --durations=8` and `time`.
+
+## Q-P1.15-1  TMC-2 orthoimage declares no nodata; the raster probe infers fill value 0 (please confirm against the SIS)
+context: Phase_1/LLD/tmc2_iirs.md §1 step 2; docs/probes/ch2_tmc_ndn_20231027T1315134884_d_oth_d18_raster.json (from `scripts/probe_raster.py`)
+question: `ch2_tmc_ndn_20231027T1315134884_d_oth_d18.tif` has `nodata_declared: null`. On the decimated read (f = 87, out_shape 479 x 2030), value `0` covers 75890 of 78238 border samples, so `fill_candidate: 0` (`fill_candidate_source: "inferred"`), and `fill_fraction` is 0.9424622314551045 (all from the JSON above). Is 0 the documented fill/no-data value for TMC-2 derived orthoimages in `docs/external/tmc/tmc/document/ch2_tmc2_pds_dp_archive_sis.pdf`? For comparison, the DTM `ch2_tmc_ndn_20231027T1315134884_d_dtm_d18.tif` declares `nodata_declared: -32768.0`, and its inferred `fill_candidate` is the same value (docs/probes/ch2_tmc_ndn_20231027T1315134884_d_dtm_d18_raster.json).
+what I did meanwhile: nothing uses the value. It is recorded only in the probe JSON, marked inferred. Nothing downstream reads a fill value until a human confirms it.
+
+## Q-P1.15-2  Probe results: no TMC-2 view element exists, and the IIRS band centres are a per-band list that a scalar `Field` cannot hold
+context: Phase_1/LLD/tmc2_iirs.md §2, §3; docs/probes/ch2_tmc_ncn_20230521T0857294318_d_img_d32.txt; docs/probes/ch2_iir_nci_20221226T0416479474_d_img_d32.txt; src/lunar_reg/ingest/fieldmap.py `SPECTRAL_FIELDS`
+question: (a) None of the four TMC-2 labels on disk (two calibrated, the derived DTM and the orthoimage) has a view (fore/nadir/aft) element. I compared their leaf element sets and grepped them. So no view `Field` was added, and `PDS4Product.view` reads a field named `view` (`pds4.VIEW_FIELD`) that is not mapped, so it is always None. Is the view meant to come from somewhere else (for example the `job_id` / `level0_dir_name` strings), or does it stay None? (b) The IIRS label has 256 `Band_Bin_Set/Band_Bin` entries, each with `band_number`, `band_width` and `center_wavelength`. A `Field` resolves only the first match in document order. So I added `first_band_center_wavelength` and `first_band_width` (VERIFIED, named for what they hold). These are band 1's values, 712.3 and 19.8, per the IIRS probe txt. Should a later prompt add a reader for the per-band list (for example `PDS4Product.band_center_wavelengths`)? The `VNIR_BAND_RANGE` in hyperspectral.py is still an index range, not one derived from wavelengths. (c) As a side effect, `first_band_*` now appear in the manifest's `unresolved_fields` for every non-IIRS product.
+what I did meanwhile: (a) no field; `view` is None. (b) the two scalar fields only. Both changes are append-only in fieldmap.py and can be reverted.
+
+## Q-P1.15-3  Choices beyond LLD tmc2_iirs §1 step 2 and §4: shape guard on the incremental PCA route; extra probe JSON keys
+context: src/lunar_reg/preprocess/pipeline.py `_incremental_pca_refusal`, `_step_band_reduction`; scripts/probe_raster.py
+question: (a) `incremental_band_pca` reduces the whole dataset. If `context.src_dataset` is the full product but `image` is a window of it, taking the incremental path would replace the window with a plane of a different size. So the route also requires `image.shape == (count, height, width)`. Otherwise the in-memory path runs, with `detail["incremental_refused"]` giving the reason. The incremental detail has no `explained_variance`, because `incremental_band_pca` only logs it. Is that acceptable? (b) probe_raster reads band 1 only (`band_read: 1`). It adds keys `out_shape`, `n_border_samples`, `value_sources` (ValueSource per value), `status` (ProbeStatus: ok / no_border_samples / open_failed / read_failed), `error`. It writes a NaN border value as the string `"nan"`. It caps GDAL_CACHEMAX at 64 MB. Are these right?
+what I did meanwhile: implemented as described; each choice is local to those two functions and the script.
+
+## Q-P1.16-1  Choices beyond LLD site_runner §1–§2: extra SiteReport fields, products.json, preview and GeoTIFF paths, note texts, extra/count keys
+context: Phase_1/LLD/site_runner.md §1 (types), §2 steps 4a, 4d, 4f, 5; src/lunar_reg/sites/runner.py `SiteReport`, `ProductRun.as_dict`, `_coarse`, `_run_product`, `_keep`, `run_site`
+question: The code does several things the LLD does not name. Are they right? (a) `SiteReport` has extra fields, all with defaults: `instruments`, `prep` (a `PrepDiagnostics`), `saved`, `not_saved`, `notes`, `dry_run`. `report()` needs them. (b) `run_site` also writes `<out_dir>/products.json`, one row per product (prep status and detail, coarse note, search prior, per-matcher status). It is listed in the run record artefacts, so prep failures are persisted as well as registration failures. (c) Dry-run previews are named `<out_dir>/preview/<SENSOR>_<tag>_{src,ref}.png`, not `<tag>_…`. Otherwise the raw and calibrated products of one tag would overwrite each other. (d) Registered GeoTIFFs go to `<out_dir>/registered/<pair_id>.tif`, because the LLD names no directory. `export_stored` still writes to `data/processed/vikram/registered`. (e) Note texts. A failed coarse preparation is `"coarse pass failed (prep <PrepStatus>)"`. A coarse pass that did not run is `"not run (dry run)"` or `"not run (disabled)"`. An OK fine prep gets `prep_detail` = source/reference sizes, reference valid fraction and prior source. (f) Extra `extra` keys beyond the C04 reserved ones: `source_sun_azimuth_source`, `source_sun_elevation_source`, `source_sun_frame`, `reference_sun_azimuth_source`, `reference_sun_elevation_source`, `reference_sun_frame`, `label_offset_source` (ValueSource values; one per numeric value, because a label convention changes the azimuth's source only), and `registered_geotiff_error` when the GeoTIFF write fails. The reserved `reference_sun_source` holds the azimuth's source. That GeoTIFF failure is caught; the result is still saved, and `SiteReport.geotiff_failures` (another field beyond §1) puts the count and first error in `report()`. The runner writes its sun keys into the OK result's `extra` after `register_pair`, because `register_pair` sets the four C04 sun keys from its `source_sun`/`reference_sun` arguments, which are None when the frames differ (§2 step 4e). A result that is not saved (npz exists, no `--overwrite`) is detected before the registered GeoTIFF is written, so the stored result's GeoTIFF is never replaced by an unsaved transform's warp. (g) Run-record count keys: every `RunStatus` value (0 included), `prep_<PrepStatus value>`, `instrument_<INST>_<status>`, `coarse_ok`/`coarse_failed`, `products`, `saved`, `not_saved_exists`, and `geotiff_write_failed`/`preview_write_failed` when they occur. Run-record `notes` gets `"<inst>: <status>, not run"` for each requested instrument that is not PRESENT, plus the reference-sun frame and label convention used. (h) `run_site` raises ValueError for an instrument outside OHRC/TMC2/IIRS, which is a programmer error. (i) `scripts/run_vikram.py` keeps `prepare_pair` and its helpers because `export_stored` needs them. It drops `coarse_shift`, `centre_offset_m` and `REFERENCE_SUN_NOTE`. So `tests/test_run_vikram_geometry.py::test_coarse_note_keeps_three_decimals` now runs the note round-trip against `runner._coarse`. The file was not ruff-formatted at HEAD and is still not formatted, to keep the diff to the CLI.
+what I did meanwhile: implemented as described. Each choice is local to runner.py or run_vikram.py and can be reverted there. No C02–C20 field or member was changed.
+
+## Q-P1.16-2  `--dry-run` exits 1 (LLD §4 `0 if any_ok else 1`); the old script returned 0
+context: Phase_1/LLD/site_runner.md §4; scripts/run_vikram.py `main`; Phase_0/skills/classified-outcomes/SKILL.md (exit codes: 0 for "an expected non-result")
+question: A dry run never registers anything, so `any_ok` is always False and the CLI exits 1, even when every pair prepared OK (measured: the P1.16 dry run below, `data/processed/vikram/runs/p1_16_dry/run_record.json`, `prep_ok` 2, exit 1). Should a dry run instead exit 0 when no prep failed, and 1 when any prep failed?
+what I did meanwhile: followed LLD §4 literally: exit `0 if report.any_ok else 1`, also for dry runs. Test `tests/test_site_runner.py::test_run_vikram_exit_follows_any_ok` pins this. Reversible: one line in `main`.
+
+## Q-P1.16-3  Exp-1 gate: which results go into `agreement_for_stored` (Q-P1.12-1), and the strip fields when nothing is computed
+context: Phase_1/LLD/site_runner.md §3; CONTRACTS.md C20; src/lunar_reg/sites/runner.py `_strip`, `_pair_variant`, `compute_exp1_gate`
+question: §3 runs agreement over "that strip's OK results". After Q-P1.12-1, `agreement_for_stored` raises on two results with one matcher or with several source/reference pairs. So the gate splits a strip's results into comparable groups by (`source_id`, `reference_id`, `source_sensor`, `reference_sensor`, pair-id variant = the suffix after `-<reference_sensor>_<matcher>`) and runs the §3 test (best by the §3 rule, agreement over the group, one result per matcher, the first by sorted pair_id) in each group. The strip passes when any group passes. This matters for P1.20: exp-1a stores raw and exp-1b stores calibrated results of the same 2023 tags in the live store, and a strip-wide best from a one-matcher calibrated group would otherwise hide a raw group that meets the C20 rule. The row reports the passing group with the most inliers, else the group of the strip-wide §3 best. Is that the intended set? A stored record that cannot be loaded is counted: strip `status = "load_failed"` when none of the tag's records loads, else `"ok; <n> stored record(s) not loaded"`; the one summary log line gives the total and the first reason. Other choices: a remaining ValueError gives strip `status = "agreement_failed"` and `passes_targets = False`. A strip with results has `status = "ok"`. A `no_result` strip has `best_matcher = None`, `u_score = None`, `agreement_px = None`, `n_inliers = 0`. A NaN `agreement_px` (fewer than 2 transforms) or `u_score` is written as `null`, so the document is strict JSON. `reference_sun = None` becomes `{}`. The thresholds 20 / 0.7 are module constants with `EXP1_THRESHOLDS_SOURCE = INFERRED` (chosen targets).
+what I did meanwhile: implemented as described. Tests: `test_exp1_gate_build_then_skip`, `test_exp1_gate_variants_do_not_crash_and_disagreement_fails`, `test_exp1_gate_empty_store`, `test_exp1_gate_any_comparable_group_passes`, `test_exp1_gate_unloadable_records_are_classified`. Reversible inside `_strip`.
+
+## Q-P1.16-4  The OHRC prior shift is also applied to calibrated products whose prior comes from the geometry grid
+context: Phase_1/LLD/site_runner.md §2 step 4b; DECISIONS.md G38; src/lunar_reg/sites/runner.py `_run_product`
+question: (556, −2888) m was measured against the **label-corner** prior of the raw strip. G38 restricts the shift by instrument only. So an OHRC calibrated (`ncp`) product, whose prep uses the geometry grid, also gets the shift when its coarse pass fails. The grid and corner priors differ (LLD datum §3.5). In the P1.16 dry run both 20240425T1406019344 products got `prior shift 556,-2888 m (E,S)`; the calibrated one has `prior from geometry_grid` (data/processed/vikram/runs/p1_16_dry/products.json). Should the shift apply only when the prior source is label corners? LLD runs.md exp-1b passes `--prior-shift ''` for calibrated products, so the planned runs are not affected.
+what I did meanwhile: followed LLD §2 / G38 as written (per instrument). Reversible: one condition in `_run_product`.
+
+## Q-P1.17-1  Choices beyond LLD jaxa_cli_ablation §1–§3: resampling, fallbacks, extra JSON keys, `not_run` anchor rows, synthetic matcher set
+context: Phase_1/LLD/jaxa_cli_ablation.md §1, §2, §3; scripts/run_jaxa.py `prepare_same`, `prepare_cross`, `main`; scripts/run_ablation.py `anchor_rows`, `run_synthetic`, `main`; src/lunar_reg/cli.py `_read_for_register`, `register_document`, `cmd_register`, `cmd_overlap`
+question: The LLD does not name these choices. Are they right?
+(a) run_jaxa, same-sensor pair: §1 does not name a resampling method. Each scene is read once over the fractional `from_bounds` window of the intersection, with `out_shape` at the common GSD, GDAL `average` resampling, `masked=True` (the files' nodata −32768 is excluded) and `boundless=True`. A CRS mismatch raises ValueError. The README records one shared CRS, and the test pins `PairPrepStatus` to exactly ok / input_missing / no_overlap, so there is no member for it.
+(b) run_jaxa, cross pair: `georeference(tc, tc_ds, wac_ds)` uses its default cubic resampling, as §1 calls it. When it returns NOOP (same CRS), the TC is reprojected onto the WAC grid directly (rasterio `reproject`, cubic, NaN fill). When it is not applied for another reason (a CRS or transform is missing), the pair is `input_missing`, and the detail carries georeference's reason.
+(c) run_jaxa extra keys beyond §1: `common_gsd_m_source` ("computed"), plus on the cross pair `georeference_status`, `georeference_fit_rms_px` and `georeference_fit_rms_px_source`. The valid masks go to `register_pair` as `source_valid` / `reference_valid`. Run-record counts are `prep_<PairPrepStatus>`, every `RunStatus` value, and `saved`. The run record goes to `data/processed/demo_real/v2/` relative to the cwd. A `FileExistsError` from `save_results` (pair already stored, no `--overwrite`) is printed and put in the run-record notes. The exit code is still 0 when a registration succeeded.
+(d) run_ablation: the synthetic matchers are `("sift", "lightglue")` ∩ `--matchers`. The P1.17 harness test passes `--matchers sift`. P1.18 passes all four, which gives the 2 matchers that runs.md's 120-row count expects. The harness iterates `doc["synthetic"]` as a list of rows. So `"label": "SYNTHETIC"` is on every synthetic row, and the top level has `"labels": {"anchor": "REAL", "synthetic": "SYNTHETIC"}`. It is not a wrapping object.
+(e) run_ablation, anchor rows: a matcher with no outcome (product not selected, or prep failed) still gets a row, with `status = "not_run"`, `n_inliers = 0`, `u_score = 0.0` and the reason in `detail`. So P1.18 always has presets × matchers rows. `not_run` is not a `RunStatus` value; `choose_default_preset` counts it as not passing. Extra row keys: `pair_id` and `detail` on anchor rows, `n_inliers` and `label` on synthetic rows. The top level also has `value_sources` (n_inliers and u_score measured, truth_rms_px computed). A non-finite `u_score` or `truth_rms_px` is written as null. Exit codes: 2 for an unknown preset, 1 when no row is `ok`, else 0. Each anchor `run_site` uses SiteConfig defaults for every field §2 does not list, so the coarse pass, prior shift and reference-sun JSON are the same for all presets.
+(f) cli register: pixels that are ≤ 0, equal to the dataset nodata, or non-finite are set to NaN before the INTER_AREA downsample. Valid is then `isfinite & > 0`, and the masks go to `register_pair`. The `--output` values in metrics / uniformity / conditioning / extra go through `results._plain_for_index` one value at a time (containers become JSON strings, as in the index). `extra` = outcome.extra updated with result.extra. The default `--pair-id` is `<source stem>-<reference stem>_<matcher>`, reduced to the pair-id alphabet. When `--save-root` already holds the pair, the CLI prints "NOT saved" and still exits 0 for an OK registration. `extra` records `source_downsample` / `reference_downsample`, `downsample_source` = "computed", `max_px`, the input files and `input_prep`.
+(g) `inspect`: at HEAD it already used `product["sun_azimuth_deg"]` / `product["incidence_angle_deg"]` and guarded `image_path is None` (P0.05), so it is unchanged. The new test only pins the sun line. `overlap --crop-dir` prints `skipped 0` when nothing was skipped. cli.py was not ruff-formatted at HEAD and is still not formatted, to keep the diff to the changed functions. ruff check passes.
+what I did meanwhile: implemented as described. Each choice is local to the two new scripts or to cmd_register/cmd_overlap, and can be reverted there. No CONTRACTS field or member was changed.
+
+## Q-P1.18-1 BLOCKER  TMC2/IIRS are PRESENT but do not cover the site, so `lunar-reg overlap` writes no `overlap_ohrc_<inst>.parquet` and check_P1.18 cannot pass
+context: Phase_1/LLD/runs.md §P1.18 step 4(a) and "Artefacts checked"; Phase_1/harness/tests/test_P1_18.py:61; src/lunar_reg/cli.py `cmd_overlap` (`if args.output and len(pairs):` writes the parquet only when at least one pair is usable, and returns 1 when pairs were considered but none is usable)
+question: The catalog (data/processed/cross/catalog.json) reports TMC2 and IIRS as `present`, so step 4 ran for both. On this data neither instrument overlaps OHRC. `lunar-reg overlap ... --reference-sensor TMC2` and `--reference-sensor IIRS` each printed "considered 16 pair(s) from 8 source x 2 reference product(s); disjoint 16; usable pairs: 0" and exited 1 (data/processed/cross/console_overlap_TMC2.log, console_overlap_IIRS.log). So no parquet was written. The manifest footprints (data/processed/cross/manifest.parquet) put the TMC2/IIRS strips at other longitudes. At OHRC latitudes (about −69°) they lie near 92–193° E, and OHRC covers 32.1–32.5° E. Step 4(b) confirms this: `run_vikram.py` gave `prep_outside_reference` for 2 of 2 TMC2 and 2 of 2 IIRS products, with 0 registrations and exit 1 (data/processed/cross/TMC2/run_record.json, data/processed/cross/IIRS/run_record.json). The test requires `data/processed/cross/overlap_ohrc_{tmc2,iirs}.parquet` to exist for every PRESENT instrument. It does not accept "present but no overlap". A RUN prompt may not edit code, and the skill forbids re-running with different settings. Which should apply? (1) a code change so that `cmd_overlap` writes an empty, schema-correct parquet when `--output` is given and 0 pairs are usable (cli.py, a later or fix-up prompt), then re-run step 4(a) only; (2) a change to the LLD and harness, so that a present-but-disjoint instrument is accepted when the cross run record shows `<inst>_overlap_usable_pairs = 0`; or (3) download TMC2/IIRS products that cover the Vikram site (human, PRADAN), then re-run step 4.
+what I did meanwhile: ran all other steps to completion. Steps 1, 2, 3 and 5 are done, and their artefacts pass 3 of the 4 harness tests. I wrote `data/processed/cross/run_record.json`, which is C15-valid. It has `instrument_TMC2_present` and `instrument_IIRS_present`, the per-instrument overlap and prep counts, and notes that state the overlap exit 1 and that no parquet was written. I did not hand-write any overlap parquet. Nothing under data/raw was touched.
+independent check (orchestrating session, read-only, per-pixel geometry grids via lunar_reg.ingest.geometry_grid.read_geometry_grid, haversine on R = 1737.4 km): closest pixel to Vikram (-69.37, 32.32) -- TMC2 ncf_20231026T0943001971 528.8 km, TMC2 ncn_20230521T0857294318 651.6 km, IIRS nci_20230125T1944138897 538.4 km, IIRS nci_20221226T0416479474 617.2 km; 0 pixels within 50 km for all four. The four OHRC ncp grids reach the site at 0.0 km (method sanity check). So the products really are disjoint from the site; the 90-100 % "box cover" in .fable/inbox_P1DL_20260930.md row 3 does not hold for these grids. Option (3) is the only one that yields TMC2/IIRS registrations; (1) or (2) only let the phase record "present but disjoint" honestly.
+answer (architect, 2026-10-02, human chose): neither (1) nor (2). New code prompt **P1.24** (`Phase_1/LLD/cross_pairs.md`, G41) makes cross-instrument pairing site-agnostic. References are listed in `configs/references.json`, overlap is tested in each reference's own projection, and each overlapping product is registered at its deepest overlap node. On today's data the TMC-2 `ncf` and IIRS `nci_20230125` strips overlap ISRO's TMC-2 ortho `ndn_20231027` near the south pole (architect, M). Those results are relative only, because the reference is not independent. P1.18 step 4 is rewritten to use `scripts/run_cross.py`, and `test_P1_18::test_cross_instrument_record` follows it. Option (3) is kept for later: `Phase_1/DOWNLOAD_BRIEF_TMC2_IIRS_VIKRAM.md` is the brief for strips over Vikram; once they are on disk, P1.18 step 4 picks them up with no code change. Next: P1.24, then P1.18 (only step 4 re-runs).
+
+## Q-P1.18-2  Run records the LLD asks for but no script writes: the step-1 archive record and the step-4 aggregate `cross/run_record.json`
+context: Phase_1/LLD/runs.md §P1.18 step 1 ("Record which happened in the run record `notes`") and step 4 (`data/processed/cross/run_record.json`); the run_vikram sub-runs write to `data/processed/cross/<inst>/run_record.json`
+question: Step 1 names "the run record" but no path for it. Step 4 needs an aggregate record at `data/processed/cross/run_record.json`, and no script writes one. Are the paths and content below acceptable?
+what I did meanwhile: I wrote both with `lunar_reg.runrecord.start_run/finish_run/write_run_record`, from an inline `.venv/bin/python` snippet (no code file was changed). (a) `data/processed/p1_18_archive/run_record.json`: notes "archive did not exist: moved data/processed/results to data/processed/results_archive_20260929 (v1 store, 13 index rows), then created an empty data/processed/results"; counts `archived_moved=1`, `archive_existed_noop=0`, `v1_index_rows=13`. (b) `data/processed/cross/run_record.json`: `instrument_<inst>_<catalog status>`, plus `<inst>_<sub-run count>` and `<inst>_overlap_{usable_pairs,disjoint}` parsed from the console logs. The artefacts are the catalog, the manifest, the console logs and the sub-run records. Both are C15-valid. Reversible: delete the two files and regenerate.
+answer (architect, 2026-10-02): (a) accepted as written. (b) superseded: `scripts/run_cross.py run` writes `data/processed/cross/run_record.json` (cross_pairs.md §6). Move the snippet-written record into `data/processed/cross/attempt1_vikram_only/` with the other first-attempt artefacts (runs.md P1.18 step 4a).
+
+## Q-P1.18-3  ASIFT fails on the anchor at every preset with an OpenCV BFMatcher assertion (`trainDescCollection[iIdx].rows < IMGIDX_ONE`)
+context: data/processed/ablation/console_step2.log (anchor rows, all three presets); data/processed/ablation/ablation.json anchor rows `asift`, status `matcher_error`
+question: On the anchor pair at 4 m/px (source 750x750, reference 1330x1343), ASIFT ends in `matcher_error` for all 3 presets. The OpenCV assertion `trainDescCollection[iIdx].rows < IMGIDX_ONE` in `knnMatchImpl` (opencv 4.14.0) fires when the reference descriptor set is too large for BFMatcher's image-index packing. The ablation counted these rows as not passing, so the tie-break between ohrc_nac and clahe_shadow (3 of 4 each) went to the synthetic median truth_rms_px (0.137 vs 0.1373, data/processed/ablation/ablation.json `reason`). Should ASIFT cap its keypoints, or match in chunks, before P1.19 or P1.20 use it on real strips?
+what I did meanwhile: nothing (a RUN prompt edits no code). The failure is classified and counted in data/processed/ablation/run_record.json.
+answer (architect, 2026-10-02, human chose to cap): new prompt P1.25 (`Phase_1/LLD/asift_cap.md`, G42) runs before P1.18. It caps keypoints at the strongest 50 000 for ASIFT, with a hard limit of 262 143 for every detector (the BFMatcher train limit, measured in opencv 4.14.0). P1.18 then re-runs step 2 (ablation) as well as step 4, after moving the old ablation to `data/processed/ablation_attempt1_asift_uncapped/`.
+
+## Q-P1.24-1  Choices beyond Phase_1/LLD/cross_pairs.md (non-blocking; for the review pack's LLD deviations)
+context: src/lunar_reg/ingest/lro.py georeference_from_raster; src/lunar_reg/cross.py; scripts/run_cross.py
+question: Are these readings of the LLD acceptable?
+(a) Raster/label cross-check: residual = max(Δlat·R·π/180, Δlon·R·cos(mean lat)·π/180) over the four outer corners, compared with 1.5 × min(pixel_size_x, pixel_size_y) (RASTER_LABEL_TOLERANCE_PX, INFERRED). Real SELENE TC S69E030: 3.7 m = 0.50 px -> DOCUMENTED; TMC-2 ortho: no PDS3 label -> INFERRED (both as the LLD's known outcomes). rasterio's "+no_defs=True" in to_proj4() is normalised to "+no_defs".
+(b) cross.py adds public helpers resolve_reference_path (relative paths resolve from the cwd, else the repo root) and reference_georeference; the validity mask is indexed with the actual decimation ratio (height/mask rows, width/mask cols) rather than the integer factor, so the last partial cell is not dropped.
+(c) run_cross.py run: aggregate run record goes to --record-dir (default: the directory of --overlaps, i.e. data/processed/cross/); a run_site exception or an unknown/unreadable reference counts as a setup error (recorded in notes, other candidates still run, exit 1 at the end); counts also carry setup_errors.
+(d) While developing I ran `run_cross.py find` once on the real data/raw (read-only) with --out in my scratch directory, not data/processed: 20 pairs, 3 overlap (TMC2 ncf_20231026 vs tmc2_ortho 1803 nodes, IIRS nci_20221226 14, IIRS nci_20230125 20), 17 disjoint with nearest distances 457-664 km to the NAC/SELENE Vikram references. P1.18 still produces the real artefact.
+what I did meanwhile: implemented as above; tests/test_cross_pairs.py (12 tests) and the harness pass; the data-marked harness control passes (all TMC-2/IIRS strips DISJOINT from the Vikram NAC, > 400 km).
+
+## Q-P1.18-4  Step 4(a) moved every first-attempt file, not only the five the LLD lists
+context: Phase_1/LLD/runs.md §P1.18 step 4(a) lists `manifest.parquet`, `console_overlap_*.log`, `TMC2/`, `IIRS/`, `run_record.json`; the first attempt's own run record (now data/processed/cross/attempt1_vikram_only/run_record.json) also lists `catalog.json`, `console_catalog.log`, `console_manifest.log`, `console_vikram_{TMC2,IIRS}.log` as its artefacts, plus `console_vikram_done.log`
+question: Is it right to move all the first-attempt files into `data/processed/cross/attempt1_vikram_only/`, rather than only the listed ones? Step 4(b) rewrites `catalog.json` in place, so leaving the old one would have overwritten it.
+what I did meanwhile: moved all twelve first-attempt entries (moved, nothing deleted). `console_reindex.log` (the step-5 reindex console of the earlier session, not a step-4 artefact) was left in `data/processed/cross/`. Reversible: move files back out of `attempt1_vikram_only/`.
+
+## Q-P1.19-1  Step 4's command, as written, would run preset "none", not the new default
+context: Phase_1/LLD/runs.md §P1.19 step 4 says "(preset = the new default)", but `scripts/run_vikram.py --preprocess` defaults to `SiteConfig().preprocess`, which is `"none"` (src/lunar_reg/sites/runner.py:152, as Phase_1/LLD/site_runner.md §1 specifies), not `PipelineConfig().preprocess`. The P1.20 commands in runs.md also pass no `--preprocess`.
+question: Should `SiteConfig.preprocess` (and so the `run_vikram.py`/`run_cross.py` defaults) follow `PipelineConfig.preprocess`, or should each RUN command pass `--preprocess` explicitly? Which preset should the P1.20 exp-1 runs use?
+what I did meanwhile: ran step 4 with `--preprocess ohrc_nac` appended (the winner from `choose_default_preset` on data/processed/ablation/ablation.json), otherwise exactly as written; no runner code changed (outside this prompt's file fence). Reversible: re-run step 4 without the flag. The run record's `config.preprocess` shows the preset used.
+
+## Q-P1.19-2  Existing tests that relied on the old default "none" now pin it explicitly
+context: changing `PipelineConfig.preprocess` to `"ohrc_nac"` (DO step 2) makes blank/all-zero test images fail in stage 0 with `preprocess_failed` (degenerate output) instead of reaching the matcher.
+question: Is pinning `preprocess="none"` in tests that test matcher/store behaviour (not presets) the intended fix?
+what I did meanwhile: added `preprocess="none"` to the `PipelineConfig(...)` of tests/test_matcher_registry.py::test_register_pair_superglue_without_licence_is_matcher_error, ::test_register_pair_copies_licence_into_extra, tests/test_pipeline_counts.py::test_empty_reason_reaches_the_detail, tests/test_results_v2.py::_blank_failure (used by ::test_failures_parquet_columns_and_append) and ::test_run_batch_writes_failures_parquet; changed tests/test_presets.py::test_pipeline_config_default_is_none to assert `"ohrc_nac"` (name kept, no renames). Their assertions are unchanged otherwise. CPU suite: 950 passed.
+addendum (review of P1.19): the same pinning cannot be applied to the protected harness copies of these tests; see Q-P1.19-3.
+
+## Q-P1.19-3  New default "ohrc_nac" breaks protected harness tests that build a blank-image failure with PipelineConfig() defaults (resolve before P1.21's check and §Phase end verify.sh)
+context: Phase_1/LLD/runs.md §P1.19 step 2 (default = ablation winner, checked by test_P1_19) vs Phase_1/LLD/preprocess_presets.md §2 (stage 0: preset not ok -> PREPROCESS_FAILED) and §4 (all-zero image -> ok False, DEGENERATE). Protected tests that call `register_pair` on `np.zeros(...)` with no `preprocess=` argument and expect a matcher-stage status: Phase_0/harness/tests/test_contracts_P0.py::test_C02_failure_extra_keys (:74), ::test_C05_failures_columns (:250), ::test_C05_run_batch_persists_failures (:282); Phase_0/harness/tests/test_P0_09.py::test_empty_reason_in_detail (:146); Phase_1/harness/tests/test_P1_14.py::test_register_pair_licence_error (:74, expects MATCHER_ERROR); Phase_1/harness/tests/test_P1_21.py::test_export_atomic_with_failures (:38, expects "too_few_matches"; today it fails earlier on the missing P1.21 export, after P1.21 it would fail on the status). All now get `preprocess_failed` with extra `'preprocess': 'ohrc_nac', 'stage': 'preprocess'` (`.venv/bin/python -m pytest -m "not gpu" Phase_0/harness/tests/test_contracts_P0.py Phase_0/harness/tests/test_P0_09.py Phase_1/harness/tests/test_P1_14.py`). Phase_1/harness/verify.sh runs `Phase_0/harness/tests/test_contracts_P0.py` ("Phase 0 contracts regressed") and `Phase_1/harness/tests` ("Phase 1 harness"), so §Phase end verify.sh fails, and check_P1.21 cannot pass. check_P1.19 passes because it runs only test_P1_19.
+question: Which should change: (1) a harness revision (phase-1-harness-r<n>) that pins `preprocess="none"` in these tests, as Q-P1.19-2 did for the repo copies; or (2) a spec change to how `register_pair` treats a DEGENERATE preset output on an all-zero input (e.g. a fallback), which would contradict preprocess_presets.md §2/§4 as written; or (3) a different default rule?
+what I did meanwhile: kept the default "ohrc_nac" (runs.md §P1.19 step 2, required by test_P1_19) and the LLD's PREPROCESS_FAILED behaviour; edited no protected file. Not marked BLOCKER because P1.19's DONE WHEN (check_P1.19.sh) passes and P1.20 does not depend on it (run_vikram uses SiteConfig.preprocess, Q-P1.19-1); it blocks P1.21's check and §Phase end. Reversible: one default in src/lunar_reg/pipeline.py.
+answer (human, 2026-10-02): option (b) -- change how register_pair treats a degenerate preset input.
+implemented: src/lunar_reg/pipeline.py stage 0 (_degenerate_input). When either input has no valid pixel or all valid pixels equal (validity as the presets compute it), the preset is skipped for both images, the inputs go to matching unchanged, and extra["preprocess_skipped"] = "degenerate_input: <side>: <why>" (on failure outcomes and saved results). A preset that turns an informative input into a degenerate output is still PREPROCESS_FAILED. The six protected harness tests pass unchanged; tests/test_presets.py::test_register_pair_all_zero_source_default_nodata_is_preprocess_failed was renamed ..._skips_the_preset and now asserts the new behaviour; new tests/test_degenerate_input.py (5 tests). This differs from Phase_1/LLD/preprocess_presets.md §2/§4 as written (all-zero input -> DEGENERATE -> PREPROCESS_FAILED): list it as an LLD deviation in REVIEW_PACK_1.md; the architect may update the LLD.
+
+## Q-P1.20-0  ASIFT detection exhausts host RAM and froze the machine three times during P1.20 exp-1a; capped its OpenCV threads (outside any prompt's fence)
+context: src/lunar_reg/match/classical.py ClassicalMatcher.detect (asift); Phase_1/LLD/runs.md §P1.20 step 2; DECISIONS G18 (host RAM <= 12 GB); measurements in data/processed/probes/asift_memory_20261002.txt
+question: Three P1.20 attempts each hard-froze Ubuntu within minutes of exp-1a starting (previous boot ended 19:06:58 with no shutdown; no kernel OOM kill). Probing the exp-1a command one matcher at a time under a 10 GB cgroup cap: sift peak 4.35 GB, akaze 1.84 GB, asift OOM-killed within 4 s (artefact above). cv2.AffineFeature runs SIFT over its affine views in parallel; its peak RSS on a 1834x1857 crop is 1167 MB at 1 thread, 3670 MB at 4, 5595 MB at 8 (same artefact), i.e. ~15 GB at the default 24 threads on this 15 GiB machine -> swap thrash. Output is bit-identical at 1, 4 and 24 threads (keypoints, responses, descriptors). Is capping ASIFT detection at ASIFT_DETECT_THREADS = 4 (3.7 GB peak, ~5 s) the right fix, or should the architect choose a different bound (or a memory-derived one)?
+what I did meanwhile: ClassicalMatcher.detect sets cv2.setNumThreads(min(current, ASIFT_DETECT_THREADS)) around AffineFeature detectAndCompute only and restores the previous value; other detectors and all results are unchanged; provenance MEASURED citing the artefact. Committed separately ("P1: ASIFT detection thread cap"), before P1.20 is re-run. One-constant revert.
+
+## Q-P1.20-1  exp-1a/exp-1b ran with preset "none" (commands as written), not the P1.19 default "ohrc_nac"
+context: Phase_1/LLD/runs.md §P1.20 steps 2-3 pass no `--preprocess`; `run_vikram.py` then uses `SiteConfig.preprocess = "none"` (src/lunar_reg/sites/runner.py:152); Q-P1.19-1 (same issue, still unanswered); `params.preprocess` = "none" in data/processed/vikram/exp1/raw_prior/run_record.json and data/processed/vikram/exp1/cal_grid/run_record.json.
+question: Should the exp-1 diagnosis also be measured with `--preprocess ohrc_nac` (the preset the 2024 anchor's live-store rows use), and if so does that run feed the gate (C20) or only the doc?
+what I did meanwhile: ran both commands exactly as written (preset none); the doc (docs/VIKRAM_2023_DIAGNOSIS.md, "What was run" and the last section) states that the preset effect was not measured. Reversible: re-run steps 2-3 with `--preprocess ohrc_nac` into new out-dirs and recompute the gate.
+
+## Q-P1.20-2  The classification step (diagnosis.json) has no run record and its program was not kept
+context: Phase_1/LLD/runs.md §P1.20 step 5 (diagnosis.json, review RC12); data/processed/vikram/exp1/diagnosis.json and console_diagnosis.log were written by an inline program in the interrupted fourth attempt; the LLD asks for no run record for this step.
+question: Is a C15 run record (with the program) wanted for the classification step, or is diagnosis.json with its `rule_inputs` enough?
+what I did meanwhile: (update after review) re-ran the classification as a kept `-c` program: the full program is in `command` of data/processed/vikram/exp1/diagnosis_run/run_record.json (C15-valid; the gate owns data/processed/vikram/exp1/run_record.json, so the record sits in a sub-directory), every number under `rule_inputs` now has a `_source` sibling (ValueSource values), and the first files are in data/processed/vikram/p1_20_attempt4_diagnosis_superseded/exp1/; every earlier value and all three classes are unchanged. Before that, I had checked every `rule_inputs` value against its artefact by hand (label azimuths and the 117.93/118.16/118.14 deg differences from data/processed/vikram/reference_sun/label_convention.json; valid fractions and statuses from both products.json; 0 archive rows; gate rows) and the rule order: no strip passes in exp-1a or exp-1b (not PRIOR), all prep ok with fractions >= 0.88 (not DATA), both runs failed and the azimuth difference is >= 90 deg, so ILLUMINATION_SUSPECTED for all three. The gate step, whose first record kept only `["-c"]`, was re-run with the full program in `command` (old files in data/processed/vikram/p1_20_attempt4_gate_superseded/, gate content identical apart from created_utc).
+
+## Q-P1.21-1  The web page cannot show the licence or the failed runs without a web/ source change, which P1.21 forbids
+context: Phase_1/LLD/viewers_docs.md §P1.21 rows "licence (G11)" ("both viewers show extra["licence"] next to the matcher name") and "failures (C05)"; Phase_1/prompts/P1.21_viewers.md DON'T ("change `web/` source code (only its exported data)"); web/src/pages/Dashboard.jsx renders `pair.matcher` only and never reads `failures`.
+question: Should a later prompt change web/src to display `licence` next to the matcher and a "Failed runs" table from `failures`/`nFailures`, or should the licence be folded into the exported `matcher` string?
+what I did meanwhile: the Streamlit dashboard shows both (licence pill "matcher · licence: ..." and a "Failed runs" table); the export writes `licence` (null when absent), `failures` (status, detail, stage, pair_id, created_utc) and `nFailures` as separate fields and leaves `matcher` unchanged, so the filter keeps working. No record in the live store has a licence today. Reversible: a web/src change reads the fields already exported.
+
+## Q-P1.21-2  `load_all_pairs` returns no paths; A119 "move the path returned by load_all_pairs' scan" is met by replaying the scan
+context: Phase_1/LLD/viewers_docs.md §P1.21 row A119; src/lunar_reg/results.py `load_all_pairs` returns `(results, failures)` only (outside the P1.21 file fence).
+question: Should `load_all_pairs` (C04 module) return the scanned path with each result, or is replaying its scan in the script acceptable? And is the stash rule read correctly: target `<stem>.npz`; if taken, `<stem>_<created_utc>.npz` (created_utc made filename-safe); if that is taken too, refuse?
+what I did meanwhile: scripts/reindex_results.py `scanned_paths` replays `sorted(pairs/*.npz)` minus the failed stems and checks the count against `loaded` (aborts if the directory changed); `plan_stash_moves` plans every move before any file moves and refuses the whole move (exit 1, nothing moved, index not touched) when a suffixed name is taken too. Tested in tests/test_viewers.py, including a file whose stem differs from its stored pair_id. Reversible: swap the replay for paths from `load_all_pairs` if it gains them.
+
+## Q-P1.23-1  A116 also names src/lunar_reg/ingest/pds4.py, which the P1.23 file list leaves out
+context: AUDIT.md A116 (locations include `src/lunar_reg/ingest/pds4.py:17-23`); Phase_1/LLD/viewers_docs.md §P1.23 "Files:" lists only `ingest/{__init__,fieldmap,manifest}.py` and `preprocess/config.py`
+question: `pds4.py` module docstring lines 19-23 ("Geometry and illumination fields are **not** verified ... reported as unresolved until a real label is probed") and the `PDS4Product.geometry_resolved` docstring (pds4.py:265-267, "``False`` is the expected state until a real label has been probed") still contradict fieldmap.py (sun azimuth/elevation/incidence and the eight corners VERIFIED 2026-09-05 on a real OHRC label). May a later prompt (or this one, if the fence is widened) rewrite those two docstrings the same way?
+what I did meanwhile: left `pds4.py` untouched (outside the file fence); rewrote the other three ingest docstrings per A116. Reversible: a docstring-only edit to pds4.py later closes the remainder.
+
+## Q-P1.END-1 BLOCKER  verify.sh fails only on ruff for the architect's protected file .fable/tools/read_esri_shp.py
+context: Phase_1/harness/verify.sh step "ruff on files changed since phase-0-approved" (lib.sh `changed_py_since` lists every added/modified `*.py`, including `.fable/**`); .fable/tools/read_esri_shp.py was added by plan commit ae6c58e; verify log /tmp/claude-1000/-home-herzlichkeit-Desktop-Projects-sih/f4361219-5391-438c-87a4-157b9e592730/scratchpad/p1/verify.log
+question: Every test step of verify.sh passes (CPU suite 987 passed; marked tests 21 passed; Phase 0 contracts 29 passed; Phase 1 harness 160 passed; same log), but `ruff check` reports 20 errors, all in .fable/tools/read_esri_shp.py (E701/E702 multiple statements on one line, etc.), so verify.sh exits 1. `.fable/**` is a protected plan file and the harness is protected, so an implementer can fix neither. Should the architect reformat read_esri_shp.py (or move it out of the ruff-checked set / add a ruff exclude) so that §Phase end can pass?
+what I did meanwhile: nothing changed. benchmark/run.sh was not run, REVIEW_PACK_1.md was not written, no commit and no tag (the §Phase end task stops on a failing verify.sh).
+answer (architect, 2026-10-03, human chose option 1): .fable/tools/read_esri_shp.py is reformatted. Its behaviour is unchanged: read_shp and read_dbf output is identical to the old version on all 18 shapefiles under data/raw/catalogue/shapefiles. `ruff check` now passes on it and on every `.py` changed since phase-0-approved. pyproject.toml and the harness are unchanged. Re-run §Phase end.
+
+## LLD deviations
+
+Built from every non-blocking `Phase_1/QUESTIONS.md` entry that records a choice beyond or against `Phase_1/LLD/**` / `CONTRACTS.md`, and from the commit messages of `git log phase-0-approved..HEAD`. Every file:line was checked at HEAD. Entries where the code follows the LLD as written (Q-P1.03-1, Q-P1.03-2, Q-P1.04-1, Q-P1.06-1, Q-P1.16-2, Q-P1.16-4, Q-P1.20-1) and entries with no code choice (Q-P1.14-1, Q-P1.15-1) have no row.
+
+| file:line | LLD section | what differs | why |
+|---|---|---|---|
+| src/lunar_reg/pipeline.py:135 (`_degenerate_input`; used at :240-257) | preprocess_presets.md §2, §4 | An input with no valid pixel or all valid pixels equal skips the preset for both images, goes to matching unchanged and records `extra["preprocess_skipped"]`; the LLD says all-zero input -> DEGENERATE -> PREPROCESS_FAILED. | Human answer to Q-P1.19-3 (option b; commit f1c2f89); restores six protected harness tests built on blank images with `PipelineConfig()` defaults. |
+| src/lunar_reg/match/classical.py:65 (`ASIFT_DETECT_THREADS = 4`; applied at :208) | asift_cap.md (no thread bound); outside any prompt's fence | ASIFT detection runs with at most 4 OpenCV threads and restores the previous setting; output bit-identical. | Q-P1.20-0: the default thread count exhausted host RAM and froze the machine three times in P1.20 exp-1a (measurements: data/processed/probes/asift_memory_20261002.txt); commit 56a06f0. |
+| src/lunar_reg/ingest/downloads.py:396 | CONTRACTS.md C08 `DownloadStatus` | A recorded but unreadable file is classified `MISSING` with sample `"<path>: unreadable: ..."` (C08 has no UNREADABLE member). | Q-P1.01-1: previously raised out of `verify_downloads`, so `report()` never printed. |
+| scripts/fetch_public.py:144 (`_RECORD_AS`) | CONTRACTS.md C08 source/instrument/role lists; downloads.md §2.2 spice rows | NAIF SPICE kernels recorded as `source "PDS_IMG"`, `instrument "DOC"`, `role "misc"`, real NAIF URL in `url`. | Q-P1.02-1: frozen C08 lists have no NAIF/SPICE/kernel values. |
+| scripts/fetch_public.py:175 (`PRESENT_UNRECORDED`); :341 (size_mismatch recording) | downloads.md §5 | Extra FetchStatus member for a destination on disk without a matching DOWNLOADS.json entry (never overwritten); a Content-Length mismatch is recorded in `failures` and the `.part` removed. | Q-P1.02-2: data rule forbids overwriting under data/raw/. |
+| src/lunar_reg/ingest/catalog.py:258 (`_unlabelled_data`), :366 | catalog.md §2; CONTRACTS.md C09 "PARTIAL ... (or the reverse)" | Reverse PARTIAL case defined: data files (`.img/.qub/.dat`) with no resolving or same-stem label; exposed as non-field attribute `ProductCatalog.unlabelled_data` and in `report()`. | Q-P1.03-3: LLD defines only the label-side rule. |
+| src/lunar_reg/ingest/overlap.py:1215 (`_corner_window`), :907 (`n_self_pairs_skipped`) | overlap.md §1 `WindowStatus`, §3 A050 | Footprint with < 4 corners -> `NO_PIXEL_SIZE` with detail; skipped self-pairs counted in a new `OverlapDiagnostics` field shown by `report()`. | Q-P1.06-2: no member names the case; convention 2 forbids silent skips. |
+| src/lunar_reg/ingest/overlap.py:576 (`_rewrap_ring`) | overlap.md §3 A047 | Each ring is unwrapped and shifted as a whole so its mean longitude is in (ref − 180, ref + 180], not per vertex. | Q-P1.06-3: per-vertex rewrap made antipodal products overlap and `intersect` asymmetric. |
+| tests/test_datum.py:182 | datum.md §3 step 5 | MEASURED line prints both the median over the 25 sub-grid nodes and the single strip-centre distance. | Q-P1.07-1: "median ... of the strip centre" is undefined for one point. |
+| src/lunar_reg/preprocess/shadow.py:37 (`_effective_valid`) | preprocess_nodata.md §1-§2 | `method="none"` with a mask returns float32 with NaN at invalid pixels; non-finite pixels under `valid` count as nodata. | Q-P1.08-1 (a), (b): cases not spelled out by the LLD table. |
+| src/lunar_reg/preprocess/config.py:109 (`side`) | preprocess_geometry.md file list | `PreprocessConfig.side` added in `preprocess/config.py`, a file the LLD file list does not name. | Q-P1.09-1: the class lives there; harness test_P1_09 constructs it. |
+| src/lunar_reg/preprocess/georeference.py:142 (`_pixel_transform`), :298 (`dst_nodata=np.nan`), :183 (`reproject_valid_mask`) | preprocess_geometry.md §2, §4 | Pixel matrix = `inv(dst_affine) @ C @ src_affine` with `C` a least-squares fit of the CRS transform (RMS recorded); destination nodata NaN; `context.valid` reprojected (nearest). | Q-P1.09-2: the LLD formula is meaningless across two CRSs, the only case where the step runs. |
+| src/lunar_reg/preprocess/resample.py:75 | preprocess_geometry.md §6 | Mask resampled with `INTER_NEAREST_EXACT` (pixel-centre geometry) rather than plain nearest. | Q-P1.09-3: plain INTER_NEAREST was offset by up to half an output pixel. |
+| src/lunar_reg/pipeline.py:284 (`ecc_nodata = 0`), :229 (`"preprocess"` in extra) | preprocess_presets.md §2 | After a preset, ECC gets `nodata=0` also when `config.nodata` is set or a float input has NaN/inf; `preprocess` written into both `RunOutcome.extra` and `PairResult.extra`. | Q-P1.10-1: presets encode nodata as 0; failure rows need the preset name. |
+| src/lunar_reg/preprocess/presets.py:135 (`_constant_output`), :247 | preprocess_presets.md §4 | A non-"none" preset output with < 2 distinct valid values is DEGENERATE_OUTPUT (step `output_check`). | Q-P1.10-2: flat outputs otherwise reached the matcher as TOO_FEW_MATCHES. |
+| scripts/fit_reference_sun.py:346 (`product_id`), :463 (`ode_elevation_source`); src/lunar_reg/ingest/sun.py:110 (`AZIMUTH_FIT_SOURCE`) | sun_geometry.md §2 steps 3-5; CONTRACTS.md C13 | Extra output keys (`product_id` per strip row, provenance keys, SPICE grid azimuth); C13 `AzimuthFit` provenance carried as a module constant; trailing `Z` dropped before `str2et`. | Q-P1.11-1: raw and calibrated labels share a tag; convention 1 (provenance in code). |
+| src/lunar_reg/eval/agreement.py:163, :175 | agreement.md §1-§2 | `agreement_for_stored` raises on two usable results with one matcher and when no result has a `source_image`; probes mapping to non-finite points are skipped. | Q-P1.12-1: §2 keys transforms by matcher name, so a second result would silently replace the first. |
+| src/lunar_reg/pairs.py:297 (`_reduce`), :142 (`PrepDiagnostics`) | pairs.md §1 steps 3, 6, 9; CONTRACTS.md C11 | All-nodata source window returns `OK` with all-zero plane (no C11 member); grid looked up under `<product>/geometry`; unreadable grid `READ_FAILED`; grid corners at index −0.5; diagnostics object added. | Q-P1.13-1: choices the LLD does not name; C11 frozen. |
+| src/lunar_reg/pairs.py:213 (`_grid_key`), :228 (`_find_grid`) | pairs.md §1 step 3 | Grid token derived from product_id or label stem, matched case-insensitively; no unfiltered search. | Q-P1.13-2: real lower-case LIDs never match `find_geometry_files`' token regex, so the grid was never found. |
+| src/lunar_reg/ingest/fieldmap.py:317, :324 | tmc2_iirs.md §2, §3 | No TMC-2 view field (none exists in labels); IIRS gets scalar `first_band_center_wavelength` / `first_band_width` instead of a per-band list. | Q-P1.15-2: probe results; a `Field` resolves only the first match. |
+| src/lunar_reg/preprocess/pipeline.py:407 (`_incremental_pca_refusal`); scripts/probe_raster.py:53 (`ProbeStatus`) | tmc2_iirs.md §1 step 2, §4 | Incremental PCA route also requires `image.shape == (count, height, width)`; probe JSON gains `out_shape`, `n_border_samples`, `value_sources`, `status`, `error`. | Q-P1.15-3: a window of the dataset would be replaced by a full-size plane. |
+| src/lunar_reg/sites/runner.py:212 (`SiteReport`), :697 (`products.json`), :637 (`registered_geotiff_error`) | site_runner.md §1-§2 | Extra `SiteReport` fields, `products.json` per run, preview names `<SENSOR>_<tag>_*`, `registered/<pair_id>.tif`, extra `extra` provenance keys, extra run-record counts. | Q-P1.16-1: needed by `report()`, convention 1/2; avoids raw/calibrated preview collisions. |
+| src/lunar_reg/sites/runner.py:784 (`_strip`), :737 (`_pair_variant`) | site_runner.md §3; CONTRACTS.md C20 | Exp-1 gate splits a strip's results into comparable groups (source, reference, sensors, pair-id variant); strip passes when any group passes; `load_failed` / `agreement_failed` statuses. | Q-P1.16-3: after Q-P1.12-1 a strip-wide call would raise or hide a passing group. |
+| scripts/run_jaxa.py:154 (`prepare_same`), :251 (`prepare_cross`), :222 | jaxa_cli_ablation.md §1 | Same-sensor read with GDAL `average`, masked, boundless; cross pair reprojected directly on NOOP; extra keys `common_gsd_m_source`, `georeference_status`, fit RMS. | Q-P1.17-1 (a)-(c): LLD names no resampling method. |
+| scripts/run_ablation.py:57 (`NOT_RUN`), :68 (`anchor_rows`), :289 (`labels`) | jaxa_cli_ablation.md §2 | Anchor matchers with no outcome get a `not_run` row (not a RunStatus); `label` on each synthetic row plus top-level `labels`; synthetic matchers = `("sift","lightglue") ∩ --matchers`. | Q-P1.17-1 (d), (e): fixed row count for P1.18. |
+| src/lunar_reg/cli.py:68 (`_read_for_register`), :122 (`register_document`) | jaxa_cli_ablation.md §3 | `register` sets ≤ 0 / nodata / non-finite to NaN before downsampling, passes masks, converts output values via `_plain_for_index`, default pair id from stems. | Q-P1.17-1 (f). |
+| src/lunar_reg/ingest/lro.py:477 (`RASTER_LABEL_TOLERANCE_PX`), :488 | cross_pairs.md (raster/label cross-check) | Residual = max of lat/lon corner distances vs 1.5 × min pixel size (INFERRED); `+no_defs=True` normalised. | Q-P1.24-1 (a). |
+| src/lunar_reg/cross.py:178 (`resolve_reference_path`), :186, :313 | cross_pairs.md | Public helpers added; mask indexed with actual decimation ratio, not the integer factor. | Q-P1.24-1 (b): keeps the last partial cell. |
+| scripts/run_cross.py:190 (`--record-dir`), :124 (`setup_errors`) | cross_pairs.md §6 | Aggregate record directory option; run_site exceptions / bad references counted as setup errors, run continues, exit 1. | Q-P1.24-1 (c): convention 2. |
+| web/src/pages/Dashboard.jsx:69 | viewers_docs.md §P1.21 rows "licence (G11)", "failures (C05)" | The web page still shows only `pair.matcher`, no licence and no failed runs; the export carries `licence`, `failures`, `nFailures` (Streamlit shows both). | Q-P1.21-1: P1.21 DON'T forbids web/ source changes. |
+| scripts/reindex_results.py:43 (`scanned_paths`), :67 (`plan_stash_moves`) | viewers_docs.md §P1.21 A119 | Paths come from replaying `load_all_pairs`' scan (count-checked), not from its return value; all moves planned before any move. | Q-P1.21-2: `load_all_pairs` returns no paths and is outside the fence. |
+| src/lunar_reg/ingest/pds4.py:19-23 (module docstring), :267 | viewers_docs.md §P1.23 A116 | Stale "not verified" docstrings left in pds4.py. | Q-P1.23-1: pds4.py is outside the P1.23 file list. |
+
+Run-procedure deviations (no code location; artefacts under the gitignored `data/`):
+- Q-P1.18-2: the step-1 archive record `data/processed/p1_18_archive/run_record.json` was written from an inline snippet (architect accepted).
+- Q-P1.18-4: P1.18 step 4(a) moved all twelve first-attempt entries into `data/processed/cross/attempt1_vikram_only/`, not only the five listed.
+- Q-P1.19-1: P1.19 step 4 ran with `--preprocess ohrc_nac` appended (the LLD's "preset = the new default"; the command as written would use "none").
+- Q-P1.20-2: the classification step has a C15 record at `data/processed/vikram/exp1/diagnosis_run/run_record.json`, which runs.md §P1.20 step 5 does not ask for.
+
+## Review focus
+
+# Phase 1 — review focus
+
+| # | where | why it is risky | how to check |
+|---|---|---|---|
+| 1 | `ingest/lro.py` `georeference_from_label` | Every absolute position and every NAC crop depends on it; the sign flip is inferred, not documented. | `test_C10_*`; compare against `PROVENANCE.json` corrected transform; compare the DTM GeoTIFF origin (−11046, 638262). |
+| 2 | `pairs.py` prior and `reference_to_native` | A half-pixel or factor error shifts every result silently; the prior must match `run_vikram.prepare_pair` so `label_offset_m` keeps its meaning. | `test_P1_13.py` synthetic end-to-end; run `scripts/run_vikram.py --dry-run` and look at the previews. |
+| 3 | `sites/runner.py` coarse/prior logic | The 2023 diagnosis hinges on whether the search window covered the right ground (FABLE_NOTES §5 caveat). | Read the `coarse_pass`/`search_prior` extras of the 2023 rows; they must not claim a prior that was not used (A112). |
+| 4 | `preprocess/radiometric.py` `valid=None` path | Matchers call `to_uint8`; any change to the unmasked path changes every stored number. | The byte-hash regression tests in `tests/test_preprocess_nodata.py`. |
+| 5 | `docs/VIKRAM_2023_DIAGNOSIS.md` | Panel-facing conclusions; every number must cite an artefact, and the cause classes must follow the rule table, not judgement. | Check each number's path; recompute one class from the table. |
+| 6 | `ingest/sun.py` azimuth convention | Image-up vs north and clockwise vs counter-clockwise are easy to flip; the fit's peak margin says how trustworthy the azimuth is. | `test_P1_11.py::test_east_facing_slope_brightest_under_east_sun`; read `ncc_curve.csv`. |
+| 7 | `scripts/fetch_public.py` pacing | DARTS blocks bursts; unpaced retries can get the IP blocked. | `test_P1_02.py`; read the host-pacing code. |
+| 8 | `match/superglue.py` import | Must not leave `sys.path` or `sys.modules` polluted; licence text must reach both viewers. | `test_P1_14.py`. |
