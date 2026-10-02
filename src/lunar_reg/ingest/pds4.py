@@ -36,6 +36,10 @@ from lunar_reg.ingest.fieldmap import ALL_FIELDS, Field, Provenance, parse_path
 
 logger = logging.getLogger(__name__)
 
+#: Name of the field map entry :attr:`PDS4Product.view` reads. No such Field is
+#: mapped until a probe of a real label shows a view element (LLD tmc2_iirs §3).
+VIEW_FIELD = "view"
+
 _IMG_SUFFIXES = {".img", ".qub", ".dat"}
 _LABEL_SUFFIXES = {".xml", ".lbl"}
 
@@ -221,6 +225,32 @@ class PDS4Product:
         if not self.axes:
             return None
         return ",".join(a.name for a in sorted(self.axes, key=lambda a: a.sequence_number))
+
+    @property
+    def band_axis(self) -> int | None:
+        """0-based position of the ``Band`` axis in :attr:`axis_order`, None for 2-D.
+
+        Matched case-insensitively (real IIRS labels name it ``BAND``). Callers
+        use it to read a cube in the label's own interleave, never an assumed one.
+        """
+        if len(self.axes) < 3:
+            return None
+        ordered = sorted(self.axes, key=lambda a: a.sequence_number)
+        for index, ax in enumerate(ordered):
+            if ax.name.lower() == "band":
+                return index
+        return None
+
+    @property
+    def view(self) -> str | None:
+        """The label's view identifier when a probed view field is mapped, else None.
+
+        No probe of a real TMC-2 label has shown a view element (see
+        :data:`lunar_reg.ingest.fieldmap.SPECTRAL_FIELDS` notes), so no field
+        named ``view`` is mapped and this is None. Never parsed from file names.
+        """
+        value = self.values.get(VIEW_FIELD)
+        return None if value is None else str(value)
 
     @property
     def is_hyperspectral(self) -> bool:

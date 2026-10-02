@@ -244,6 +244,10 @@ class PreprocessContext:
     ref_gsd_m: float | None = None
     valid: np.ndarray | None = None
     reference_valid: np.ndarray | None = None
+    #: Steps of the current :func:`run_pipeline` call whose output (RAN or
+    #: DEGENERATE_OUTPUT) is already in the image a later step receives. Set by
+    #: run_pipeline on its copy of the context, never by callers.
+    steps_applied: tuple[str, ...] = field(default=(), init=False, repr=False)
 
 
 def _degeneracy(image: np.ndarray, valid: np.ndarray | None) -> str | None:
@@ -322,6 +326,8 @@ def run_pipeline(
                 )
             transform_source = min(transform_source, step_source, key=_TRANSFORM_SOURCE_ORDER.index)
         current = out
+        if status in (StepStatus.RAN, StepStatus.DEGENERATE_OUTPUT):
+            context.steps_applied = (*context.steps_applied, step)
         history.append(
             StepRecord(
                 name=step,
@@ -394,19 +400,77 @@ def _step_georeference(image, config, context):
     return out, detail, StepStatus.RAN, None
 
 
+#: Row block for the incremental (dataset-backed) band PCA (LLD tmc2_iirs §4).
+_INCREMENTAL_PCA_BLOCK_ROWS = 512
+
+
+def _incremental_pca_refusal(
+    image: np.ndarray, dataset, config, applied: tuple[str, ...] = ()
+) -> str | None:
+    """Why the incremental PCA route does not apply, or None when it does.
+
+    The route applies when ``dataset`` is a rasterio dataset with more than one
+    band and the method is PCA (LLD tmc2_iirs §4). It is also refused when an
+    earlier step (``applied``, e.g. georeference) already changed the pixels,
+    because the incremental PCA re-reads the unchanged dataset and would drop
+    that step's output while its geometry stays recorded; and when the
+    dataset's ``(count, height, width)`` differs from ``image.shape``, because
+    the incremental PCA covers the whole dataset and would replace a window of
+    it with a plane of a different size.
+    """
+    if dataset is None or config.band_reduction_method != "pca":
+        return "no src_dataset" if dataset is None else "method is not pca"
+    from rasterio.io import DatasetReaderBase
+
+    if not isinstance(dataset, DatasetReaderBase):
+        return f"src_dataset is a {type(dataset).__name__}, not a rasterio dataset"
+    if dataset.count <= 1:
+        return f"src_dataset has {dataset.count} band(s)"
+    if applied:
+        return (
+            f"earlier step(s) {', '.join(applied)} already changed the pixels; "
+            "src_dataset no longer holds them"
+        )
+    shape = (dataset.count, dataset.height, dataset.width)
+    if tuple(image.shape) != shape:
+        return f"src_dataset shape {shape} differs from the image shape {tuple(image.shape)}"
+    return None
+
+
 def _step_band_reduction(image, config, context):
-    from lunar_reg.preprocess.hyperspectral import reduce_bands
+    from lunar_reg.preprocess.hyperspectral import incremental_band_pca, reduce_bands
 
     if image.ndim == 2:
         return image, {}, StepStatus.NOOP, "input is 2D, not a multi-band cube"
     if image.ndim != 3:
         return image, {}, StepStatus.FAILED, f"input is {image.ndim}-D; expected 2-D or 3-D"
+    refusal = _incremental_pca_refusal(
+        image, context.src_dataset, config, getattr(context, "steps_applied", ())
+    )
+    if refusal is None:
+        dataset = context.src_dataset
+        planes = incremental_band_pca(
+            dataset,
+            n_components=config.pca_n_components,
+            block_rows=_INCREMENTAL_PCA_BLOCK_ROWS,
+        )
+        reduced = planes[0] if config.pca_n_components == 1 else planes
+        detail = {
+            "method": "pca",
+            "n_components": config.pca_n_components,
+            "n_bands": int(dataset.count),
+            "block_rows": _INCREMENTAL_PCA_BLOCK_ROWS,
+            "mode": "incremental",
+        }
+        return reduced, detail, StepStatus.RAN, None
     reduced, detail = reduce_bands(
         image,
         method=config.band_reduction_method,
         n_components=config.pca_n_components,
         band=config.reference_band,
     )
+    detail["mode"] = "in_memory"
+    detail["incremental_refused"] = refusal
     return reduced, detail, StepStatus.RAN, None
 
 

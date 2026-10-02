@@ -1,0 +1,64 @@
+{
+  "path": "data/raw/ch2/tmc2/ch2_tmc_ndn_20231027T1315134884_d_oth_d18/data/derived/20231027/ch2_tmc_ndn_20231027T1315134884_d_oth_d18.tif",
+  "width": 176604,
+  "height": 41628,
+  "count": 1,
+  "dtype": "uint16",
+  "block_shapes": [
+    [
+      1,
+      176604
+    ]
+  ],
+  "compression": null,
+  "nodata_declared": null,
+  "crs_wkt": "PROJCS[\"Polar StereoGraphic\",GEOGCS[\"Polar StereoGraphic\",DATUM[\"Moon Spheroid\",SPHEROID[\"Moon Spheroid\",1737400,0]],PRIMEM[\"Reference_Meridian\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]]],PROJECTION[\"Polar_Stereographic\"],PARAMETER[\"latitude_of_origin\",-90],PARAMETER[\"central_meridian\",0],PARAMETER[\"false_easting\",0],PARAMETER[\"false_northing\",0],UNIT[\"metre\",1],AXIS[\"Easting\",NORTH],AXIS[\"Northing\",NORTH]]",
+  "res": [
+    5.0,
+    5.0
+  ],
+  "decimation": 87,
+  "out_shape": [
+    479,
+    2030
+  ],
+  "band_read": 1,
+  "border_values": [
+    {
+      "value": 0,
+      "count": 75890
+    },
+    {
+      "value": 1,
+      "count": 51
+    },
+    {
+      "value": 63,
+      "count": 42
+    },
+    {
+      "value": 2,
+      "count": 42
+    },
+    {
+      "value": 66,
+      "count": 40
+    }
+  ],
+  "n_border_samples": 78238,
+  "fill_candidate": 0,
+  "fill_candidate_source": "inferred",
+  "fill_fraction": 0.9424622314551045,
+  "value_sources": {
+    "structure": "documented",
+    "nodata_declared": "documented",
+    "decimation": "computed",
+    "border_values": "measured",
+    "fill_candidate": "inferred",
+    "fill_fraction": "measured",
+    "peak_rss_bytes": "measured"
+  },
+  "error": null,
+  "status": "ok",
+  "peak_rss_bytes": 76603392
+}

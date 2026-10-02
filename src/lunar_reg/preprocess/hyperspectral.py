@@ -2,9 +2,17 @@
 
 IIRS delivers 256 bands over 0.8-5.0 um. Two separate problems follow:
 
-1. **Memory.** A 2000x2000 IIRS cube at 256 bands is ~4 GB in float32. It is
-   never loaded whole -- band selection reads a handful of planes, and PCA runs
-   incrementally over row blocks.
+1. **Memory.** A 2000x2000 IIRS cube at 256 bands is ~4 GB in float32. Which
+   path loads it depends on the mode the pipeline's ``band_reduction`` step
+   records in ``detail["mode"]``:
+
+   * ``"incremental"`` -- :func:`incremental_band_pca`, chosen when the context
+     carries a multi-band rasterio dataset and the method is PCA. It reads row
+     blocks from the dataset, so the cube is never held whole by this function
+     (the pipeline's ``image`` argument is whatever the caller already loaded).
+   * ``"in_memory"`` -- :func:`reduce_bands` on the in-memory cube, for every
+     other case (no dataset, ``select`` or ``mean``). The whole cube is in
+     memory, and PCA builds a float64 copy of it.
 2. **Modality.** Matching a hyperspectral cube against a panchromatic optical
    image is the frontier case in this problem, not a solved one. The reduction
    here (band select or PCA to a single plane) is a reasonable baseline and is

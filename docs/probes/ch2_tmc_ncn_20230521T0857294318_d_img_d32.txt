@@ -1,0 +1,173 @@
+label: data/raw/ch2/tmc2/ch2_tmc_ncn_20230521T0857294318_d_img_d32/data/calibrated/20230521/ch2_tmc_ncn_20230521T0857294318_d_img_d32.xml
+leaf elements: 79
+
+namespaces:
+  http://pds.nasa.gov/pds4/pds/v1                                           61 elements
+  https://isda.issdc.gov.in/pds4/isda/v1                                    42 elements
+
+ILLUMINATION-LIKE (candidates for sun angle fields): 3
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/sun_azimuth
+      = 327.561109
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/sun_elevation
+      = 22.072438
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/solar_incidence
+      = 67.927562
+
+COORDINATE-LIKE (candidates for footprint fields): 16
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_left_latitude
+      = -38.592983
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_left_longitude
+      = 192.593294
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_right_latitude
+      = -38.606018
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_right_longitude
+      = 193.555425
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_left_latitude
+      = -88.278551
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_left_longitude
+      = 150.253090
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_right_latitude
+      = -88.661331
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_right_longitude
+      = 172.971682
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_left_latitude
+      = -38.592983
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_left_longitude
+      = 192.593294
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_right_latitude
+      = -38.606018
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_right_longitude
+      = 193.555425
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_left_latitude
+      = -88.278551
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_left_longitude
+      = 150.253090
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_right_latitude
+      = -88.661331
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_right_longitude
+      = 172.971682
+
+TIME-LIKE (candidates for acquisition time): 4
+  Product_Observational/Identification_Area/Modification_History/Modification_Detail/modification_date
+      = 2019-05-07
+  Product_Observational/Observation_Area/Time_Coordinates/start_date_time
+      = 2023-05-21T08:57:29.4318Z
+  Product_Observational/Observation_Area/Time_Coordinates/stop_date_time
+      = 2023-05-21T09:14:05.7782Z
+  Product_Observational/File_Area_Observational/File/creation_date_time
+      = 2023-10-04T06:36:10
+
+ALL 79 LEAF ELEMENTS:
+  Product_Observational/Identification_Area/logical_identifier = urn:isro:isda:ch2_cho.tmc:data_calibrated:ch2_tmc_
+  Product_Observational/Identification_Area/version_id = 1.0
+  Product_Observational/Identification_Area/title = Chandrayaan-2 Orbiter TMC2 Experiment
+  Product_Observational/Identification_Area/information_model_version = 1.11.0.0
+  Product_Observational/Identification_Area/product_class = Product_Observational
+  Product_Observational/Identification_Area/Modification_History/Modification_Detail/modification_date = 2019-05-07
+  Product_Observational/Identification_Area/Modification_History/Modification_Detail/version_id = 1.0
+  Product_Observational/Identification_Area/Modification_History/Modification_Detail/description = PDS4 product label created by SAC Optical DP Team
+  Product_Observational/Observation_Area/Time_Coordinates/start_date_time = 2023-05-21T08:57:29.4318Z
+  Product_Observational/Observation_Area/Time_Coordinates/stop_date_time = 2023-05-21T09:14:05.7782Z
+  Product_Observational/Observation_Area/Primary_Result_Summary/purpose = Science
+  Product_Observational/Observation_Area/Primary_Result_Summary/processing_level = Calibrated
+  Product_Observational/Observation_Area/Primary_Result_Summary/description = Calibrated Processing Level describes the radiomet
+  Product_Observational/Observation_Area/Investigation_Area/name = chandrayaan-2
+  Product_Observational/Observation_Area/Investigation_Area/type = Mission
+  Product_Observational/Observation_Area/Investigation_Area/Internal_Reference/lidvid_reference = urn:isro:isda:context:investigation:mission.chandr
+  Product_Observational/Observation_Area/Investigation_Area/Internal_Reference/reference_type = data_to_investigation
+  Product_Observational/Observation_Area/Observing_System/Observing_System_Component/name = Chandrayaan 2 Orbiter
+  Product_Observational/Observation_Area/Observing_System/Observing_System_Component/type = Spacecraft
+  Product_Observational/Observation_Area/Observing_System/Observing_System_Component/description = Chandrayaan-2 Orbiter is an Orbiter craft under th
+  Product_Observational/Observation_Area/Observing_System/Observing_System_Component/name = terrain mapping camera
+  Product_Observational/Observation_Area/Observing_System/Observing_System_Component/type = Instrument
+  Product_Observational/Observation_Area/Observing_System/Observing_System_Component/description = TMC-2 (Terrain Mapping Camera) is one of the scien
+  Product_Observational/Observation_Area/Target_Identification/name = Moon
+  Product_Observational/Observation_Area/Target_Identification/type = Satellite
+  Product_Observational/Observation_Area/Target_Identification/description = Moon is a natural satellite of Earth
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/job_id = TMCXXD32CHO1664000NNNN23141092453011_V2_1
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/level0_dir_name = TMCXXD32CHO1664000NNNN23141092453011_V2_1
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/imaging_orbit_number = 16640
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/dumping_orbit_number = 16640
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/line_exposure_duration = 3.236
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/gain = g1
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/exposure = e1
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/detector_pixel_width = 7
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/focal_length = 140
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/reference_data_used = n/a
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/orbit_limb_direction = n/a
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/spacecraft_yaw_direction = n/a
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/spacecraft_altitude = 107.57
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/pixel_resolution = 5.38
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/roll = 0.003212
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/pitch = -0.025114
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/yaw = 0.001750
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/sun_azimuth = 327.561109
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/sun_elevation = 22.072438
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/solar_incidence = 67.927562
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/projection = Polar stereographic
+  Product_Observational/Observation_Area/Mission_Area/Product_Parameters/area = South Pole
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_left_latitude = -38.592983
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_left_longitude = 192.593294
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_right_latitude = -38.606018
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_right_longitude = 193.555425
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_left_latitude = -88.278551
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_left_longitude = 150.253090
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_right_latitude = -88.661331
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_right_longitude = 172.971682
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_left_latitude = -38.592983
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_left_longitude = 192.593294
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_right_latitude = -38.606018
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_right_longitude = 193.555425
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_left_latitude = -88.278551
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_left_longitude = 150.253090
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_right_latitude = -88.661331
+  Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_right_longitude = 172.971682
+  Product_Observational/File_Area_Observational/File/file_name = ch2_tmc_ncn_20230521T0857294318_d_img_d32.img
+  Product_Observational/File_Area_Observational/File/creation_date_time = 2023-10-04T06:36:10
+  Product_Observational/File_Area_Observational/File/file_size = 2463152000
+  Product_Observational/File_Area_Observational/File/md5_checksum = 7412d56c0024bc2da81dea16b781bfd8
+  Product_Observational/File_Area_Observational/File/comment = This File contains the count calibrated image. 
+  
+  Product_Observational/File_Area_Observational/Array_2D_Image/offset = 0
+  Product_Observational/File_Area_Observational/Array_2D_Image/axes = 2
+  Product_Observational/File_Area_Observational/Array_2D_Image/axis_index_order = Last Index Fastest
+  Product_Observational/File_Area_Observational/Array_2D_Image/Element_Array/data_type = UnsignedLSB2
+  Product_Observational/File_Area_Observational/Array_2D_Image/Axis_Array/axis_name = Line
+  Product_Observational/File_Area_Observational/Array_2D_Image/Axis_Array/elements = 307894
+  Product_Observational/File_Area_Observational/Array_2D_Image/Axis_Array/sequence_number = 1
+  Product_Observational/File_Area_Observational/Array_2D_Image/Axis_Array/axis_name = Sample
+  Product_Observational/File_Area_Observational/Array_2D_Image/Axis_Array/elements = 4000
+  Product_Observational/File_Area_Observational/Array_2D_Image/Axis_Array/sequence_number = 2
+
+======================================================================
+SUGGESTED fieldmap.py BLOCK (paste over the UNVERIFIED section)
+======================================================================
+# Generated by `lunar-reg probe-label --suggest` from:
+#   ch2_tmc_ncn_20230521T0857294318_d_img_d32.xml
+# Paths below are read from a real product, so they are VERIFIED for it.
+# Confirm they hold across other products from the same instrument.
+GEOMETRY_FIELDS: tuple[Field, ...] = (
+    Field("sun_azimuth_deg", ("Product_Parameters/sun_azimuth",), Provenance.VERIFIED, dtype="float"),
+    Field("sun_elevation_deg", ("Product_Parameters/sun_elevation",), Provenance.VERIFIED, dtype="float"),
+    Field("incidence_angle_deg", ("Product_Parameters/solar_incidence",), Provenance.VERIFIED, dtype="float"),
+    # emission_angle_deg: NOT FOUND in this label -- omit or check manually.
+    # phase_angle_deg: NOT FOUND in this label -- omit or check manually.
+)
+
+# 16 coordinate-like numeric element(s) found:
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_left_latitude = -38.592983
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_left_longitude = 192.593294
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_right_latitude = -38.606018
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/upper_right_longitude = 193.555425
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_left_latitude = -88.278551
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_left_longitude = 150.253090
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_right_latitude = -88.661331
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/System_Level_Coordinates/lower_right_longitude = 172.971682
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_left_latitude = -38.592983
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_left_longitude = 192.593294
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_right_latitude = -38.606018
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/upper_right_longitude = 193.555425
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_left_latitude = -88.278551
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_left_longitude = 150.253090
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_right_latitude = -88.661331
+#   Product_Observational/Observation_Area/Mission_Area/Geometry_Parameters/Refined_Corner_Coordinates/lower_right_longitude = 172.971682

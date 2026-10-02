@@ -281,8 +281,44 @@ FOOTPRINT_FIELDS: tuple[Field, ...] = (
     ),
 )
 
+#: IIRS spectral axis. VERIFIED 2026-10-02 by `lunar-reg probe-label --all` on
+#: ch2_iir_nci_20221226T0416479474_d_img_d32.xml (output committed as
+#: ``docs/probes/ch2_iir_nci_20221226T0416479474_d_img_d32.txt``): the BAND
+#: ``Axis_Array`` carries one ``Band_Bin_Set/Band_Bin`` per band (256 on that
+#: label), each with ``band_number``, ``band_width`` and ``center_wavelength``.
+#:
+#: A :class:`Field` resolves the FIRST match in document order, so these give the
+#: first ``Band_Bin`` only (band_number 1 on the probed label: centre 712.3,
+#: width 19.8; the label's ``unit`` attribute is ``nm``). They are named for
+#: what they hold; the per-band list is not read by any Field.
+#:
+#: The TMC-2 probe (``docs/probes/ch2_tmc_ncn_20230521T0857294318_d_img_d32.txt``)
+#: shows no view (fore/nadir/aft) element, nor do the other three TMC-2 labels
+#: on disk, so no view field is mapped and ``PDS4Product.view`` stays None.
+SPECTRAL_FIELDS: tuple[Field, ...] = (
+    Field(
+        "first_band_center_wavelength",
+        ("Array_3D_Spectrum/Axis_Array/Band_Bin_Set/Band_Bin/center_wavelength",),
+        Provenance.VERIFIED,
+        dtype="float",
+        note="First Band_Bin in document order only; unit attribute nm on the probed label.",
+    ),
+    Field(
+        "first_band_width",
+        ("Array_3D_Spectrum/Axis_Array/Band_Bin_Set/Band_Bin/band_width",),
+        Provenance.VERIFIED,
+        dtype="float",
+        note="First Band_Bin in document order only; unit attribute nm on the probed label.",
+    ),
+)
+
 ALL_FIELDS: tuple[Field, ...] = (
-    IDENTIFICATION_FIELDS + TIME_FIELDS + ARRAY_FIELDS + GEOMETRY_FIELDS + FOOTPRINT_FIELDS
+    IDENTIFICATION_FIELDS
+    + TIME_FIELDS
+    + ARRAY_FIELDS
+    + GEOMETRY_FIELDS
+    + FOOTPRINT_FIELDS
+    + SPECTRAL_FIELDS
 )
 
 FIELDS_BY_NAME: dict[str, Field] = {f.name: f for f in ALL_FIELDS}
