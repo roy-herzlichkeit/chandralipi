@@ -29,6 +29,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from lunar_reg.match.base import MatchResult
+from lunar_reg.provenance import ValueSource
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,17 @@ DETECTORS = ("sift", "asift", "akaze", "kaze", "orb", "brisk")
 #: clean-room implementation in `lunar_reg.match.rift2`.
 PAPER_BASELINES = ("sift", "asift", "akaze", "rift2")
 
+#: Largest train-descriptor count ``cv2.BFMatcher.knnMatch`` accepts: opencv 4.14.0
+#: succeeds with 262 143 rows and asserts ``trainDescCollection[iIdx].rows <
+#: IMGIDX_ONE`` at 262 144 (Phase_1/LLD/asift_cap.md, measured by the architect).
+BF_TRAIN_LIMIT = 262_143
+BF_TRAIN_LIMIT_SOURCE = ValueSource.MEASURED
+
+#: ASIFT's total-keypoint cap per image: a chosen bound, about 5 s per match
+#: direction (Phase_1/LLD/asift_cap.md, G42).
+ASIFT_MAX_TOTAL_KEYPOINTS = 50_000
+ASIFT_MAX_TOTAL_KEYPOINTS_SOURCE = ValueSource.INFERRED
+
 
 @dataclass(frozen=True)
 class DetectorInfo:
@@ -52,6 +64,8 @@ class DetectorInfo:
     name: str
     binary_descriptor: bool
     note: str = ""
+    #: Default cap on total keypoints per image (None: only BF_TRAIN_LIMIT applies).
+    max_total_keypoints: int | None = None
 
     @property
     def norm(self) -> int:
@@ -73,7 +87,10 @@ DETECTOR_INFO: dict[str, DetectorInfo] = {
         "asift",
         False,
         "SIFT re-run over simulated affine warps (Yu & Morel). Far more robust to "
-        "viewpoint change, several times slower, and yields many more keypoints.",
+        "viewpoint change, several times slower, and yields many more keypoints. "
+        "Total keypoints capped (strongest by response) because BFMatcher rejects "
+        ">= 262 144 train rows (P1.25).",
+        max_total_keypoints=ASIFT_MAX_TOTAL_KEYPOINTS,
     ),
     "akaze": DetectorInfo(
         "akaze",
@@ -142,15 +159,25 @@ class ClassicalMatcher:
         ratio: float = DEFAULT_RATIO,
         max_features: int = 8192,
         cross_check: bool = True,
+        max_total_keypoints: int | None = None,
     ) -> None:
         self.detector_name = detector.lower()
         if self.detector_name not in DETECTORS:
             raise ValueError(f"unknown detector {detector!r}; expected one of {DETECTORS}")
+        if max_total_keypoints is not None and not 2 <= max_total_keypoints <= BF_TRAIN_LIMIT:
+            raise ValueError(
+                f"max_total_keypoints must be in 2..{BF_TRAIN_LIMIT} (BFMatcher train limit), "
+                f"got {max_total_keypoints}"
+            )
         self.ratio = ratio
         self.max_features = max_features
         self.cross_check = cross_check
         self.name = f"classical/{self.detector_name}"
         self.info = DETECTOR_INFO[self.detector_name]
+        self.max_total_keypoints = min(
+            max_total_keypoints or self.info.max_total_keypoints or BF_TRAIN_LIMIT,
+            BF_TRAIN_LIMIT,
+        )
         self._detector = None
 
     def _get_detector(self):
@@ -165,6 +192,22 @@ class ClassicalMatcher:
         arr = image if image.dtype == np.uint8 else to_uint8(image)
         return self._get_detector().detectAndCompute(arr, None)
 
+    def _cap(self, keypoints, descriptors) -> tuple[list, np.ndarray | None, int, bool]:
+        """Keep at most ``max_total_keypoints``, the strongest by response (G42).
+
+        Returns ``(keypoints, descriptors, raw_count, capped)``. The kept ones
+        stay in their original relative order, so the result is deterministic.
+        """
+        keypoints = list(keypoints or [])
+        raw = len(keypoints)
+        cap = self.max_total_keypoints
+        if raw <= cap:
+            return keypoints, descriptors, raw, False
+        response = np.array([k.response for k in keypoints], dtype=np.float64)
+        order = np.sort(np.argsort(-response, kind="stable")[:cap])
+        kept_des = None if descriptors is None else np.asarray(descriptors)[order]
+        return [keypoints[i] for i in order], kept_des, raw, True
+
     def _meta(self, **extra) -> dict:
         """Parameters every returned result carries, empty or not."""
         return {
@@ -172,14 +215,26 @@ class ClassicalMatcher:
             "ratio": self.ratio,
             "max_features": self.max_features,
             "cross_check": self.cross_check,
+            "max_total_keypoints": self.max_total_keypoints,
             **extra,
         }
 
     def match(self, source: np.ndarray, reference: np.ndarray) -> MatchResult:
         import cv2
 
-        kp1, des1 = self.detect(source)
-        kp2, des2 = self.detect(reference)
+        kp1, des1, raw1, capped1 = self._cap(*self.detect(source))
+        kp2, des2, raw2, capped2 = self._cap(*self.detect(reference))
+        cap_meta = {
+            "n_keypoints_src_raw": raw1,
+            "n_keypoints_ref_raw": raw2,
+            "keypoints_capped_src": capped1,
+            "keypoints_capped_ref": capped2,
+        }
+        if capped1 or capped2:
+            logger.info(
+                "%s: keypoints capped at %d (raw %d, %d)",
+                self.name, self.max_total_keypoints, raw1, raw2,
+            )  # fmt: skip
 
         if des1 is None or des2 is None or len(kp1) < 2 or len(kp2) < 2:
             logger.debug(
@@ -190,6 +245,7 @@ class ClassicalMatcher:
                 empty_reason="too_few_keypoints",
                 n_keypoints_src=len(kp1 or []),
                 n_keypoints_ref=len(kp2 or []),
+                **cap_meta,
             )
             return empty
 
@@ -210,6 +266,7 @@ class ClassicalMatcher:
                 empty_reason="no_ratio_survivors",
                 n_keypoints_src=len(kp1),
                 n_keypoints_ref=len(kp2),
+                **cap_meta,
             )
             return empty
 
@@ -223,7 +280,7 @@ class ClassicalMatcher:
             dst_pts=dst,
             scores=scores,
             matcher=self.name,
-            meta=self._meta(n_keypoints=(len(kp1), len(kp2))),
+            meta=self._meta(n_keypoints=(len(kp1), len(kp2)), **cap_meta),
         )
 
     def _ratio_test(self, matcher, query, train) -> list[tuple[int, int, float]]:
