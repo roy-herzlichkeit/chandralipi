@@ -21,7 +21,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 15 | P1.13 | window-pair preparation | P1.04, P1.06, P1.08 | harness/check_P1.13.sh | done |
 | 16 | P1.14 | matcher registry + SuperGlue opt-in | P1.00 | harness/check_P1.14.sh | done |
 | 17 | P1.15 | TMC-2 + IIRS skip-if-absent | P1.03, P1.09 | harness/check_P1.15.sh | done |
-| 18 | P1.16 | site runner | P1.10, P1.11, P1.12, P1.13, P1.14 | harness/check_P1.16.sh | todo |
+| 18 | P1.16 | site runner | P1.10, P1.11, P1.12, P1.13, P1.14 | harness/check_P1.16.sh | done |
 | 19 | P1.17 | run_jaxa, ablation driver, cli register/inspect | P1.10, P1.16 | harness/check_P1.17.sh | todo |
 | 20 | P1.18 | RUN: archive v1, ablation, JAXA re-run | P1.17 | harness/check_P1.18.sh | todo |
 | 21 | P1.19 | RUN: apply preset default + anchor into live store | P1.18 | harness/check_P1.19.sh | todo |

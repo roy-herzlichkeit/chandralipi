@@ -68,25 +68,35 @@ def test_geometry_extra_has_exactly_the_c04_keys_and_types(rv):
     assert (extra["ref_crop_c0"], extra["ref_crop_r0"]) == (100, 200)
 
 
-def test_coarse_note_keeps_three_decimals(rv, monkeypatch, capsys):
-    import lunar_reg.pipeline as pipeline
+def test_coarse_note_keeps_three_decimals(rv, monkeypatch):
+    """The coarse pass moved to lunar_reg.sites.runner (P1.16); its note still round-trips."""
+    from types import SimpleNamespace
 
-    class _Result:
-        transform = np.eye(3)
-        metrics = {"n_inliers": 42}
+    from lunar_reg.ingest.lro import GeoReference
+    from lunar_reg.pairs import PrepOutcome, PrepStatus, PriorSource, WindowPair
+    from lunar_reg.pipeline import RunOutcome, RunStatus
+    from lunar_reg.provenance import ValueSource
+    from lunar_reg.sites import runner
 
-    class _Outcome:
-        status = pipeline.RunStatus.OK
-        result = _Result()
-
-    geo = {**GEO, "c0": 0, "r0": 0, "ref_factor": 1.0, "label_centre": (3.75, 4.125)}
+    img = np.ones((8, 8), np.uint8)
+    # prior puts the source centre (4, 4) at (3.75, 4.125); the match keeps it at (4, 4)
+    prior = np.array([[1.0, 0, -0.25], [0, 1.0, 0.125], [0, 0, 1.0]])
+    pair = WindowPair(
+        img, img, img > 0, img > 0, prior, PriorSource.LABEL_CORNERS, 1.0, (0, 0, 8, 8),
+        (0, 0, 8, 8), 1.0, 1.0, np.eye(3), np.eye(3), (0.0, 0.0), "src", "ref", {},
+    )  # fmt: skip
+    geo = GeoReference("+proj=stere", 0.0, 0.0, 1.0, 1.0, 100, 100, ValueSource.INFERRED)
+    found = SimpleNamespace(transform=np.eye(3), n_inliers=42)
     monkeypatch.setattr(
-        rv, "prepare_pair", lambda *a, **k: (None, np.zeros((8, 8)), np.zeros((8, 8)), None, 1, geo)
+        runner, "prepare_window_pair", lambda *a, **k: PrepOutcome(PrepStatus.OK, pair)
     )
-    monkeypatch.setattr(pipeline, "register_pair", lambda *a, **k: _Outcome())
-    shift, note = rv.coarse_shift("label.xml", None, type("Args", (), {"window_m": 3000.0}))
+    monkeypatch.setattr(
+        runner, "register_pair", lambda *a, **k: RunOutcome("coarse", RunStatus.OK, result=found)
+    )
+    entry = SimpleNamespace(label_path="label.xml", geometry_grid_path=None)
+    shift, note = runner._coarse(entry, runner.SiteConfig(), geo, TAG)
     assert shift == pytest.approx((0.25, -0.125))
-    assert "shift +0.250,-0.125 m (E,S)" in note
+    assert "42 inliers" in note and "shift +0.250,-0.125 m (E,S)" in note
     assert rv._stored_shift({"coarse_pass": note}) == pytest.approx((0.25, -0.125))
 
 

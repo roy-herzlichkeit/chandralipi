@@ -1,11 +1,17 @@
-"""First real Chandrayaan-2 OHRC <-> LRO NAC registration: the Vikram landing site.
+"""Chandrayaan-2 <-> LRO NAC registration at the Vikram landing site (thin CLI).
 
-Source (moving): Chandrayaan-2 OHRC **raw** (``nrp``) products, 0.25 m/px,
-camera geometry. Reference (fixed): the LROC ``NAC_DTM_VIKRAMSITE1`` map-projected
-orthoimage, 1 m/px. Both are resampled to a common ground sample distance
-(``--gsd``) before matching, and every pair goes through the project's own
-:func:`lunar_reg.pipeline.register_pair` and is saved into the normal results
-store, so the dashboard shows it like any other result.
+Source (moving): Chandrayaan-2 OHRC, TMC-2 and IIRS products (raw and
+calibrated, whichever the catalog finds PRESENT under ``data/raw``; absent
+instruments are reported and skipped). Reference (fixed): the LROC
+``NAC_DTM_VIKRAMSITE1`` map-projected orthoimage, 1 m/px. The work is done by
+:func:`lunar_reg.sites.runner.run_site` (``Phase_1/LLD/site_runner.md``): pair
+preparation at a common ground sample distance (``--gsd``), an optional coarse
+pass, the search prior, :func:`lunar_reg.pipeline.register_pair` for every
+matcher, and the results store, so the dashboard shows each pair like any other
+result. This script builds the :class:`~lunar_reg.sites.runner.SiteConfig`,
+prints the run's report and exits 0 only when at least one pair registered.
+``--export-only`` re-exports registered GeoTIFFs of stored OHRC raw results
+without matching (:func:`export_stored`).
 
 What the numbers mean -- read before quoting any of them
 ---------------------------------------------------------
@@ -24,9 +30,11 @@ truth-based error. What *is* independently informative:
 NAC georeference
 ----------------
 GDAL's transform for these orthoimages is wrong (see the unit warning in
-``data/raw/reference/lro_nac_vikram/PROVENANCE.json``). This script uses the
-corrected transform recorded there, including an upper-left x whose sign was
-inferred from a fit against the label's bounding coordinates.
+``data/raw/reference/lro_nac_vikram/PROVENANCE.json``). The runner takes the
+NAC georeference from its label (:func:`lunar_reg.ingest.lro.georeference_from_label`,
+CONTRACTS C10); :func:`export_stored` uses the corrected transform recorded in
+PROVENANCE.json. Both use an upper-left x whose sign was inferred from a fit
+against the label's bounding coordinates.
 """
 
 from __future__ import annotations
@@ -67,13 +75,6 @@ OHRC_GSD_M = 0.25
 RESULTS_ROOT = "data/processed/results"
 SOURCE_SENSOR = "CH2_OHRC_RAW"
 REFERENCE_SENSOR = "LRO_NAC_ORTHO"
-#: MEASURED (ODE): source frames M1442997156L/RC, 2023-07-03, incidence ~74 deg.
-#: INFERRED, not measured: azimuth north-west, from the full-moon date putting
-#: 32 deg E in early lunar afternoon. The label publishes no sun geometry.
-REFERENCE_SUN_NOTE = (
-    "NAC source frames 2023-07-03, incidence ~74 deg (ODE); azimuth not published, "
-    "inferred north-west from the full-moon date"
-)
 
 
 def stretch_u8(image: np.ndarray) -> np.ndarray:
@@ -190,41 +191,6 @@ def geometry_extra(geo: dict, gsd_m: float) -> dict:
         "gsd_m": float(gsd_m),
         "crop_geometry_source": "recorded",
     }
-
-
-def centre_offset_m(found: np.ndarray, prior: np.ndarray, shape, gsd: float) -> float:
-    h, w = shape[:2]
-    pt = np.float32([[[w / 2, h / 2]]])
-    a = cv2.perspectiveTransform(pt, found)[0, 0]
-    b = cv2.perspectiveTransform(pt, prior)[0, 0]
-    return float(np.hypot(*(a - b)) * gsd)
-
-
-def coarse_shift(label: str, nac, args) -> tuple[tuple[float, float], str]:
-    """Find where the OHRC window really sits in the NAC, at 8 m/px with a 4 km margin.
-
-    Returns the NAC-pixel shift of the window centre relative to the label prior,
-    and a short note for the result's provenance. On failure the shift is zero and
-    the note says why -- the fine pass then falls back to the label prior.
-    """
-    from lunar_reg.pipeline import PipelineConfig, RunStatus, register_pair
-
-    gsd, margin = 8.0, 4000.0
-    _, src, ref, _, _, geo = prepare_pair(label, nac, gsd, args.window_m, margin)
-    outcome = register_pair(src, ref, "coarse", PipelineConfig(matcher="lightglue",
-                            n_bootstrap=0, use_ecc=False))
-    if outcome.status is not RunStatus.OK:
-        note = f"coarse pass failed ({outcome.status.value}); label prior used"
-        print(f"   coarse     {note}")
-        return (0.0, 0.0), note
-    h, w = src.shape[:2]
-    x, y = cv2.perspectiveTransform(np.float32([[[w / 2, h / 2]]]), outcome.result.transform)[0, 0]
-    found = (geo["c0"] + x * geo["ref_factor"], geo["r0"] + y * geo["ref_factor"])
-    shift = (found[0] - geo["label_centre"][0], found[1] - geo["label_centre"][1])
-    n = outcome.result.metrics["n_inliers"]
-    note = f"8 m/px LightGlue, {n} inliers, shift {shift[0]:+.3f},{shift[1]:+.3f} m (E,S)"
-    print(f"   coarse     {note}")
-    return shift, note
 
 
 def _stored_shift(extra: dict) -> tuple[float, float] | None:
@@ -354,16 +320,34 @@ def export_stored(only: str = "") -> int:
     return 0 if counts.get(ExportStatus.EXPORTED, 0) == len(ids) else 1
 
 
+def _csv(text: str) -> tuple[str, ...]:
+    return tuple(x.strip() for x in text.split(",") if x.strip())
+
+
+def _prior_shift(text: str) -> tuple[float, float] | None:
+    """``"E,S"`` metres, or None for ``''`` (disabled)."""
+    if not text.strip():
+        return None
+    e, s = (float(v) for v in text.split(","))
+    return e, s
+
+
 def main(argv=None) -> int:
+    from lunar_reg.align.refine import ECC_PREFILTERS
+    from lunar_reg.pairs import BAND_REDUCTIONS
+    from lunar_reg.preprocess.presets import PRESET_NAMES
+    from lunar_reg.sites.runner import SiteConfig
+
+    defaults = SiteConfig()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--gsd", type=float, default=4.0, help="common ground sample distance, m/px")
-    ap.add_argument("--window-m", type=float, default=3000.0, help="OHRC window along-track, m")
-    ap.add_argument("--margin-m", type=float, default=1000.0, help="NAC crop margin, m")
+    ap.add_argument("--window-m", type=float, default=3000.0, help="source window along-track, m")
+    ap.add_argument("--margin-m", type=float, default=1000.0, help="reference crop margin, m")
     ap.add_argument("--matchers", default="sift,akaze,asift,lightglue",
                     help="comma list; also accepts rift2, loftr")
     ap.add_argument("--coarse", action=argparse.BooleanOptionalAction, default=True,
                     help="coarse LightGlue pass (8 m/px, 4 km margin) to re-centre the "
-                         "reference crop")
+                         "reference crop; never run with --dry-run")
     ap.add_argument("--model", default="homography",
                     choices=("homography", "affine", "partial_affine"))
     ap.add_argument("--min-inliers", type=int, default=DEFAULT_MIN_INLIERS,
@@ -371,16 +355,34 @@ def main(argv=None) -> int:
     ap.add_argument("--ransac-px", type=float, default=3.0, help="RANSAC threshold, px")
     ap.add_argument("--prior-shift", default=DEFAULT_PRIOR_SHIFT, metavar="E,S",
                     help="fallback shift (m, east,south) of the reference crop from the "
-                         "label prior, used only when the coarse pass fails; pass '' to "
-                         "disable")
+                         "label prior, used only when the coarse pass fails and only for "
+                         "the instruments it was measured on (OHRC, G38); pass '' to disable")
     ap.add_argument("--nac", type=int, choices=(1, 2), default=1, help="NAC orthoimage epoch")
     ap.add_argument("--only", default="", help="only products whose id contains this")
+    ap.add_argument("--instruments", default=",".join(defaults.instruments),
+                    help="comma list of Chandrayaan-2 instruments (OHRC, TMC2, IIRS); "
+                         "absent ones are reported and skipped")
+    ap.add_argument("--levels", default=",".join(defaults.levels),
+                    help="comma list of product levels (raw, calibrated)")
+    ap.add_argument("--preprocess", default=defaults.preprocess, choices=PRESET_NAMES,
+                    help="preprocessing preset run before matching")
+    ap.add_argument("--ecc-prefilter", default=defaults.ecc_prefilter,
+                    choices=ECC_PREFILTERS, help="ECC prefilter")
+    ap.add_argument("--band-reduction", default=defaults.band_reduction, choices=BAND_REDUCTIONS,
+                    help="multi-band (IIRS) reduction to one plane")
+    ap.add_argument("--results-root", default=RESULTS_ROOT, help="results store")
+    ap.add_argument("--out-dir", default=str(defaults.out_dir),
+                    help="run_record.json, products.json, previews and registered GeoTIFFs")
+    ap.add_argument("--reference-sun-json", default=str(defaults.reference_sun_json),
+                    help="reference sun JSON from scripts/fit_reference_sun.py; '' for none")
     ap.add_argument("--save-registered", action=argparse.BooleanOptionalAction, default=True,
-                    help=f"write each registered OHRC window as a GeoTIFF under {REGISTERED_DIR}")
+                    help="write each registered window as a GeoTIFF under <out-dir>/registered")
     ap.add_argument("--export-only", action="store_true",
                     help="no matching: write registered GeoTIFFs for results already in the "
-                         "store, using their stored transforms")
-    ap.add_argument("--dry-run", action="store_true", help="prepare and report, do not match")
+                         f"store, using their stored transforms (into {REGISTERED_DIR})")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="prepare and report, do not match (no coarse pass); previews go to "
+                         "<out-dir>/preview")
     ap.add_argument("--overwrite", action="store_true",
                     help="replace results already stored under the same pair id")
     args = ap.parse_args(argv)
@@ -388,120 +390,36 @@ def main(argv=None) -> int:
     if args.export_only:
         return export_stored(args.only)
 
-    import rasterio
+    from lunar_reg.sites.runner import run_site
 
-    from lunar_reg.align.warp import save_registered_geotiff
-    from lunar_reg.pipeline import BatchReport, PipelineConfig, RunStatus, register_pair
-    from lunar_reg.results import save_failures, save_results
-
-    nac_id = NAC_IDS[args.nac]
-    ref_sensor = REFERENCE_SENSOR if args.nac == 1 else f"{REFERENCE_SENSOR}_E2"
-    variant = "" if args.model == "homography" else f"_{args.model}"
-    labels = sorted(glob.glob("data/raw/ohrc_vikram/*/data/raw/*/*_d_img_*.xml"))
-    labels = [x for x in labels if args.only in x]
-    if not labels:
-        print("no OHRC labels under data/raw/ohrc_vikram")
-        return 1
-
-    def fmt(v) -> str:
-        return "n/a" if v is None else f"{v:.1f}"
-
-    report = BatchReport()
-    outcomes, saved, not_saved = [], [], []
-    with rasterio.open(f"{NAC_DIR}/{nac_id}.xml") as nac:
-        for label in labels:
-            shift, coarse_note = (0.0, 0.0), "none"
-            if args.coarse:
-                shift, coarse_note = coarse_shift(label, nac, args)
-            search_prior = "coarse pass" if shift != (0.0, 0.0) else "label corners"
-            if shift == (0.0, 0.0) and args.prior_shift:
-                shift = tuple(float(v) for v in args.prior_shift.split(","))
-                search_prior = f"prior shift {args.prior_shift} m (E,S)"
-            product, src, ref, prior, ref_valid, geo = prepare_pair(
-                label, nac, args.gsd, args.window_m, args.margin_m, shift)
-            tag = Path(label).stem.split("_")[3]  # e.g. 20230823T1450475804
-            sun = (product["sun_azimuth_deg"], product["sun_elevation_deg"])
-            print(f"\n{tag}: source {src.shape[1]}x{src.shape[0]}"
-                  f"  reference {ref.shape[1]}x{ref.shape[0]}"
-                  f"  ref valid {ref_valid:.0%}  sun az {fmt(sun[0])} el {fmt(sun[1])}")
-            if args.dry_run:
-                cv2.imwrite(f"/tmp/vikram_{tag}_src.png", src)
-                cv2.imwrite(f"/tmp/vikram_{tag}_ref.png", ref)
-                continue
-            for matcher in args.matchers.split(","):
-                pair_id = f"{SOURCE_SENSOR}_{tag}-{ref_sensor}_{matcher}{variant}"
-                config = PipelineConfig(
-                    matcher=matcher, gsd_m=args.gsd, model=args.model,
-                    min_inliers=args.min_inliers, ransac_threshold_px=args.ransac_px,
-                    extra={"window_m": args.window_m, "margin_m": args.margin_m,
-                           "site": "Vikram (Chandrayaan-2 landing site)",
-                           "ohrc_level": "raw (nrp) -- not radiometrically calibrated",
-                           "coarse_pass": coarse_note, "search_prior": search_prior,
-                           "gsd_m": args.gsd,
-                           "model": args.model, "min_inliers": args.min_inliers,
-                           "ransac_threshold_px": args.ransac_px,
-                           "reference_sun": REFERENCE_SUN_NOTE},
-                )
-                outcome = register_pair(
-                    src, ref, pair_id, config,
-                    source_id=product.product_id.rsplit(":", 1)[-1], reference_id=nac_id,
-                    source_sensor=SOURCE_SENSOR, reference_sensor=ref_sensor,
-                    source_sun=None, reference_sun=None, synthetic=False,
-                    notes=("Real data. No ground truth: RMSE is the fit's self-residual. "
-                           "label_offset_m compares the matched transform with the "
-                           "label-corner + corrected-NAC-georeference prior."),
-                )
-                report.outcomes.append(outcome)
-                row = {"tag": tag, "matcher": matcher, "status": outcome.status.value,
-                       "detail": outcome.detail}
-                if outcome.status is RunStatus.OK:
-                    r = outcome.result
-                    offset = centre_offset_m(r.transform, prior, src.shape, args.gsd)
-                    r.extra.update({"label_offset_m": offset,
-                                    "ohrc_sun_azimuth": sun[0], "ohrc_sun_elevation": sun[1]})
-                    r.extra.update(geometry_extra(geo, args.gsd))
-                    if args.save_registered:
-                        out = save_registered_geotiff(
-                            src, np.asarray(r.transform), ref.shape[:2],
-                            f"{REGISTERED_DIR}/{pair_id}.tif", crs=NAC_PROJ,
-                            origin_xy=(NAC_X0 + geo["c0"] * NAC_PX_M,
-                                       NAC_Y0 - geo["r0"] * NAC_PX_M),
-                            pixel_size=args.gsd,
-                            tags={"pair_id": pair_id, "source": r.source_id,
-                                  "reference": nac_id, "matcher": matcher,
-                                  "model": args.model, "min_inliers": args.min_inliers,
-                                  "search_prior": search_prior,
-                                  "georeference": "corrected NAC transform, see "
-                                                  "PROVENANCE.json (~1 km absolute)"})
-                        r.extra["registered_geotiff"] = out["path"]
-                    # Saved now, one by one: a crash on a later pair loses nothing.
-                    try:
-                        save_results([r], RESULTS_ROOT, overwrite=args.overwrite)
-                        saved.append(pair_id)
-                    except FileExistsError:
-                        not_saved.append(pair_id)
-                        print(f"   NOT saved (exists; pass --overwrite): {pair_id}")
-                    m = r.metrics
-                    row.update(inliers=m.get("n_inliers"), matches=m.get("n_matches"),
-                               rmse=m.get("rmse_px"), uni=r.uniformity.get("score"),
-                               offset=offset)
-                outcomes.append(row)
-                print(f"   {matcher:<10} {row['status']:<18} "
-                      + (f"inliers {row['inliers']}/{row['matches']}  self-RMSE {row['rmse']:.2f}px"
-                         f"  uniformity {row['uni']:.2f}  label offset {row['offset']:.0f} m"
-                         if row["status"] == "ok" else str(row["detail"])[:90]))
-
-    if args.dry_run:
-        return 0
-    save_failures(report.failures, RESULTS_ROOT)
-    print()
+    cfg = SiteConfig(
+        reference_label=Path(f"{NAC_DIR}/{NAC_IDS[args.nac]}.xml"),
+        reference_sensor=REFERENCE_SENSOR if args.nac == 1 else f"{REFERENCE_SENSOR}_E2",
+        instruments=_csv(args.instruments),
+        only=args.only,
+        levels=_csv(args.levels),
+        gsd_m=args.gsd,
+        window_m=args.window_m,
+        margin_m=args.margin_m,
+        matchers=_csv(args.matchers),
+        model=args.model,
+        min_inliers=args.min_inliers,
+        ransac_threshold_px=args.ransac_px,
+        preprocess=args.preprocess,
+        ecc_prefilter=args.ecc_prefilter,
+        coarse=args.coarse and not args.dry_run,
+        prior_shift_m=_prior_shift(args.prior_shift),
+        band_reduction=args.band_reduction,
+        results_root=Path(args.results_root),
+        out_dir=Path(args.out_dir),
+        save_registered=args.save_registered,
+        overwrite=args.overwrite,
+        dry_run=args.dry_run,
+        reference_sun_json=Path(args.reference_sun_json) if args.reference_sun_json else None,
+    )
+    report = run_site(cfg)
     print(report.report())
-    failed = [o for o in outcomes if o["status"] != "ok"]
-    print(f"{len(outcomes)} run(s): {len(outcomes) - len(failed)} ok, {len(failed)} not ok; "
-          f"{len(saved)} saved, {len(not_saved)} NOT saved (already stored)")
-    for o in failed:
-        print(f"   {o['tag']} {o['matcher']}: {o['status']} -- {str(o['detail'])[:120]}")
-    return 0 if report.results else 1
+    return 0 if report.any_ok else 1
 
 
 if __name__ == "__main__":

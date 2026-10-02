@@ -1,13 +1,13 @@
 # STATUS
 
-current: P1.16
+current: P1.17
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.15
+last_done: P1.16
 notes:
-- P1.15: TMC2 and IIRS PRESENT; probes docs/probes/ch2_tmc_ncn_20230521T0857294318_d_img_d32.txt, docs/probes/ch2_iir_nci_20221226T0416479474_d_img_d32.txt. No TMC-2 view element (PDS4Product.view always None). fieldmap SPECTRAL_FIELDS: first_band_center_wavelength, first_band_width (first Band_Bin only).
-- PDS4Product.band_axis case-insensitive (IIRS axes BAND,LINE,SAMPLE -> 0). _step_band_reduction: mode=incremental only for multi-band rasterio src_dataset with (count,h,w)==image.shape; else mode=in_memory + detail incremental_refused. Review fix: incremental also refused when georeference RAN (new init=False PreprocessContext.steps_applied, filled by run_pipeline); addition to LLD tmc2_iirs §4 route rule -> list under LLD deviations in review pack.
-- probe_raster ortho (docs/probes/ch2_tmc_ndn_20231027T1315134884_d_oth_d18_raster.json): nodata_declared null, fill_candidate 0, fill_fraction 0.9424622314551045, peak_rss_bytes 76603392; Q-P1.15-1 asks human to confirm fill. DTM (docs/probes/..._d_dtm_d18_raster.json) declares -32768.
-- hyperspectral.py: docstring only, not ruff-formatted (unformatted at HEAD). Q-P1.15-2, Q-P1.15-3 non-blocking design choices.
-- scripts/ci.sh: 892 passed (log: scratchpad p1/ci_P1.15.log).
+- P1.16: new lunar_reg.sites.runner (SiteConfig, ProductRun, SiteReport, run_site, compute_exp1_gate); scripts/run_vikram.py thin CLI (keeps export_stored, prepare_pair, geometry_extra, _stored_shift, ExportStatus; drops coarse_shift, centre_offset_m); not ruff-formatted (nor at HEAD). Review fixes: exp-1 gate passes strip if any comparable group (source, reference, sensors, variant) passes; per-component *_azimuth_source/*_elevation_source sun keys written after register_pair (source_sun_source gone); unsaved results never rewrite GeoTIFF; GeoTIFF write failures in report(); gate load failures classified ('load_failed' / 'not loaded').
+- Dry run (`run_vikram.py --dry-run --only 20240425T1406019344 --out-dir data/processed/vikram/runs/p1_16_dry`), from data/processed/vikram/runs/p1_16_dry/products.json and run_record.json: prep_ok 2, 0 failed. OHRC raw: source 750x750, reference 1330x1343 at 4 m/px, prior label_corners. OHRC calibrated: reference 1323x1346, prior geometry_grid. Both: search prior "prior shift 556,-2888 m (E,S)", reference valid 99%. TMC2/IIRS present but 0 selected; CLI exit 1 (dry run, Q-P1.16-2).
+- Runner output under out_dir: run_record.json, products.json, preview/<SENSOR>_<tag>_{src,ref}.png, registered/<pair_id>.tif. Run-record notes carry "<inst>: <status>, not run" for each requested instrument that is not PRESENT.
+- Non-blocking QUESTIONS: Q-P1.16-1 (extras beyond the LLD; (f) updated), Q-P1.16-2 (dry-run exit code), Q-P1.16-3 (which results the exp-1 agreement uses; updated), Q-P1.16-4 (prior shift on grid-prior calibrated OHRC).
+- scripts/ci.sh: 912 passed, 18 deselected (log: scratchpad p1/ci_P1.16.log).
