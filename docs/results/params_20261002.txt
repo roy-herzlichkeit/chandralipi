@@ -1,0 +1,43 @@
+Makharia et al. (arXiv:2509.04775) preprocessing parameters
+full paper text read; structure is specified, most numbers are not
+
+4 stated in the paper:
+  normalize_target_min       = 0
+      "All datasets were normalised to an 8-bit range (0-255)"
+  normalize_target_max       = 255
+      "All datasets were normalised to an 8-bit range (0-255)"
+  inversion_max              = 255
+      "transformed pixel values to their complement (255 - pixel value)"
+  gsd_iirs_wac_m             = 100.0
+      "IIRS (~80 m resolution) was resampled to align with WAC's 100 m/pixel resolution"
+
+2 chosen inside a paper-stated range:
+  gsd_ohrc_nac_m             = 1.0  -- Paper states NAC is 0.5-2.0 m/pixel; 1.0 is our pick inside that range.
+  gsd_dfsar_selene_m         = 9.0  -- Paper says '~9 m/pixel'; the approximation is theirs.
+
+11 NOT stated in the paper (placeholders to tune, NOT paper-matched):
+  clahe_clip_limit           = 2.0
+      NOT IN PAPER. The paper describes CLAHE qualitatively ('limiting the height of each histogram') and gives no clip limit. 2.0 is OpenCV's documented default and a common choice for remote sensing. Sweep this first -- it is the single most influential preprocessing knob for the extreme-illumination case the paper highlights.
+  clahe_tile_grid            = (8, 8)
+      NOT IN PAPER. The paper says CLAHE 'operates on small regions (tiles)' but never gives a grid size. (8, 8) is OpenCV's default. On the ~1000 px tiles this pipeline works in, a finer grid amplifies noise in flat mare.
+  dilation_kernel_shape      = 'ellipse'
+      NOT IN PAPER. The paper says only 'using a defined structuring element'. An ellipse avoids the axis-aligned bias a rectangular element imposes on crater rims, which are roughly circular.
+  dilation_kernel_size       = 3
+      NOT IN PAPER. 3x3 is the smallest element that dilates at all; larger values thicken rims further but start merging nearby features.
+  pca_n_components           = 1
+      NOT IN PAPER. The paper describes PCA as dimensionality reduction 'preserving the most significant variance' without a component count. 1 yields a single matchable plane, which is what the matchers consume.
+  shadow_percentile          = 5.0
+      NOT IN PAPER. The paper's shadow normalisation is described only as adjusting 'intensity values in shadowed regions ... while preserving overall scene contrast', with no threshold or method. This treats the darkest 5% as shadow. Two cautions: (1) highly scene-dependent -- a polar image at very low sun elevation may be 30%+ shadow; (2) the threshold is inclusive and lunar shadow saturates at few DN values, so the fraction actually selected can far exceed the percentile (measured 9.1% for a nominal 5%). Check with shadow.shadow_fraction().
+  shadow_method              = 'gamma'
+      NOT IN PAPER. Which of several plausible shadow treatments the authors used is unknown. 'gamma' brightens shadowed pixels while preserving their relative structure, matching the paper's stated intent of revealing features rather than erasing them. See shadow.py for the alternatives.
+  shadow_gamma               = 0.5
+      NOT IN PAPER. Exponent applied within shadowed regions; < 1 brightens.
+  log_transform_scale        = None
+      NOT IN PAPER. The paper states only that log transform 'enhance[s] low-intensity details while compressing higher-intensity values'. None means derive the constant from the data as c = 255 / log(1 + max).
+  resample_interpolation     = 'area_or_cubic'
+      NOT IN PAPER. The paper says only 'this process involved interpolation'. This pipeline uses INTER_AREA when shrinking (correct for a 20x+ reduction; INTER_LINEAR aliases and manufactures false corners) and INTER_CUBIC when enlarging.
+  iirs_reference_band        = None
+      NOT IN PAPER as a number. The paper says 'a single, visually clear band was selected as the reference' and that the transform computed on it was applied to all other bands -- but not which band. None means pick automatically by highest contrast; set an int to pin it.
+
+Do not describe a run using the placeholders above as reproducing the
+paper's parameters. It reproduces the paper's pipeline STRUCTURE only.

@@ -1,0 +1,5 @@
+27 mapped fields: 5 documented, 2 unverified, 20 verified
+
+UNVERIFIED (candidate paths are guesses; confirm before trusting):
+  emission_angle_deg     <- emission_angle | EMISSION_ANGLE
+  phase_angle_deg        <- phase_angle | PHASE_ANGLE

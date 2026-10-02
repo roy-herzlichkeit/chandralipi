@@ -4,6 +4,35 @@
 Written 2026-09-05. Every number below either cites the run that produced it or
 is marked as not-yet-measured. Nothing here is estimated silently.
 
+**Refreshed 2026-10-02 (prompt P1.22).** Sections 0 to 7 are the 2026-09-05/09
+record and are kept as written. They are history, not current status: some
+claims there carry a *Superseded 2026-10-02* note, but a claim without one is
+not thereby current. The current status is the next section only; every value
+in it is read from the file it cites.
+
+---
+
+## Current status, 2026-10-02
+
+| Item | Value | Source |
+|---|---|---|
+| CPU test suite (`bash scripts/ci.sh`) | 984 passed, 21 deselected; ruff clean | `docs/results/ci_20261002.txt` (count line) |
+| Real products on disk | OHRC, TMC-2, IIRS, LRO NAC, LRO NAC DTM present; SELENE TC partial; product count per instrument in the source file | `docs/results/catalog_20261002.txt` (`lunar-reg catalog`) |
+| Field-map provenance | 27 mapped fields: 5 documented, 2 unverified, 20 verified | `docs/results/fields_20261002.txt` (`lunar-reg fields`) |
+| Preprocessing parameter provenance | per-member counts in the source file | `docs/results/params_20261002.txt` (`lunar-reg params`) |
+| Live store: results (index rows, one per image pair and matcher) | 16 index rows, all `synthetic=False` (docs/results/live_store_20261002.txt) | `docs/results/live_store_20261002.txt` |
+| Live store: distinct image pairs | 4 image pairs behind the 16 results (docs/results/live_store_pairs_20261002.txt) | `docs/results/live_store_pairs_20261002.txt` |
+| Live store: classified failures | 31 rows (data/processed/results/failures.parquet) | `docs/results/live_store_20261002.txt` |
+| Live store results by sensor combination | 4 OHRC raw vs LRO NAC (1 image pair x 4 matchers), 2 TMC-2 vs TMC-2 ortho (1 image pair x 2 matchers), 10 JAXA TC vs itself or LRO WAC (2 image pairs x 5 matchers) (docs/results/live_store_20261002.txt, docs/results/live_store_pairs_20261002.txt) | `docs/results/live_store_20261002.txt`; `docs/results/live_store_pairs_20261002.txt` |
+| Showcase export | regenerated 2026-10-02 from `data/processed/results/` | `web/public/data/results.json` |
+| OHRC vs LRO NAC, 2024-04-25 strip | registered; first run's write-up | `docs/results/vikram_2024.md`; current re-run `data/processed/vikram/runs/p1_19_anchor/` |
+| OHRC vs LRO NAC, three 2023-08-23 strips | not registered; gate decision BUILD_1B | `data/processed/vikram/exp1_gate.json`; `docs/VIKRAM_2023_DIAGNOSIS.md` |
+| GPU runs | exist; device recorded per run | e.g. `data/processed/vikram/runs/p1_19_anchor/run_record.json` (`device`) |
+| JAXA/NASA substitute | write-up of the 2026-09-08/09 run | `docs/results/jaxa_wac_2026-09-08.md` |
+
+Next steps are carried by the phased plan (`PHASES.md`, `STATUS.md`), not by
+§6 below.
+
 ---
 
 ## 0. State of the repo, in one paragraph
@@ -23,6 +52,10 @@ metadata field map has been verified against one of them, and that verification
 immediately exposed a critical bug (§1.1). The correct summary of the project's
 maturity is: *the machinery is built and internally validated; its contact with
 real data is one hour old and has already found one serious defect.*
+
+*Superseded 2026-10-02:* the live store now holds only real-data results, all
+`synthetic=False` (`docs/results/live_store_20261002.txt`), and the products on
+disk are counted per instrument in `docs/results/catalog_20261002.txt`.
 
 ---
 
@@ -106,6 +139,10 @@ make without a decision.
 
 ### 1.1c The downloaded OHRC, TMC-2 and IIRS products do not overlap each other
 
+*Superseded 2026-10-02:* products have since been fetched over the Vikram
+landing site, and Chandrayaan-2 OHRC vs LRO NAC and TMC-2 vs TMC-2 ortho
+results exist (see "Current status" at the top; `docs/results/live_store_20261002.txt`).
+
 **Traces to:** operational. **Updated 2026-09-05**, re-checked directly against
 a larger, still-growing download (labels read from the zip archives without
 full extraction — `unzip -p <zip> <label.xml>`).
@@ -151,6 +188,8 @@ intersecting set — likely single digits to low tens of files per instrument,
 not 500.
 
 ### 1.2 Field map: 22 of 25 fields verified, 3 still unresolved
+
+*Superseded 2026-10-02:* `lunar-reg fields` now reports 27 mapped fields: 5 documented, 2 unverified, 20 verified (`docs/results/fields_20261002.txt`).
 
 **Traces to:** `src/lunar_reg/ingest/fieldmap.py`, `ingest/pds4.py`.
 
@@ -216,7 +255,9 @@ product-dependent; the 20× figure should not be quoted as general.**
 cannot return a 3×3 matrix — the true mapping is not projective — and returns
 per-point line/sample with an `inside` mask instead. Points outside the footprint
 are reported, never extrapolated. `overlap.py` is untouched; **wiring it in is
-still an open decision.**
+still an open decision.** *Superseded 2026-10-02:* `overlap.py` now uses the
+grid when a footprint has one (`PriorSource.GEOMETRY_GRID` in
+`src/lunar_reg/ingest/overlap.py`).
 
 Still unverified, and marked in the code where it matters:
 
@@ -277,6 +318,11 @@ product completed. Whether they stopped from session expiry, rate limiting, or
 the system's out-of-memory killer is **not established** — the OOM killer did
 take the Streamlit and Vite servers during this period.
 
+*Superseded 2026-10-02:* the "current actual state" above is the 2026-09-05
+record. Products now on disk, IIRS included, are counted per instrument in
+`docs/results/catalog_20261002.txt` (`lunar-reg catalog`); the disk budget for
+`data/raw/` is set in `CLARIFY.md` Q17 as amended by `Phase_1/ASSUMPTIONS.md` A1-6b.
+
 ### 1.5 TMC-2 "products" are not distinct scenes
 
 **Traces to:** would affect `ingest/overlap.py` pair counting.
@@ -294,6 +340,10 @@ per-product overstates distinct coverage by roughly 4×.
 
 ### 1.6 No LRO **NAC** data has been fetched; WAC has, but not via `ingest/lro.py`
 
+*Superseded 2026-10-02:* `lunar-reg catalog` reports LRO NAC and the LRO NAC
+DTM as present (`docs/results/catalog_20261002.txt`), and the Vikram-site
+OHRC vs LRO NAC case has been run (`docs/results/vikram_2024.md`).
+
 **Traces to:** `src/lunar_reg/ingest/lro.py` — still written, still never run on a
 real product; the project's own LRO ingest path remains unexercised.
 
@@ -310,6 +360,10 @@ against each other, a substitute, not that case.
 
 ### 1.7 IIRS has never been touched by any real data path
 
+*Superseded 2026-10-02:* `lunar-reg catalog` reports IIRS as present
+(`docs/results/catalog_20261002.txt`), and IIRS vs TMC-2 ortho has been run;
+every such run is a classified failure (`docs/results/live_store_20261002.txt`).
+
 `src/lunar_reg/preprocess/hyperspectral.py` and the band-reduction design in
 `docs/CROSS_MODAL_IIRS.md` have never seen a cube. No IIRS product finished
 downloading. Everything about IIRS in this repo is design, not result.
@@ -319,6 +373,12 @@ downloading. Everything about IIRS in this repo is design, not result.
 ## 2. Result issues
 
 ### 2.1 Every headline number is synthetic
+
+*Superseded 2026-10-02:* the live store now holds only real-data rows, all
+`synthetic=False` (`docs/results/live_store_20261002.txt`); the synthetic set is
+regenerated with `scripts/build_demo_results.py` into its default output path,
+`data/processed/results_ch2_synthetic_backup/`.
+The text below describes the synthetic set as it was on 2026-09-05.
 
 **Traces to:** `src/lunar_reg/eval/scenes.py`, `scripts/build_demo_results.py`.
 
@@ -455,6 +515,9 @@ underestimated 1024 px by ~4× and would have handed out tile sizes that OOM.
 
 ### 2.9 No learned matcher has ever run on a GPU — but both have now run on CPU with real results
 
+*Superseded 2026-10-02:* runs on the RTX 4060 now exist and record the device,
+e.g. `data/processed/vikram/runs/p1_19_anchor/run_record.json` (`device`).
+
 LoFTR, LightGlue and the SuperGlue wrapper are implemented and load correctly on
 CPU. **Updated 2026-09-08/09:** LoFTR and LightGlue have now produced real
 results on real (non-Chandrayaan-2) imagery — see §7. LightGlue in particular
@@ -468,17 +531,29 @@ ship**: its weights are noncommercial-research-only and
 LightGlue (Apache-2.0) is the shippable substitute and is a different model, so
 it would not reproduce Makharia et al.'s headline number in any case.
 
-### 2.10 Test suite could not be re-verified in this session
+### 2.10 CI suite count comes from the saved run
 
-378 tests passed on the last successful full run. Today's run was **killed by the
-out-of-memory killer** (exit 137) while three concurrent downloads were active.
-The 378 figure is carried forward from the previous run, not re-confirmed.
+*Superseded 2026-10-02:* the 2026-09-05 count could not be re-verified then (the
+run was killed by the out-of-memory killer, exit 137, while three downloads were
+active). The CPU suite is now run by `bash scripts/ci.sh`, and its saved output
+is the only source for the count: 984 tests passed, 21 deselected (docs/results/ci_20261002.txt).
 
 ---
 
 ## 3. Decisions that need a human
 
-These are judgment calls, not implementation choices. Each is genuinely open.
+These are judgment calls, not implementation choices. Each was open on
+2026-09-05/09.
+
+*Superseded 2026-10-02:* open decisions are now carried by the phased plan
+(`PHASES.md`, `STATUS.md`, `Phase_*/QUESTIONS.md`), and several items below are
+out of date. Item 4: `lunar-reg fields` lists only `emission_angle_deg` and
+`phase_angle_deg` as unverified (`docs/results/fields_20261002.txt`). Item 5:
+`overlap.py` now uses the geometry grid when a footprint has one (§1.3,
+`PriorSource.GEOMETRY_GRID` in `src/lunar_reg/ingest/overlap.py`). Item 7: the
+current parameter counts are in `docs/results/params_20261002.txt`
+(`lunar-reg params`). Item 8: the live store now holds only real-data results
+(`docs/results/live_store_20261002.txt`).
 
 1. **How much archive data to actually pull.** ~975 GB will not fit in 830 GB
    (§1.4), and 500 arbitrary products per instrument is not obviously what the
@@ -519,9 +594,14 @@ These are judgment calls, not implementation choices. Each is genuinely open.
 
 ## 4. Current key metrics
 
+*Superseded 2026-10-02:* this table is the 2026-09-05/09 record. Rows not marked
+superseded (the synthetic-scene rows included) describe that record, not the
+current store; current values are in "Current status, 2026-10-02" above, and
+the live store's contents in `docs/results/live_store_20261002.txt`.
+
 | Metric | Value | Provenance |
 |---|---|---|
-| Tests passing | **431** (1 skipped) | verified on the combined tree, lint clean |
+| Tests passing | 984 passed, 21 deselected (superseded 2026-10-02) | `docs/results/ci_20261002.txt` (count line), lint clean |
 | Pipeline pairs registered | 26 of 36 | `scripts/build_demo_results.py`, synthetic |
 | Classified failures | 9 too-few-matches, 1 too-few-inliers | same run |
 | Self-residual vs true RMSE | 12.7× – 58.6× | 26 pairs, synthetic |
@@ -533,15 +613,15 @@ These are judgment calls, not implementation choices. Each is genuinely open.
 | LoFTR fp32 tile break | between 1024 and 1152 px | host RSS under 8 GB address cap |
 | LightGlue tile break | between 1536 and 2048 px | same |
 | Pseudo-GT error floor | 23.09 m = 92 OHRC px | computed; total refuses to resolve |
-| Field map resolution | 22 of 25 | **one real OHRC label** |
+| Field map resolution | superseded 2026-10-02: 20 of 27 verified, 2 unverified | `docs/results/fields_20261002.txt` (`lunar-reg fields`) |
 | Geometry fields promoted to VERIFIED | 11 of 13 | same label; 2 genuinely absent |
 | Real OHRC footprints rejected as POLAR | **0 of 3** (was 3 of 3) | fixed by the polar frame, §1.1b |
 | Real OHRC pairwise overlap area | 69.30 / 65.97 / 74.22 km² | Monte-Carlo agreed within 2σ = 0.16 km² |
 | Real OHRC footprint area | 78.89 / 78.96 / 79.33 km² | matches ~75 km² expectation |
 | Real TMC-2 footprint area | 16,041 / 17,805 / 17,843 km² | mid-latitude, `ok` status |
-| Real products complete | 5 (2 OHRC, 3 TMC-2) | 6.6 GB on disk |
-| Real IIRS products | 0 | none completed |
-| Real LRO products | 0 | never fetched |
+| Real products complete | superseded 2026-10-02: count per instrument in the source | `docs/results/catalog_20261002.txt` (`lunar-reg catalog`) |
+| Real IIRS products | superseded 2026-10-02: IIRS present | `docs/results/catalog_20261002.txt` |
+| Real LRO products | superseded 2026-10-02: LRO NAC and LRO NAC DTM present | `docs/results/catalog_20261002.txt` |
 
 ---
 
@@ -569,6 +649,9 @@ paper / measured / extrapolation / unverified), `docs/MAKHARIA_PARITY.md`,
 `docs/REPORT_SECTION.md`, `docs/DEMO_SCRIPT.md`, `docs/VRAM_CONSTRAINTS.md`.
 
 ## 6. Immediate next actions, in dependency order
+
+*Superseded 2026-10-02:* the phased plan (`PHASES.md`, `STATUS.md`) carries
+the next steps. The list below is the 2026-09-05 record.
 
 Done since this document was first drafted:
 
@@ -613,7 +696,8 @@ Outstanding:
 
 ## 7. Real cross-mission validation on JAXA/NASA data, 2026-09-08/09
 
-**Traces to:** `data/processed/demo_real/README.md`, which has the full
+**Traces to:** `docs/results/jaxa_wac_2026-09-08.md` (a copy of
+`data/processed/demo_real/README.md`), which has the full
 writeup — this section is the pointer and the summary.
 
 **Why this exists.** ISRO/PRADAN archive access was blocked by poor network
@@ -644,7 +728,7 @@ Caught by inspecting the checkerboard image, not by trusting the metrics
 table: a rotationally-symmetric crater is a poor matching target because
 every point on its rim resembles every other point on its rim, and a second
 similar crater nearby gave the matchers a second place to lock onto. Full
-detail in `data/processed/demo_real/README.md`.
+detail in `docs/results/jaxa_wac_2026-09-08.md`.
 
 **Two bugs found in the project's own tooling while doing this work:**
 

@@ -1,13 +1,13 @@
 # STATUS
 
-current: P1.22
+current: P1.23
 phase: 1
 state: READY
 branch: phase-1
-last_done: P1.21
+last_done: P1.22
 notes:
-- P1.21: side_by_side_matches takes src_scale/ref_scale; new figures.thumbnail_transform (S_ref@T@inv(S_src)) and points_outside used by both viewers; conditioning maps use metrics['model'] and the full-resolution shape.
-- export_web_data.py swaps .export_tmp in atomically (rollback if the results.json rename fails; recovery finishes a swap killed between the renames), exports failures/nFailures/licence/nLoadErrors and a relative sourceDirectory. Live export: 16 pairs, 31 failures, 0 load errors, sourceDirectory data/processed/results (web/public/data/results.json).
-- Dashboard has a "Failed runs" table and a licence pill. Synthetic wording is now "this scene is synthetic (generated)" in demo.py and app.py. reindex --exclude-synthetic never overwrites a stash file (_<created_utc> suffix, otherwise refuses).
-- Open: Q-P1.21-1 (web/src cannot show the licence or failures without a source change) and Q-P1.21-2 (load_all_pairs returns no paths; the scan is replayed).
-- 5 touched files were ruff-formatted in full, which reformats some lines that were already there. CI: 976 passed.
+- P1.22: new docs/results/ holds saved sources: ci_20261002.txt (984 passed, 21 deselected, ruff clean), fields/params/catalog_20261002.txt, live_store_20261002.txt (16 index rows, 31 failures, all synthetic=False), live_store_pairs_20261002.txt (4 distinct image pairs), vikram_2024.md, jaxa_wac_2026-09-08.md.
+- README: provenance table = pasted `lunar-reg fields` block; known-gap 3 (polar) deleted; synthetic-flag explanation replaces "no CH-2 product"; OHRC/NAC row drops PCA; self_residual_subpixel wording; links point to docs/results/.
+- CONTEXT.md rewritten with cited sources (Size = [INSERT RESULT]); CONTEXT_HANDOFF.md has "Current status, 2026-10-02" table, sections 0-7 are history (Superseded on §0, §1.4, §3, §4).
+- web/public/data/results.json regenerated (16 pairs, 31 failures, 0 load errors).
+- For P1.23: src/lunar_reg/preprocess/config.py:11 docstring still says ohrc_nac_config includes PCA, but the code does not.

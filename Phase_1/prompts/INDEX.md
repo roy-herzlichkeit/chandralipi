@@ -29,5 +29,5 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 23 | P1.19 | RUN: apply preset default + anchor into live store | P1.18 | harness/check_P1.19.sh | done |
 | 24 | P1.20 | RUN: 2023 diagnosis + exp-1 gate | P1.19 | harness/check_P1.20.sh | done |
 | 25 | P1.21 | viewers | P1.20 | harness/check_P1.21.sh | done |
-| 26 | P1.22 | docs + status refresh | P1.21 | harness/check_P1.22.sh | todo |
+| 26 | P1.22 | docs + status refresh | P1.21 | harness/check_P1.22.sh | done |
 | 27 | P1.23 | code docstrings + script hints | P1.22 | harness/check_P1.23.sh | todo |

@@ -197,8 +197,9 @@ PRADAN cart to `data/processed/ohrc_vikram_product_ids.txt`.
 Results go to the normal store (`data/processed/results/`). Registered images
 go to `data/processed/vikram/registered/<pair_id>.tif`: north-up GeoTIFFs on
 the NAC grid, with a `.png` preview. The run's settings are stored in each file's
-GeoTIFF tags and in the result's `extra` field. Results and caveats:
-[`data/processed/vikram/README.md`](data/processed/vikram/README.md).
+GeoTIFF tags and in the result's `extra` field. Results and caveats of the
+first run: [`docs/results/vikram_2024.md`](docs/results/vikram_2024.md); why
+the 2023 strips do not register: [`docs/VIKRAM_2023_DIAGNOSIS.md`](docs/VIKRAM_2023_DIAGNOSIS.md).
 
 Memory: LightGlue/DISK costs roughly 2–3 KB per reference pixel on CPU.
 Keep `--gsd` at 4 or coarser on a 16 GB machine.
@@ -236,8 +237,13 @@ truth-based error. They write outside the live store by default.
 
 ```bash
 .venv/bin/python -m pytest -q tests
+bash scripts/ci.sh                                # ruff + the CPU suite (no gpu/data/weights marks)
 ./scripts/pack_data.sh                            # bundle data/ for another machine
 ```
+
+The test count is whatever the last `scripts/ci.sh` run printed; the latest
+saved run is [`docs/results/ci_20261002.txt`](docs/results/ci_20261002.txt)
+(count line: 984 passed, 21 deselected).
 
 ## Product ingest and the metadata trust boundary
 
@@ -253,26 +259,28 @@ distinguishes them. Columns cover identity, array structure (`lines`, `samples`,
 `bands`, `axis_order`, `data_type`), acquisition time, illumination angles, and
 a footprint bounding box.
 
-**Not all of those columns are trustworthy yet, and the manifest says which.**
-No real Chandrayaan-2 or LRO product has been inspected by this project. The
-split is:
+**Not all of those columns are trustworthy, and the manifest says which.**
+Every mapped field carries a `Provenance`. The breakdown is generated, not
+written by hand: this is the output of `lunar-reg fields` on 2026-10-02, saved
+as [`docs/results/fields_20261002.txt`](docs/results/fields_20261002.txt):
 
-| Layer | Status |
-|---|---|
-| PDS4 array structure — sizes, dtype, axis order, data file name | **Verified.** Documented schema, and cross-checked by hand-writing labels that GDAL's own PDS4 driver reads back correctly. |
-| PDS3 keyword parsing for LRO | **Verified** the same way against GDAL's `PDS` driver. Parsing is generic — it captures every keyword rather than looking for invented ones. |
-| Time coordinates, identification | Documented PDS4; standard element names, presence per-product not guaranteed. |
-| **Sun azimuth/elevation, incidence/emission/phase, footprint corners** | **Unverified guesses.** These live in discipline-dictionary and mission-specific namespaces that vary per mission. |
+```
+27 mapped fields: 5 documented, 2 unverified, 20 verified
 
-Every mapped field carries a `Provenance` (`lunar-reg fields` prints the
-breakdown), the loader records which candidate path actually matched, and the
-manifest carries `geometry_resolved` / `footprint_resolved` / `unresolved_fields`
+UNVERIFIED (candidate paths are guesses; confirm before trusting):
+  emission_angle_deg     <- emission_angle | EMISSION_ANGLE
+  phase_angle_deg        <- phase_angle | PHASE_ANGLE
+```
+
+Re-run `lunar-reg fields` for the current state rather than trusting this copy.
+The loader records which candidate path actually matched, and the manifest
+carries `geometry_resolved` / `footprint_resolved` / `unresolved_fields`
 columns. Filter on `geometry_resolved` before using any sun-angle column, and
 never report a sun-angle-conditioned result from rows where it is `False`.
 
 ### Replacing the guesses with fact
 
-The moment you have one real product, run:
+To check a remaining UNVERIFIED field against a real product, run:
 
 ```bash
 lunar-reg probe-label data/raw/ch2/<product>.xml --suggest
@@ -316,7 +324,8 @@ loaded — only the overlap window comes off disk.
 
 ### Polar footprints
 
-Every real OHRC product downloaded so far sits at about −85° latitude, where a
+The first three real OHRC products downloaded (2026-01-03, table in
+`CONTEXT_HANDOFF.md` §1.1b) sit at about −85° latitude, where a
 lat/lon polygon stops describing the ground: meridians converge, so longitude
 bounds lose their meaning and a straight edge in lat/lon is not straight on the
 Moon. Above `POLAR_LATITUDE_DEG` (80°) a pair is therefore clipped in a
@@ -354,18 +363,23 @@ report prints on every run, and `lunar-reg overlap` exits non-zero when pairs
 were considered but none were usable, so a CI run cannot mistake an
 all-degenerate result for success.
 
-`missing_footprint` is called out separately in the report because it is
-currently the expected state — the footprint columns come from the unverified
-half of the field map. An empty result there means *the metadata has not been
-verified yet*, *not* that the products fail to overlap.
+`missing_footprint` is called out separately in the report because it is a
+*metadata* gap: the label resolved no footprint. An empty result there means
+*the footprint is unknown*, *not* that the products fail to overlap. Which
+footprint fields are verified is listed by `lunar-reg fields` (above).
 
 ### Two things to know before trusting a crop
 
-1. **The pixel mapping is a homography fitted from four corner coordinates.**
-   Reasonable for a short TMC-2 frame; an approximation for a 90,000-line OHRC
-   pushbroom strip over a curved body, with error growing away from the corners.
-   It also depends on corner *ordering*, which is itself unverified — wrong
-   ordering yields a mirrored or rotated crop with no error raised.
+1. **The pixel mapping comes from the geometry grid when one is recorded.**
+   `footprint_prior_source()` in `src/lunar_reg/ingest/overlap.py` picks the
+   product's geometry grid (`PriorSource.GEOMETRY_GRID`) when the footprint
+   records one and the file exists; a bounding-box footprint uses the box
+   (`PriorSource.BBOX`); only otherwise is the window a homography fitted from
+   the label's four corner coordinates (`PriorSource.LABEL_CORNERS`). That
+   fallback is reasonable for a short TMC-2 frame and an approximation for a
+   90,000-line OHRC pushbroom strip over a curved body, with error growing
+   away from the corners. The corner traversal order is pinned by
+   `test_corner_numbering_is_not_ring_order` in `tests/test_ingest_labels.py`.
 2. **Windows round outward.** A crop covers every pixel the polygon touches, so
    it may be up to one pixel larger per side than the exact extent. Deliberate:
    carrying a pixel of slop beats silently dropping a row of real overlap.
@@ -394,9 +408,13 @@ a *different* specialised set per sensor pair:
 | OHRC/NAC (§4.2 A) | CLAHE, image inversion, morphological dilation, PCA |
 | IIRS/WAC (§4.2 B) | band selection, histogram matching, shadow normalisation, log transform |
 
-`ohrc_nac_config()` and `iirs_wac_config()` are those two tracks; mixing steps
-across them is allowed but `describe()` will tell you the run is no longer the
-paper's configuration for either pair.
+`ohrc_nac_config()` and `iirs_wac_config()` follow those two tracks, with one
+gap: `ohrc_nac_config()` leaves out the paper's PCA step. In this code PCA is
+one of the multi-band reduction methods (`band_reduction_method="pca"` in
+`preprocess/config.py`), and `ohrc_nac_config()` sets `band_reduction=False`,
+so this track does not reproduce the paper's full OHRC/NAC chain. Mixing steps
+across the two configs is allowed, but `describe()` will tell you the run is no
+longer the paper's configuration for either sensor combination.
 
 ```python
 from lunar_reg.preprocess import ohrc_nac_config, run_pipeline, PreprocessContext
@@ -606,8 +624,11 @@ reports across 4/8/16 because uniformity is scale-dependent.
 
 The problem statement names RMSE, inlier match count, and inlier ratio;
 `eval/metrics.py` reports those plus MAE, median, p95, and max residuals. The
-p95 matters: a sub-pixel mean with a six-pixel tail is not sub-pixel
-registration, and `RegistrationMetrics.is_subpixel` requires both to clear 1 px.
+p95 matters: a sub-pixel mean with a six-pixel tail is not a sub-pixel fit,
+and `RegistrationMetrics.self_residual_subpixel` requires both to clear 1 px.
+The name is deliberate: it is a *self-residual* sub-pixel flag (the fit agreeing
+with its own inliers), not a statement of accuracy; a real pair has no ground
+truth to measure accuracy against.
 
 `eval/uniformity.py` adds the spatial-distribution measure the problem statement
 asks for but does not define — grid **coverage**, normalised **entropy**, and
@@ -639,11 +660,7 @@ These are open, not oversights:
    pair is currently unmeasurable; weak ground truth has to be constructed, via
    independently georeferenced overlap or synthesis, before the number means
    anything.
-3. **Polar footprints.** `ingest/footprint.py` intersects axis-aligned lat/lon
-   boxes, which is wrong near the poles where longitude wraps — and the poles are
-   where the interesting OHRC targets are. Polar pairs need a stereographic
-   reprojection first.
-4. **Tile pairing uses a translation-only prior.** `TiledMatcher` locates the
+3. **Tile pairing uses a translation-only prior.** `TiledMatcher` locates the
    reference window by an offset, so a pair with significant rotation or scale
    residual after resampling needs a coarse whole-image alignment pass first.
 
@@ -694,9 +711,18 @@ them; a viewer that ignored it would draw every point in the wrong place, and
 the bug would look like a registration failure.
 
 **Results carry a `synthetic` flag, and the dashboard displays it prominently.**
-No Chandrayaan-2 product has been available to this project, so the shipped
-result set was computed on generated scenes. The pipeline is real; the lunar
-surface is not, and the tool says so rather than letting a viewer assume.
+`synthetic=True` means the pair was computed on a generated scene
+(`eval/scenes.py`): the pipeline is real, the lunar surface is not, and the
+transform is known, so truth-based error can be reported. `synthetic=False`
+means both images are real archive products, so there is no ground truth and
+only self-residual metrics exist. The dashboard labels a synthetic pair "this
+scene is synthetic (generated)" rather than letting a viewer assume.
+What the live store holds is counted per sensor pair and flag in
+[`docs/results/live_store_20261002.txt`](docs/results/live_store_20261002.txt)
+(16 index rows, all `synthetic=False`, plus 31 classified failures, in data/processed/results/ on 2026-10-02).
+The generated scene set is not in the live store; regenerate it with
+`scripts/build_demo_results.py`, whose default output path is
+`data/processed/results_ch2_synthetic_backup/`.
 
 ## Two metrics beyond the problem statement's list
 
@@ -730,6 +756,7 @@ Full stress-test results and the layouts that motivated the change are in
 | `docs/REPORT_SECTION.md` | Draft results section for the internal round. |
 | `docs/DEMO_SCRIPT.md` | 2-3 minute video narration and shot list. |
 | `docs/VRAM_CONSTRAINTS.md` | Measured tiling limits and where dense matching breaks down. |
+| `docs/results/` | Saved run outputs the docs cite: CI output, `lunar-reg fields` / `params` / `catalog` output, the live-store counts, and the Vikram 2024 and JAXA/WAC run write-ups. |
 
 ## Chandralipi — showcase site
 

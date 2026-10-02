@@ -1,0 +1,17 @@
+# live results store, 2026-10-02T17:44:26Z
+# command: .venv/bin/python -c "import pandas as pd; r=\"data/processed/results/\"; i=pd.read_parquet(r+\"index.parquet\"); f=pd.read_parquet(r+\"failures.parquet\"); print(\"index rows:\", len(i)); print(\"failure rows:\", len(f)); print(i.groupby([\"source_sensor\",\"reference_sensor\",\"synthetic\"]).size().to_string()); print(f.groupby([\"source_sensor\",\"reference_sensor\",\"status\"]).size().to_string())"
+index rows: 16
+failure rows: 31
+source_sensor        reference_sensor  synthetic
+CH2_OHRC_RAW         LRO_NAC_ORTHO     False        4
+CH2_TMC2_CALIBRATED  TMC2_ORTHO        False        2
+JAXA_SELENE_TC       JAXA_SELENE_TC    False        5
+                     LRO_WAC           False        5
+source_sensor        reference_sensor  status         
+CH2_IIRS_CALIBRATED  TMC2_ORTHO        too_few_inliers    1
+                                       too_few_matches    5
+CH2_OHRC_CAL         LRO_NAC_ORTHO     too_few_inliers    5
+                                       too_few_matches    7
+CH2_OHRC_RAW         LRO_NAC_ORTHO     too_few_inliers    5
+                                       too_few_matches    7
+CH2_TMC2_CALIBRATED  TMC2_ORTHO        too_few_matches    1

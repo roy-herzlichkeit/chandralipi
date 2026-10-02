@@ -1,0 +1,9 @@
+# live results store image pairs, 2026-10-02T17:52:05Z
+# command: .venv/bin/python -c 'import pandas as pd; r="data/processed/results/"; i=pd.read_parquet(r+"index.parquet"); print("index rows:", len(i)); print("distinct image pairs (source_id, reference_id):", i.drop_duplicates(["source_id","reference_id"]).shape[0]); print(i.groupby(["source_sensor","reference_sensor","source_id","reference_id"])["matcher"].apply(lambda m: ",".join(sorted(m))).to_string())'
+index rows: 16
+distinct image pairs (source_id, reference_id): 4
+source_sensor        reference_sensor  source_id                                  reference_id                             
+CH2_OHRC_RAW         LRO_NAC_ORTHO     ch2_ohr_nrp_20240425t1406019344_d_img_d18  NAC_DTM_VIKRAMSITE1_M1442997156_100CM              akaze,asift,lightglue,sift
+CH2_TMC2_CALIBRATED  TMC2_ORTHO        ch2_tmc_ncf_20231026t0943001971_d_img_d18  ch2_tmc_ndn_20231027T1315134884_d_oth_d18                          akaze,sift
+JAXA_SELENE_TC       JAXA_SELENE_TC    TC1S2B0_01_05504N194E0230                  TC1S2B0_01_05505N193E0219                    akaze,asift,lightglue,loftr,sift
+                     LRO_WAC           TC1S2B0_01_05600N005E1008                  lro_wac_100m_lon99.3-101.4E_lat-0.5-1.3N     akaze,asift,lightglue,loftr,sift

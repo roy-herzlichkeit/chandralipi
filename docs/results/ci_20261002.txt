@@ -1,0 +1,145 @@
+All checks passed!
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/herzlichkeit/Desktop/Projects/sih
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.0, cov-7.1.0
+collected 1005 items / 21 deselected / 984 selected
+
+tests/test_agreement.py .................                                [  1%]
+tests/test_align.py ..........                                           [  2%]
+tests/test_asift_threads.py .......                                      [  3%]
+tests/test_catalog.py ..............................                     [  6%]
+tests/test_catalogue_footprints.py ...............                       [  8%]
+tests/test_classical_cap.py .........                                    [  8%]
+tests/test_cli_and_jaxa.py .............                                 [ 10%]
+tests/test_cli_inspect.py ..                                             [ 10%]
+tests/test_conditioning.py ...........                                   [ 11%]
+tests/test_cross_pairs.py ............                                   [ 12%]
+tests/test_datum.py ......                                               [ 13%]
+tests/test_degenerate_input.py .....                                     [ 13%]
+tests/test_device.py .........                                           [ 14%]
+tests/test_docs_status.py .....                                          [ 15%]
+tests/test_downloads.py .......................                          [ 17%]
+tests/test_ecc_fidelity.py ...............                               [ 19%]
+tests/test_estimate_seeded.py ...........                                [ 20%]
+tests/test_eval.py ............                                          [ 21%]
+tests/test_eval_fixes.py .............                                   [ 22%]
+tests/test_fetch_public.py ................                              [ 24%]
+tests/test_geometry_grid.py .................................            [ 27%]
+tests/test_geometry_grid_fixes.py ..........                             [ 28%]
+tests/test_ingest_labels.py ............................................ [ 33%]
+.....                                                                    [ 33%]
+tests/test_learned_matchers.py .....                                     [ 34%]
+tests/test_lro_georeference.py ..............                            [ 35%]
+tests/test_match_base.py .......                                         [ 36%]
+tests/test_matcher_registry.py ........................                  [ 38%]
+tests/test_matchers_and_refinement.py .................................. [ 42%]
+.........                                                                [ 43%]
+tests/test_overlap.py .................................................. [ 48%]
+..........                                                               [ 49%]
+tests/test_overlap_fixes.py .........................                    [ 51%]
+tests/test_pairs.py .................................                    [ 55%]
+tests/test_pds4_resolver.py ...............                              [ 56%]
+tests/test_pipeline.py ............                                      [ 58%]
+tests/test_pipeline_counts.py ......                                     [ 58%]
+tests/test_preprocess.py ..............                                  [ 60%]
+tests/test_preprocess_geometry.py ............................           [ 62%]
+tests/test_preprocess_nodata.py ........................................ [ 66%]
+..............                                                           [ 68%]
+tests/test_preprocess_pipeline.py ...................................... [ 72%]
+................................                                         [ 75%]
+tests/test_presets.py ....................................               [ 79%]
+tests/test_pseudo_gt.py .............                                    [ 80%]
+tests/test_registered_export.py ....                                     [ 80%]
+tests/test_results_and_pipeline.py .........................             [ 83%]
+tests/test_results_v2.py ................                                [ 85%]
+tests/test_rift2.py ................................                     [ 88%]
+tests/test_run_vikram_geometry.py .......                                [ 89%]
+tests/test_scenes_and_budget.py ...............                          [ 90%]
+tests/test_site_runner.py ......................                         [ 92%]
+tests/test_sun.py .......................                                [ 95%]
+tests/test_tiling.py ...........                                         [ 96%]
+tests/test_tmc2_iirs.py ..............                                   [ 97%]
+tests/test_untar_data.py ......                                          [ 98%]
+tests/test_viewers.py .................                                  [100%]
+
+=============================== warnings summary ===============================
+tests/test_cli_and_jaxa.py::test_register_ok_writes_the_output_json_and_saves
+tests/test_cli_and_jaxa.py::test_register_downsamples_to_max_px
+tests/test_cli_and_jaxa.py::test_register_failure_is_exit_1_with_classified_json
+tests/test_cross_pairs.py::test_raster_georef_rejects_unsupported_rasters[no_crs]
+tests/test_tmc2_iirs.py::test_probe_raster_finds_an_undeclared_zero_border
+tests/test_tmc2_iirs.py::test_probe_raster_reports_declared_nodata_and_no_fill_on_a_textured_border
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+    dataset = writer(
+
+tests/test_cli_and_jaxa.py: 3 warnings
+tests/test_cross_pairs.py: 3 warnings
+tests/test_overlap.py: 4 warnings
+tests/test_pairs.py: 24 warnings
+tests/test_tmc2_iirs.py: 2 warnings
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+    dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
+
+tests/test_cli_and_jaxa.py::test_run_jaxa_missing_inputs_are_input_missing
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+tests/test_cli_and_jaxa.py: 7 warnings
+tests/test_cross_pairs.py: 8 warnings
+tests/test_overlap_fixes.py: 2 warnings
+tests/test_pairs.py: 33 warnings
+tests/test_preprocess_geometry.py: 14 warnings
+tests/test_tmc2_iirs.py: 4 warnings
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/transform.py:178: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication
+    return Affine.translation(west, north) * Affine.scale(xsize, -ysize)
+
+tests/test_cli_and_jaxa.py: 4 warnings
+tests/test_cross_pairs.py: 5 warnings
+tests/test_overlap.py: 6 warnings
+tests/test_overlap_fixes.py: 4 warnings
+tests/test_pairs.py: 30 warnings
+tests/test_sun.py: 3 warnings
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/windows.py:360: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication
+    x, y = transform * (window.col_off or 0.0, window.row_off or 0.0)
+
+tests/test_cli_and_jaxa.py: 4 warnings
+tests/test_cross_pairs.py: 5 warnings
+tests/test_overlap.py: 6 warnings
+tests/test_overlap_fixes.py: 4 warnings
+tests/test_pairs.py: 30 warnings
+tests/test_sun.py: 3 warnings
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/windows.py:361: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication
+    return Affine.translation(
+
+tests/test_cli_and_jaxa.py::test_prepare_cross_reprojects_onto_the_wac_grid
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/windows.py:387: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication
+    left, bottom = transform * (col_min, row_max)
+
+tests/test_cli_and_jaxa.py::test_prepare_cross_reprojects_onto_the_wac_grid
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/windows.py:388: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication
+    right, top = transform * (col_max, row_min)
+
+tests/test_cross_pairs.py: 1 warning
+tests/test_overlap.py: 1 warning
+tests/test_pairs.py: 32 warnings
+tests/test_registered_export.py: 2 warnings
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.
+    dataset = writer(
+
+tests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component
+tests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory
+tests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+    rd = writer(
+
+tests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component
+tests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory
+tests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========= 984 passed, 21 deselected, 259 warnings in 68.24s (0:01:08) ==========

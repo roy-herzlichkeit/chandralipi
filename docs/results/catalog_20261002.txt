@@ -1,0 +1,10 @@
+INFO lunar_reg.ingest.catalog: catalog of data/raw: {'OHRC': 'present', 'TMC2': 'present', 'IIRS': 'present', 'LRO_NAC': 'present', 'LRO_NAC_DTM': 'present', 'SELENE_TC': 'partial'}; {'parsed': 23, 'not_a_data_product': 3}; unlabelled data files: {}
+OHRC: present, 8 product(s), e.g. ch2_ohr_ncp_20230823T1450475804_d_img_n18
+TMC2: present, 4 product(s), e.g. ch2_tmc_ncf_20231026T0943001971_d_img_d18
+IIRS: present, 2 product(s), e.g. ch2_iir_nci_20221226T0416479474_d_img_d32
+LRO_NAC: present, 2 product(s), e.g. NAC_DTM_VIKRAMSITE1_M1442997156_100CM
+LRO_NAC_DTM: present, 1 product(s), e.g. NAC_DTM_VIKRAMSITE1
+SELENE_TC: partial, 9 product(s), e.g. TC1S2B0_01_05600N005E1008.isis  (data file missing next to 7 label(s), e.g. TC1S2B0_01_05600N005E1008.isis.lbl)
+label scan: 26 outcome(s), 0 failure(s)
+  not_a_data_product: 3  e.g. TMC2 data/raw/ch2/tmc2/ch2_tmc_ndn_20231027T1315134884_d_dtm_d18/data/derived/20231027/ch2_tmc_ndn_20231027T1315134884_d_dtm_d18.xml: product_type=other  [browse/geometry/other label: counted, not an error]
+  parsed: 23  e.g. OHRC data/raw/ch2/ohrc/ch2_ohr_ncp_20230823T1450475804_d_img_n18/data/calibrated/20230823/ch2_ohr_ncp_20230823T1450475804_d_img_n18.xml  [data label read]
