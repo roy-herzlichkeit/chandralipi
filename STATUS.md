@@ -1,12 +1,13 @@
 # STATUS
 
-current: P2.02
+current: P2.03
 phase: 2
 state: READY
 branch: phase-2
-last_done: P2.01
+last_done: P2.02
 notes:
-- P2.01 setup.sh: --cuda-index (default cu130, cu126 older drivers); --cuda pins torch==<ver>+<cuda-index> (ver from installed torch minus local tag, or 2.14.0 fresh); verify prints torch.version.cuda, fails if None or suffix mismatch. README/scripts/README drop cu124. Unchecked offline: whether download.pytorch.org/whl/cu126 has torch 2.14.0+cu126 (setup.sh now fails loudly if not).
-- device.py: MemoryReading + free_memory_bytes per C17 ("cpu" /proc/meminfo, "cuda" current index, "cuda:<n>" mem_get_info(n)); any failure -> UNKNOWN, 0 bytes. free_vram_bytes = free_memory_bytes(...).free_bytes (host MemAvailable for "cpu"). ASSUMED_TOTAL_VRAM_BYTES documentation only (_SOURCE=DOCUMENTED); tile constants unchanged.
-- Tests: tests/test_device.py unchanged (9 pass); new tests/test_free_memory.py (13 tests, incl. gpu-marked real cuda:0); new tests/test_setup_cuda_pin.py (5 passed). Full CPU suite: 1019 passed.
-- ruff format of device.py re-wrapped one existing line in plan_dense_tile (quadratic-root expression); formatting only.
+- device.py: TileBudget gains fits (default True) + source (default INFERRED); __str__ shows [source] and "DOES NOT FIT". plan_dense_tile(device, precision, matcher, profile=None): profile entry -> MEASURED plan via DeviceProfile.plan_tile; else analytic _analytic_tile (INFERRED). MIN floor sets fits=False when est_peak > safety*free (incl. 0-byte UNKNOWN reading). profile=None never auto-loads a profile.
+- DeviceProfile (C16) + appended `extra: dict` for torch/cuda/driver/run_record/free_bytes_at_measure (Q-P2.02-1), helpers to_dict()/entry(); load validates schema==1, required keys, numeric fixed_bytes/bytes_per_px (ValueError otherwise). Planner caps at MAX_DENSE_TILE_PX only, entry max_tile_px unused (Q-P2.02-2).
+- load_profile_for: exact device_name match in root/*.json; invalid file raises; duplicates -> canonical <slug>.json wins + WARNING (harness test_C16_roundtrip requires tolerance, Q-P2.02-3); relative root falls back to repo root.
+- configs/device_profiles/README.md written (schema, lunar-reg benchmark, measured-only); no profile JSON written. New tests/test_device_profiles.py (13 tests). CPU suite (scripts/ci.sh): 1017 passed, 22 deselected.
+- P2.02 review fixes: profile load refuses non-'measured' source, bytes_per_px<=0 and bad points; plan_tile never plans a negative peak (measured-points floor), fits=False at 0 free bytes. Open non-blocking: Q-P2.02-4 (learned.py max_tile_px ignores fits, A126 caller side) and Q-P2.02-5 (P2.03 fit_profile may give negative intercept; source rule).
