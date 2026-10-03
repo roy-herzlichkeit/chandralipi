@@ -168,7 +168,7 @@ def test_register_pair_copies_licence_into_extra(monkeypatch):
                 meta={"licence": LICENCE_TAG},
             )
 
-    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name: _Stub())
+    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name, **kw: _Stub())
     img = np.zeros((64, 64), np.uint8)
     out = register_pair(img, img, "sg", PipelineConfig(matcher="superglue", preprocess="none"))
     assert out.status is RunStatus.TOO_FEW_MATCHES
@@ -197,7 +197,7 @@ def test_successful_superglue_pair_records_licence(monkeypatch):
                 meta={"detector": "superglue", "licence": LICENCE_TAG},
             )
 
-    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name: _Stub())
+    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name, **kw: _Stub())
     config = PipelineConfig(matcher="superglue", use_ecc=False, n_bootstrap=0)
     out = register_pair(img, img, "sg", config)
     assert out.status is RunStatus.OK, out.detail

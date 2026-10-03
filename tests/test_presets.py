@@ -149,7 +149,7 @@ def test_register_pair_nan_input_gives_ecc_nodata_zero(monkeypatch, nan):
         seen["ecc_nodata"] = kw["ecc_kwargs"]["nodata"]
         raise RuntimeError("stop after capture")
 
-    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name: _Matcher())
+    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name, **kw: _Matcher())
     monkeypatch.setattr(refine, "refine_full", spy)
     src = np.random.default_rng(16).random((96, 96)).astype(np.float32) + 0.1
     if nan:
@@ -208,7 +208,7 @@ def test_register_pair_feeds_preprocessed_images_and_keeps_inputs(monkeypatch):
             return MatchResult(np.zeros((0, 2)), np.zeros((0, 2)), matcher="stub")
 
     monkeypatch.setattr(presets, "apply_preset", spy)
-    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name: _Matcher())
+    monkeypatch.setattr("lunar_reg.pipeline._build_matcher", lambda name, **kw: _Matcher())
     src, ref = _image(10), _image(11)
     out = register_pair(src, ref, "pp", PipelineConfig(matcher="stub", preprocess="clahe_shadow"))
     assert out.status is RunStatus.TOO_FEW_MATCHES  # the stub returns nothing

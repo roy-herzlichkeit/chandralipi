@@ -17,11 +17,15 @@ to tell a data problem from a bug.
 from __future__ import annotations
 
 import logging
+import sys
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from lunar_reg.provenance import ValueSource
 
 if TYPE_CHECKING:
     from lunar_reg.results import PairResult, StoreReport
@@ -109,27 +113,125 @@ class PipelineConfig:
     # clahe_shadow; median synthetic truth_rms_px ohrc_nac=0.137 clahe_shadow=0.1373;
     # ohrc_nac wins on synthetic"
     preprocess: str = "ohrc_nac"
+    #: ``"cpu"``, ``"cuda"`` or ``"cuda:<n>"`` for the learned (torch) matchers;
+    #: None = :func:`lunar_reg.device.get_device`. Classical (OpenCV) matchers
+    #: always run, and are recorded, on ``"cpu"`` (P2.05).
+    device: str | None = None
+    #: One of :data:`PRECISIONS`. ``"auto"`` = fp16 for LoFTR on CUDA, fp32
+    #: elsewhere; LightGlue ignores it (DISK fp16 / LightGlue fp32 on CUDA).
+    precision: str = "auto"
 
     def __post_init__(self) -> None:
         from lunar_reg.preprocess.presets import PRESET_NAMES
 
         if self.preprocess not in PRESET_NAMES:
             raise ValueError(f"unknown preset {self.preprocess!r}; choose one of {PRESET_NAMES}")
+        if self.precision not in PRECISIONS:
+            raise ValueError(f"unknown precision {self.precision!r}; choose one of {PRECISIONS}")
+
+
+#: Accepted :attr:`PipelineConfig.precision` values (CONTRACTS C03).
+PRECISIONS: tuple[str, ...] = ("auto", "fp16", "fp32")
+
+#: Canonical matcher names that run on torch and therefore take a device.
+_TORCH_MATCHERS: tuple[str, ...] = ("loftr", "lightglue", "superglue")
+
+#: Provenance of the timing and peak-VRAM numbers recorded by :func:`register_pair`.
+TIMING_SOURCE = ValueSource.MEASURED
+PEAK_VRAM_SOURCE = ValueSource.MEASURED
 
 
 #: Matcher names routed to the learned (torch) implementations rather than OpenCV.
 LEARNED_MATCHERS: tuple[str, ...] = ("lightglue", "disk", "loftr")
 
 
-def _build_matcher(name: str):
+def _canonical_matcher(name: str) -> str:
+    """The :data:`lunar_reg.match.MATCHER_NAMES` spelling of ``name`` (aliases resolved)."""
+    from lunar_reg.match import ALIASES
+
+    key = name.lower()
+    return ALIASES.get(key, key)
+
+
+def _resolve_device(config: PipelineConfig) -> str:
+    """The device the matcher runs on.
+
+    * torch matchers (:data:`_TORCH_MATCHERS`): ``config.device``, or
+      :func:`~lunar_reg.device.get_device` when None;
+    * classical (OpenCV) matchers: ``"cpu"`` whatever ``config.device`` says --
+      OpenCV ignores it, and asking ``get_device`` would import torch;
+    * a name :func:`lunar_reg.match.build_matcher` does not know (only test
+      stubs reach the matcher with one): ``config.device``, else ``"cpu"``, so
+      a stubbed CPU test never opens a CUDA context.
+    """
+    from lunar_reg.match import MATCHER_NAMES
+
+    key = _canonical_matcher(config.matcher)
+    if key in _TORCH_MATCHERS:
+        if config.device is not None:
+            return config.device
+        from lunar_reg.device import get_device
+
+        return get_device()
+    if key in MATCHER_NAMES:
+        return "cpu"
+    return config.device or "cpu"
+
+
+def _resolve_precision(config: PipelineConfig, device: str) -> str:
+    """The precision the matcher will run at, mirroring :mod:`lunar_reg.match.learned`.
+
+    LoFTR: fp16 on CUDA unless ``"fp32"`` is asked for; fp32 elsewhere.
+    LightGlue ignores ``config.precision``: DISK runs under fp16 autocast and
+    LightGlue in fp32 on CUDA, everything in fp32 on CPU. Every other matcher
+    is recorded as fp32.
+    """
+    key = _canonical_matcher(config.matcher)
+    on_cuda = device.startswith("cuda")
+    if key == "loftr":
+        return "fp16" if on_cuda and config.precision != "fp32" else "fp32"
+    if key == "lightglue":
+        return "fp16-disk+fp32-lightglue" if on_cuda else "fp32"
+    return "fp32"
+
+
+def _build_matcher(name: str, *, device: str | None = None, precision: str | None = None):
     """Any matcher by name, through the one registry :func:`lunar_reg.match.build_matcher`.
 
     Kept as a module-level function so tests can monkeypatch it. Learned
-    matchers import torch lazily, so classical-only runs stay light.
+    matchers import torch lazily, so classical-only runs stay light. ``device``
+    is passed through (classical matchers ignore it); ``precision`` reaches
+    LoFTR only.
     """
     from lunar_reg.match import build_matcher
 
-    return build_matcher(name)
+    kwargs = {}
+    if precision is not None and _canonical_matcher(name) == "loftr":
+        kwargs["precision"] = precision
+    return build_matcher(name, device=device, **kwargs)
+
+
+def _oom_types() -> tuple[type[BaseException], ...]:
+    """``(torch.OutOfMemoryError,)`` when torch is loaded, else ``()``.
+
+    Evaluated when an exception reaches the ``except`` clause, so torch is never
+    imported for this: a run that never loaded torch cannot raise its OOM.
+    """
+    torch = sys.modules.get("torch")
+    oom = getattr(torch, "OutOfMemoryError", None) if torch is not None else None
+    return (oom,) if oom is not None else ()
+
+
+def _empty_cuda_cache() -> None:
+    """Return the allocator's cached blocks to the driver (after an OOM only)."""
+    torch = sys.modules.get("torch")
+    if torch is not None:
+        torch.cuda.empty_cache()
+
+
+def _first_line(exc: BaseException) -> str:
+    text = str(exc).strip()
+    return text.splitlines()[0] if text else type(exc).__name__
 
 
 def _degenerate_input(sides, nodata) -> str | None:
@@ -208,7 +310,17 @@ def register_pair(
     the inputs go to matching unchanged, and ``extra["preprocess_skipped"]``
     records why (human decision on Q-P1.19-3, option b). A preset that turns an
     informative input into a degenerate output is still PREPROCESS_FAILED.
+
+    Every outcome's ``extra`` (and an OK result's ``PairResult.extra``) records
+    ``device`` and ``precision`` (P2.05), ``seconds_total`` around the whole
+    call and, once matching ran, ``seconds_match`` around the matcher call
+    (``timing_source`` = measured). On a CUDA device ``peak_vram_bytes`` is
+    ``torch.cuda.max_memory_allocated`` after resetting the peak before
+    matching (``peak_vram_source`` = measured). ``torch.OutOfMemoryError`` from
+    the matcher is ``RunStatus.OOM`` at stage ``"match"`` (detail = the first
+    line of the message), followed by ``torch.cuda.empty_cache()``.
     """
+    t_start = time.perf_counter()
     # Imported here, not at module level, so tests can monkeypatch the stages.
     from lunar_reg.align.estimate import estimate_transform
     from lunar_reg.align.refine import choose_ecc_prefilter, refine_full
@@ -219,6 +331,8 @@ def register_pair(
     from lunar_reg.results import PairResult
 
     config = config or PipelineConfig()
+    device = _resolve_device(config)
+    precision = _resolve_precision(config, device)
     base = {
         "source_id": source_id,
         "reference_id": reference_id,
@@ -228,11 +342,26 @@ def register_pair(
         "model": config.model,
         "preprocess": config.preprocess,
         **config.extra,
+        "device": device,
+        "precision": precision,
     }
     counts: dict[str, int] = {}
+    #: seconds_match, peak_vram_bytes and their sources, once matching ran.
+    measured: dict = {}
+
+    def elapsed() -> dict:
+        return {
+            "seconds_total": time.perf_counter() - t_start,
+            "timing_source": TIMING_SOURCE.value,
+        }
 
     def fail(status: RunStatus, stage: str, detail: str) -> RunOutcome:
-        return RunOutcome(pair_id, status, detail=detail, extra={**base, "stage": stage, **counts})
+        return RunOutcome(
+            pair_id,
+            status,
+            detail=detail,
+            extra={**base, "stage": stage, **counts, **measured, **elapsed()},
+        )
 
     # 0. preprocess preset; the inputs are kept for PairResult (thumbnails)
     inputs = (source, reference)
@@ -284,10 +413,36 @@ def register_pair(
             ecc_nodata = 0  # presets encode nodata (incl. NaN/inf input pixels) as 0
 
     # 1-2. match
+    on_cuda = device.startswith("cuda")
+    oom_detail: str | None = None
     try:
-        raw = _build_matcher(config.matcher).match(source, reference)
+        matcher = _build_matcher(config.matcher, device=device, precision=precision)
+        # LoFTR on a device string other than "cuda" downgrades to fp32 itself.
+        base["precision"] = precision = getattr(matcher, "precision", precision)
+        if on_cuda:
+            import torch
+
+            torch.cuda.reset_peak_memory_stats(device)
+        t_match = time.perf_counter()
+        raw = matcher.match(source, reference)
+        measured["seconds_match"] = time.perf_counter() - t_match
+        if on_cuda:
+            measured["peak_vram_bytes"] = int(torch.cuda.max_memory_allocated(device))
+            measured["peak_vram_source"] = PEAK_VRAM_SOURCE.value
+    except _oom_types() as exc:  # before the generic clause: OOM subclasses RuntimeError
+        oom_detail = _first_line(exc)
     except Exception as exc:  # noqa: BLE001 - a matcher failing is an outcome
         return fail(RunStatus.MATCHER_ERROR, "match", _describe(exc))
+    if oom_detail is not None:
+        # Outside the except clause: the traceback, and the tensors its frames
+        # hold, are released by now, so the cache can actually be returned.
+        _empty_cuda_cache()
+        torch = sys.modules.get("torch")
+        if on_cuda and torch is not None:
+            # The peak up to the failed allocation (the failed request itself is not in it).
+            measured["peak_vram_bytes"] = int(torch.cuda.max_memory_allocated(device))
+            measured["peak_vram_source"] = PEAK_VRAM_SOURCE.value
+        return fail(RunStatus.OOM, "match", oom_detail)
     counts["n_raw_matches"] = len(raw)
     licence = raw.meta.get("licence")
     if licence is not None:
@@ -408,6 +563,9 @@ def register_pair(
                     if "preprocess_skipped" in base
                     else {}
                 ),
+                "device": device,
+                "precision": precision,
+                **measured,
                 "ecc_prefilter": prefilter,
                 "refine_stages": "+".join(detail.get("stages", [])),
                 "ecc_status": detail.get("ecc_status"),
@@ -432,8 +590,13 @@ def register_pair(
     except Exception as exc:  # noqa: BLE001 - an evaluation failure is an outcome
         return fail(RunStatus.EVAL_FAILED, "eval", _describe(exc))
 
+    total = elapsed()
+    result.extra.update(total)
     return RunOutcome(
-        pair_id, RunStatus.OK, result=result, extra={**base, "stage": "done", **counts}
+        pair_id,
+        RunStatus.OK,
+        result=result,
+        extra={**base, "stage": "done", **counts, **measured, **total},
     )
 
 
@@ -504,6 +667,7 @@ def run_batch(pairs, config: PipelineConfig | None = None, root=None) -> BatchRe
 
 __all__ = [
     "BatchReport",
+    "PRECISIONS",
     "PipelineConfig",
     "RunOutcome",
     "RunStatus",

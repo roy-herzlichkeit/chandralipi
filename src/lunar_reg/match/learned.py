@@ -16,6 +16,11 @@ Every forward pass runs under ``inference_mode``. DISK runs under fp16 autocast
 on CUDA; LightGlue always runs in fp32 (kornia's positional encoding is fp32).
 LoFTR runs under fp16 autocast on CUDA when ``precision="fp16"``. Inference mode
 and autocast are load-bearing for fitting in 8 GB, not incidental optimisations.
+
+Every forward pass sits in ``try/finally``. Only when an exception propagates
+(typically ``torch.OutOfMemoryError``) does the ``finally`` drop the local
+tensors and call ``torch.cuda.empty_cache()``; the success path keeps the
+allocator's cache warm for the next tile (AUDIT A077).
 """
 
 from __future__ import annotations
@@ -37,6 +42,11 @@ LOFTR_WEIGHTS = ("outdoor", "indoor")
 
 #: LoFTR's coarse level runs at 1/8 resolution, so inputs are padded to this.
 LOFTR_PAD_MULTIPLE = 8
+
+
+def _is_cuda(device: str) -> bool:
+    """True for ``"cuda"`` and every indexed ``"cuda:<n>"`` device string (C17)."""
+    return device == "cuda" or device.startswith("cuda:")
 
 
 def _to_tensor(image: np.ndarray, device: str):
@@ -102,7 +112,7 @@ class LoFTRMatcher:
         self.weights = weights
         self.device = device or get_device()
         self.confidence = confidence
-        self.precision = precision if self.device == "cuda" else "fp32"
+        self.precision = precision if _is_cuda(self.device) else "fp32"
         self.name = f"loftr/{weights}"
         self._model = None
 
@@ -133,26 +143,31 @@ class LoFTRMatcher:
         model = self._get_model()
         autocast = (
             torch.autocast("cuda", dtype=torch.float16)
-            if (self.device == "cuda" and self.precision == "fp16")
+            if (_is_cuda(self.device) and self.precision == "fp16")
             else nullcontext()
         )
 
-        # LoFTR's feature pyramid needs both sides divisible by 8. Zero-pad
-        # bottom/right so coordinates are unchanged; matches that land in the
-        # padding are against fabricated pixels and are dropped below.
-        t0 = _pad_to_multiple(_to_tensor(source, self.device), LOFTR_PAD_MULTIPLE)
-        t1 = _pad_to_multiple(_to_tensor(reference, self.device), LOFTR_PAD_MULTIPLE)
+        t0 = t1 = out = None
+        failed = True
+        try:
+            # LoFTR's feature pyramid needs both sides divisible by 8. Zero-pad
+            # bottom/right so coordinates are unchanged; matches that land in the
+            # padding are against fabricated pixels and are dropped below.
+            t0 = _pad_to_multiple(_to_tensor(source, self.device), LOFTR_PAD_MULTIPLE)
+            t1 = _pad_to_multiple(_to_tensor(reference, self.device), LOFTR_PAD_MULTIPLE)
 
-        with torch.inference_mode(), autocast:
-            out = model({"image0": t0, "image1": t1})
-            src = out["keypoints0"].float().cpu().numpy()
-            dst = out["keypoints1"].float().cpu().numpy()
-            conf = out["confidence"].float().cpu().numpy()
-
-        if self.device == "cuda":
-            # Dense activations are large and short-lived; releasing them keeps
-            # the next tile from tripping over allocator fragmentation.
-            torch.cuda.empty_cache()
+            with torch.inference_mode(), autocast:
+                out = model({"image0": t0, "image1": t1})
+                src = out["keypoints0"].float().cpu().numpy()
+                dst = out["keypoints1"].float().cpu().numpy()
+                conf = out["confidence"].float().cpu().numpy()
+            failed = False
+        finally:
+            if failed:
+                # An exception is propagating: drop the tensors this frame holds
+                # and hand the cached blocks back (A077: not on the success path).
+                t0 = t1 = out = None
+                torch.cuda.empty_cache()
 
         h_ref, w_ref = reference.shape[:2]
         inside = (src[:, 0] < w) & (src[:, 1] < h) & (dst[:, 0] < w_ref) & (dst[:, 1] < h_ref)
@@ -207,52 +222,59 @@ class LightGlueMatcher:
 
         extractor, matcher = self._get_models()
         autocast = (
-            torch.autocast("cuda", dtype=torch.float16) if self.device == "cuda" else nullcontext()
+            torch.autocast("cuda", dtype=torch.float16) if _is_cuda(self.device) else nullcontext()
         )
 
-        with torch.inference_mode():
-            with autocast:
-                # DISK expects 3-channel input; repeat the single band. It also
-                # rejects any side that is not a multiple of 16, so pad
-                # bottom/right with zeros: keypoint coordinates are unchanged by
-                # padding there, and anything detected inside it is dropped below.
-                t0 = _pad_to_multiple(_to_tensor(source, self.device), 16).repeat(1, 3, 1, 1)
-                t1 = _pad_to_multiple(_to_tensor(reference, self.device), 16).repeat(1, 3, 1, 1)
-                f0 = extractor(t0, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
-                f1 = extractor(t1, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
-                f0 = _drop_outside(f0, source.shape[:2])
-                f1 = _drop_outside(f1, reference.shape[:2])
+        t0 = t1 = f0 = f1 = out = None
+        failed = True
+        try:
+            with torch.inference_mode():
+                with autocast:
+                    # DISK expects 3-channel input; repeat the single band. It also
+                    # rejects any side that is not a multiple of 16, so pad
+                    # bottom/right with zeros: keypoint coordinates are unchanged by
+                    # padding there, and anything detected inside it is dropped below.
+                    t0 = _pad_to_multiple(_to_tensor(source, self.device), 16).repeat(1, 3, 1, 1)
+                    t1 = _pad_to_multiple(_to_tensor(reference, self.device), 16).repeat(1, 3, 1, 1)
+                    f0 = extractor(t0, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
+                    f1 = extractor(t1, n=self.max_keypoints, window_size=5, score_threshold=0.0)[0]
+                    f0 = _drop_outside(f0, source.shape[:2])
+                    f1 = _drop_outside(f1, reference.shape[:2])
 
-            # Outside autocast, in fp32: kornia's LightGlue positional encoding
-            # is fp32, and fp16 input under an outer autocast raises on CUDA.
-            out = matcher(
-                {
-                    "image0": {
-                        "keypoints": f0.keypoints.float()[None],
-                        "descriptors": f0.descriptors.float()[None],
-                        "image_size": torch.tensor(source.shape[:2][::-1], device=self.device)[
-                            None
-                        ],
-                    },
-                    "image1": {
-                        "keypoints": f1.keypoints.float()[None],
-                        "descriptors": f1.descriptors.float()[None],
-                        "image_size": torch.tensor(reference.shape[:2][::-1], device=self.device)[
-                            None
-                        ],
-                    },
-                }
-            )
-            idx = out["matches"][0].cpu().numpy()
-            src = f0.keypoints.float().cpu().numpy()
-            dst = f1.keypoints.float().cpu().numpy()
-
-        if self.device == "cuda":
-            torch.cuda.empty_cache()
+                # Outside autocast, in fp32: kornia's LightGlue positional encoding
+                # is fp32, and fp16 input under an outer autocast raises on CUDA.
+                out = matcher(
+                    {
+                        "image0": {
+                            "keypoints": f0.keypoints.float()[None],
+                            "descriptors": f0.descriptors.float()[None],
+                            "image_size": torch.tensor(source.shape[:2][::-1], device=self.device)[
+                                None
+                            ],
+                        },
+                        "image1": {
+                            "keypoints": f1.keypoints.float()[None],
+                            "descriptors": f1.descriptors.float()[None],
+                            "image_size": torch.tensor(
+                                reference.shape[:2][::-1], device=self.device
+                            )[None],
+                        },
+                    }
+                )
+                idx = out["matches"][0].cpu().numpy()
+                src = f0.keypoints.float().cpu().numpy()
+                dst = f1.keypoints.float().cpu().numpy()
+            failed = False
+        finally:
+            if failed:
+                # An exception is propagating: drop the tensors this frame holds
+                # and hand the cached blocks back (A077: not on the success path).
+                t0 = t1 = f0 = f1 = out = None
+                torch.cuda.empty_cache()
 
         meta = {
             "device": self.device,
-            "precision": "fp16-disk+fp32-lightglue" if self.device == "cuda" else "fp32",
+            "precision": "fp16-disk+fp32-lightglue" if _is_cuda(self.device) else "fp32",
             "weights": "disk_depth+lightglue_disk",
             "max_keypoints": self.max_keypoints,
         }
