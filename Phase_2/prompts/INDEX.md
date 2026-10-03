@@ -4,7 +4,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 
 | order | id | title | depends | check | status |
 |---|---|---|---|---|---|
-| 1 | P2.00 | preflight (CUDA live) | P1 approved | harness/check_P2.00.sh | todo |
+| 1 | P2.00 | preflight (CUDA live) | P1 approved | harness/check_P2.00.sh | done |
 | 2 | P2.01 | CUDA setup + free memory | P2.00 | harness/check_P2.01.sh | todo |
 | 3 | P2.02 | device profiles | P2.01 | harness/check_P2.02.sh | todo |
 | 4 | P2.03 | benchmark CLI | P2.02 | harness/check_P2.03.sh | todo |
