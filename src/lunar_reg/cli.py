@@ -39,8 +39,10 @@ def cmd_inspect(args) -> int:
     if product.image_path is not None:
         print(f"image:      {product.image_path.name}")
     else:
-        print(f"image:      REJECTED (file_name {product.image_path_rejected!r} "
-              f"points outside the label's directory)")
+        print(
+            f"image:      REJECTED (file_name {product.image_path_rejected!r} "
+            f"points outside the label's directory)"
+        )
     print(f"size:       {product.samples} x {product.lines} ({product.bands} band(s))")
     sun_azimuth = product["sun_azimuth_deg"]
     incidence = product["incidence_angle_deg"]
@@ -152,9 +154,7 @@ def cmd_register(args) -> int:
     from lunar_reg.provenance import ValueSource
 
     source, source_valid, source_factor = _read_for_register(args.source, args.max_px)
-    reference, reference_valid, reference_factor = _read_for_register(
-        args.reference, args.max_px
-    )
+    reference, reference_valid, reference_factor = _read_for_register(args.reference, args.max_px)
     pair_id = args.pair_id or _register_pair_id(args.source, args.reference, args.matcher)
     extra = {
         "input_prep": REGISTER_INPUT_PREP,
@@ -290,8 +290,13 @@ def cmd_overlap(args) -> int:
     print(f"usable pairs: {len(pairs)}")
 
     if len(pairs):
-        cols = ["source_id", "reference_id", "overlap_area_km2",
-                "source_fraction", "reference_fraction"]
+        cols = [
+            "source_id",
+            "reference_id",
+            "overlap_area_km2",
+            "source_fraction",
+            "reference_fraction",
+        ]
         print(pairs[cols].head(args.limit).to_string(index=False))
 
     if args.output and len(pairs):
@@ -390,6 +395,180 @@ def cmd_preprocess(args) -> int:
     return 0
 
 
+def _tile_sizes(text: str) -> tuple[int, ...]:
+    """``--tile-sizes`` parser: comma-separated positive integers."""
+    try:
+        sizes = tuple(int(v) for v in text.split(",") if v.strip())
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"not a comma-separated list of integers: {text!r}"
+        ) from exc
+    if not sizes or any(v <= 0 for v in sizes):
+        raise argparse.ArgumentTypeError(f"tile sizes must be positive integers: {text!r}")
+    return sizes
+
+
+def _repo_path(path: Path) -> str:
+    """Repo-relative POSIX path when ``path`` is under the repo, else absolute."""
+    repo = Path(__file__).resolve().parents[2]
+    resolved = Path(path).resolve()
+    if resolved.is_relative_to(repo):
+        return resolved.relative_to(repo).as_posix()
+    return resolved.as_posix()
+
+
+def cmd_benchmark(args) -> int:
+    """Measure matcher peak memory per tile size; optionally fit a C16 device profile.
+
+    Writes ``<out>/benchmark_<matcher>_<precision>.json`` (rows + outcome
+    counts) and ``<out>/run_<matcher>_<precision>/run_record.json`` (C15), prints
+    the table and the outcome report on every run, and with ``--profile-out``
+    merges the fitted entry into that C16 profile. Exit 0 when every size was OK
+    or the sweep ended at an OOM (and the profile, if asked for, was written);
+    1 when a timeout / setup error / no-output was recorded or the profile could
+    not be fitted or written; 2 for ``--profile-out`` with a non-CUDA device.
+    """
+    import dataclasses
+
+    from lunar_reg.match import benchmark as bm
+    from lunar_reg.provenance import ValueSource
+    from lunar_reg.runrecord import finish_run, start_run, write_run_record
+
+    device = args.device
+    if args.profile_out and not device.startswith("cuda"):
+        print(
+            "benchmark: --profile-out needs --device cuda; a device profile (C16) is "
+            "VRAM measured by the CUDA allocator, and a CPU run measures host RSS"
+        )
+        return 2
+
+    out: Path = args.out
+    stem = f"{args.matcher}_{args.precision}"
+    bench_path = out / f"benchmark_{stem}.json"
+    run_dir = out / f"run_{stem}"
+    rr_path = run_dir / "run_record.json"
+    params = {
+        "matcher": args.matcher,
+        "precision": args.precision,
+        "device": device,
+        "tile_sizes": list(args.tile_sizes),
+        "timeout_s": int(args.timeout),
+        "profile_out": str(args.profile_out) if args.profile_out else None,
+        "lightglue_keypoints": bm.LIGHTGLUE_KEYPOINTS if args.matcher == "lightglue" else None,
+    }
+    record = start_run(list(sys.argv), params)
+    # Read before the sweep and from the driver: a torch free-memory query here
+    # would hold a CUDA context in this process for the whole sweep.
+    free_before = bm.free_bytes_before_sweep(device)
+
+    rows = bm.benchmark_matcher(
+        args.matcher, args.tile_sizes, args.timeout, device=device, precision=args.precision
+    )
+    diag = bm.diagnose(rows)
+
+    fit, fit_error = None, ""
+    try:
+        fit = bm.fit_profile(rows)
+    except ValueError as exc:
+        fit_error = str(exc)
+    if fit is not None and not all(r.measurement.is_device_measurement for r in rows if r.ok):
+        fit_note = "host RSS fit (NOT VRAM)"
+    else:
+        fit_note = "cuda allocator fit" if fit is not None else ""
+
+    doc = {
+        "matcher": args.matcher,
+        "precision": args.precision,
+        "device": device,
+        "tile_sizes": list(args.tile_sizes),
+        "timeout_s": int(args.timeout),
+        "free_bytes_before": free_before,
+        "free_bytes_before_source": (
+            ValueSource.MEASURED if free_before is not None else ValueSource.UNKNOWN
+        ).value,
+        "rows": [r.as_dict() for r in rows],
+        "outcome_counts": dict(diag.counts),
+        "outcome_samples": dict(diag.samples),
+        "stopped_at_oom_px": bm.oom_stop_px(rows),
+        "fit": fit,
+        "fit_source": ValueSource.INFERRED.value if fit is not None else None,
+        "fit_note": fit_note,
+        "fit_error": fit_error,
+        "run_record": _repo_path(rr_path),
+    }
+    out.mkdir(parents=True, exist_ok=True)
+    bench_path.write_text(json.dumps(doc, indent=2) + "\n")
+    artefacts = [bench_path]
+
+    profile_failed = False
+    profile_msg = ""
+    if args.profile_out:
+        if fit is None:
+            profile_failed = True
+            profile_msg = f"profile NOT updated ({args.profile_out}): {fit_error}"
+        elif fit_note != "cuda allocator fit":
+            profile_failed = True
+            profile_msg = (
+                f"profile NOT updated ({args.profile_out}): an OK row was not measured "
+                "by the CUDA allocator"
+            )
+        else:
+            try:
+                profile = bm.merge_profile_entry(
+                    args.profile_out,
+                    args.matcher,
+                    args.precision,
+                    fit,
+                    facts=bm.cuda_device_facts(device),
+                    measured_utc=record.started_utc,
+                    run_record=_repo_path(rr_path),
+                    free_bytes_at_measure=free_before,
+                )
+            except (ValueError, RuntimeError, OSError) as exc:
+                profile_failed = True
+                profile_msg = f"profile NOT updated ({args.profile_out}): {exc}"
+            else:
+                artefacts.append(Path(args.profile_out))
+                entry = profile.entry(args.matcher, args.precision)
+                profile_msg = (
+                    f"profile {args.profile_out}: {args.matcher}/{args.precision} "
+                    f"fixed_bytes {entry['fixed_bytes']}, "
+                    f"bytes_per_px {entry['bytes_per_px']:.4g}, "
+                    f"max_tile_px {entry['max_tile_px']}, {len(entry['points'])} points"
+                )
+
+    record = finish_run(record, diag.counts, artefacts)
+    notes = [record.notes] if record.notes else []
+    if doc["stopped_at_oom_px"] is not None:
+        notes.append(f"sweep stopped at OOM at {doc['stopped_at_oom_px']}px")
+    if fit_error:
+        notes.append(f"no fit: {fit_error}")
+    if profile_msg:
+        notes.append(profile_msg)
+    record = dataclasses.replace(record, notes="; ".join(notes))
+    write_run_record(record, run_dir)
+
+    print(bm.format_report(rows, device=device))
+    print()
+    print(diag.report())
+    if fit is not None:
+        print(
+            f"fit ({fit_note}): fixed_bytes {fit['fixed_bytes']}, "
+            f"bytes_per_px {fit['bytes_per_px']:.4g}, max_tile_px {fit['max_tile_px']}"
+        )
+    else:
+        print(f"fit: none ({fit_error})")
+    if profile_msg:
+        print(profile_msg)
+    print(f"wrote {bench_path}")
+    print(f"wrote {rr_path}")
+
+    hard_failure = any(
+        r.outcome.is_failure and r.outcome is not bm.MeasureOutcome.OOM for r in rows
+    )
+    return 1 if (hard_failure or profile_failed) else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     from lunar_reg.preprocess.presets import PRESET_NAMES
 
@@ -410,8 +589,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_reg.add_argument("--model", default="homography", help="homography | affine | partial_affine")
     p_reg.add_argument("--threshold", type=float, default=3.0, help="RANSAC threshold in px")
     p_reg.add_argument("--preprocess", default="none", choices=list(PRESET_NAMES))
-    p_reg.add_argument("--max-px", type=int, default=1152,
-                       help="downsample each image so its longest side is at most this")
+    p_reg.add_argument(
+        "--max-px",
+        type=int,
+        default=1152,
+        help="downsample each image so its longest side is at most this",
+    )
     p_reg.add_argument("--save-root", type=Path, help="results store to save the outcome in")
     p_reg.add_argument("--pair-id", help="pair id (default: <source>-<reference>_<matcher>)")
     p_reg.add_argument("--output", type=Path, help="write the JSON report here")
@@ -446,8 +629,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_ov.add_argument("manifest", type=Path, help="manifest .parquet from `lunar-reg manifest`")
     p_ov.add_argument("--source-sensor", default="OHRC")
     p_ov.add_argument("--reference-sensor", default="TMC2")
-    p_ov.add_argument("--min-fraction", type=float, default=0.0,
-                      help="minimum fraction of the source covered by the overlap")
+    p_ov.add_argument(
+        "--min-fraction",
+        type=float,
+        default=0.0,
+        help="minimum fraction of the source covered by the overlap",
+    )
     p_ov.add_argument("--limit", type=int, default=20, help="rows to show / pairs to crop")
     p_ov.add_argument("--output", type=Path, help="write matched pairs here (.parquet)")
     p_ov.add_argument("--crop-dir", type=Path, help="crop both images of each pair into here")
@@ -460,10 +647,32 @@ def build_parser() -> argparse.ArgumentParser:
     p_pre.add_argument("product", type=Path, help="PDS4 label of the product to preprocess")
     p_pre.add_argument("--preset", default="ohrc_nac", choices=["ohrc_nac", "iirs_wac", "minimal"])
     p_pre.add_argument("--src-gsd", type=float, help="source ground sample distance in metres")
-    p_pre.add_argument("--ablate", action="store_true",
-                       help="also run a leave-one-out sweep over the enabled steps")
+    p_pre.add_argument(
+        "--ablate",
+        action="store_true",
+        help="also run a leave-one-out sweep over the enabled steps",
+    )
     p_pre.add_argument("--output", type=Path, help="save the preprocessed array (.npy)")
     p_pre.set_defaults(func=cmd_preprocess)
+
+    p_bench = sub.add_parser(
+        "benchmark", help="measure matcher memory per tile size; fit a device profile"
+    )
+    p_bench.add_argument("--matcher", default="loftr", choices=["loftr", "lightglue"])
+    p_bench.add_argument("--precision", default="fp16", choices=["fp16", "fp32"])
+    p_bench.add_argument(
+        "--tile-sizes",
+        type=_tile_sizes,
+        default=(256, 384, 512, 640, 768, 896, 1024),
+        help="comma-separated tile sides in px (default 256,384,512,640,768,896,1024)",
+    )
+    p_bench.add_argument("--device", default="cuda", choices=["cuda", "cpu"])
+    p_bench.add_argument("--out", type=Path, required=True, help="directory for the outputs")
+    p_bench.add_argument(
+        "--profile-out", type=Path, help="merge the fitted entry into this C16 profile JSON"
+    )
+    p_bench.add_argument("--timeout", type=int, default=900, help="seconds per tile size")
+    p_bench.set_defaults(func=cmd_benchmark)
 
     return parser
 
