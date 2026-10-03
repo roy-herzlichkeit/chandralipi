@@ -14,7 +14,7 @@ JAXA (Kaguya) and NASA (LRO WAC) imagery instead — 9 real results, headlined
 by a 719-inlier, 97%-ratio cross-instrument LightGlue match and a 0.33 px
 sub-pixel same-sensor SIFT match. That story is not scripted here; see
 `data/processed/demo_real/README.md` for the numbers and
-`CONTEXT_HANDOFF.md` §7 for status. If recording after tonight, consider
+`docs/project/CONTEXT_HANDOFF.md` §7 for status. If recording after tonight, consider
 whether the real-data result belongs in this video too, or as a separate
 clip — a judgment call, not made here.
 

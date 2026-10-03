@@ -16,7 +16,7 @@ Turn the one-off script that registered one Chandrayaan-2 strip into a real pipe
 | **preset** | a named list of image clean-up steps run before matching | `clahe_shadow`: brighten shadows, then boost local contrast |
 | **ablation** | running the same test with and without one ingredient to see if it helps | the anchor strip with presets `none`, `ohrc_nac`, `clahe_shadow` |
 | **agreement** | how far apart two matchers' transforms put the image corners *before* ECC (which would otherwise pull them together) | SIFT and LightGlue differ by 0.6 px → they agree |
-| **sun azimuth / elevation** | the compass direction the sunlight comes from / how high the sun is | OHRC 2023 strips: sun azimuth ≈ 62°; the 2024 strip: ≈ 304° (label values, recorded in `TBD_phase_1.md` §1.8) |
+| **sun azimuth / elevation** | the compass direction the sunlight comes from / how high the sun is | OHRC 2023 strips: sun azimuth ≈ 62°; the 2024 strip: ≈ 304° (label values, recorded in `docs/backlog/TBD_phase_1.md` §1.8) |
 
 ## What changes
 | block | prompts |

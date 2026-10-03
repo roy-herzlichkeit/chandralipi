@@ -8,7 +8,7 @@ Run the pipeline on the laptop's GPU (the graphics card, used here for the neura
 ## New terms
 | term | meaning | example |
 |---|---|---|
-| **VRAM** | the GPU's own memory; a matcher that needs more than is free crashes with "out of memory" (OOM) | the RTX 4060 Laptop has 8188 MiB, about 754 MiB used by the desktop (`FABLE_NOTES.md` §9, nvidia-smi 2026-09-29) |
+| **VRAM** | the GPU's own memory; a matcher that needs more than is free crashes with "out of memory" (OOM) | the RTX 4060 Laptop has 8188 MiB, about 754 MiB used by the desktop (`docs/plan/FABLE_NOTES.md` §9, nvidia-smi 2026-09-29) |
 | **device profile** | a measured table of memory use per matcher and tile size for one GPU | `configs/device_profiles/rtx4060-laptop.json` (written by P2.04) |
 | **tile** | a small square cut from a large image so a matcher can process it within memory | 512 × 512 pixels |
 | **prior-rectified tile** | the reference piece is warped into the source tile's scale and angle before matching, using our current best transform | lets a 0.25 m OHRC tile be compared with a 1 m NAC tile |

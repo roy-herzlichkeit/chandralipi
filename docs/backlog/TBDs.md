@@ -8,9 +8,9 @@ HLD/LLD pass independently. Each item names the file(s) it touches, its current
 state, and what "done" looks like, so a design pass can start from a fact
 rather than a guess.
 
-**Provenance note, per this project's own convention** (see `CONTEXT.md` §3):
+**Provenance note, per this project's own convention** (see `docs/project/CONTEXT.md` §3):
 every item in these files is either (a) copied from an existing open item in
-`CONTEXT_HANDOFF.md` / `CONTEXT.md` / `udocs/70_SYSTEM_DESIGN_distributed_gpu.md`
+`docs/project/CONTEXT_HANDOFF.md` / `docs/project/CONTEXT.md` / `udocs/70_SYSTEM_DESIGN_distributed_gpu.md`
 — cited inline — or (b) this document's own phase grouping/sequencing, which is
 a planning judgment call, not a fact from those sources. Nothing here is a new
 finding; these files organize existing, already-recorded gaps.
@@ -40,8 +40,8 @@ in parallel with the start of Phase 2, since they touch mostly disjoint files.
 
 | Phase | Topic | Blocked on | Status |
 |---|---|---|---|
-| [TBD_phase_1.md](TBD_phase_1.md) | Classical/neural result gaps | — | Partially open, several human decisions pending |
-| [TBD_phase_2.md](TBD_phase_2.md) | Stage 1: one real GPU | — | Not started (no GPU run has ever happened) |
-| [TBD_phase_3.md](TBD_phase_3.md) | Stage 2: one machine, N GPUs | Phase 2 | Not started (design only) |
-| [TBD_phase_4.md](TBD_phase_4.md) | Stage 3: many machines | Phase 3 | Not started (design only) |
-| [TBD_phase_5.md](TBD_phase_5.md) | Dashboard cluster panel | Phase 3 or 4 | Not started, not yet decided whether wanted |
+| [docs/backlog/TBD_phase_1.md](TBD_phase_1.md) | Classical/neural result gaps | — | Partially open, several human decisions pending |
+| [docs/backlog/TBD_phase_2.md](TBD_phase_2.md) | Stage 1: one real GPU | — | Not started (no GPU run has ever happened) |
+| [docs/backlog/TBD_phase_3.md](TBD_phase_3.md) | Stage 2: one machine, N GPUs | Phase 2 | Not started (design only) |
+| [docs/backlog/TBD_phase_4.md](TBD_phase_4.md) | Stage 3: many machines | Phase 3 | Not started (design only) |
+| [docs/backlog/TBD_phase_5.md](TBD_phase_5.md) | Dashboard cluster panel | Phase 3 or 4 | Not started, not yet decided whether wanted |

@@ -9,7 +9,7 @@ Evidence tags: **M** = measured by the architect on the files on disk, 2026-10-0
 - The same products do overlap other data near the south pole (M, per-pixel grids, polygon test in south polar stereographic):
   - IIRS `nci_20230125T1944138897` and TMC-2 `ncf_20231026T0943001971` overlap over latitudes −74.9° to −89.9°. 25 % of the IIRS grid nodes fall inside the TMC-2 footprint.
   - Both overlap valid pixels of the TMC-2 derived ortho `ndn_20231027T1315134884`: 4.2 % (TMC-2) and 2.4 % (IIRS) of its decimated valid pixels.
-- The problem statement asks for a generic tool: any Chandrayaan-2 image (OHRC, TMC-2, IIRS) against any lunar reference (`README_TITLE.md` §1, D). This prompt removes the Vikram-only assumption, so a newly downloaded strip or reference is used by adding a file or a config row, with no code change.
+- The problem statement asks for a generic tool: any Chandrayaan-2 image (OHRC, TMC-2, IIRS) against any lunar reference (`docs/project/README_TITLE.md` §1, D). This prompt removes the Vikram-only assumption, so a newly downloaded strip or reference is used by adding a file or a config row, with no code change.
 
 ## 1. `configs/references.json` (new, committed)
 Schema 1. Each row names a map-projected reference raster:

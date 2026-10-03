@@ -1,6 +1,6 @@
 # Phase 0 Adversarial Code Review
 
-**Scope**: Review of Phase 0 implementation (`d5a6d7c..50b0b1c`) against `Phase_0/LLD/`, `CONTRACTS.md` (C01–C07, C15), `Phase_0/REVIEW_FOCUS.md`, and `Phase_1/ASSUMPTIONS.md`.
+**Scope**: Review of Phase 0 implementation (`d5a6d7c..50b0b1c`) against `Phase_0/LLD/`, `docs/plan/CONTRACTS.md` (C01–C07, C15), `Phase_0/REVIEW_FOCUS.md`, and `Phase_1/ASSUMPTIONS.md`.
 
 | ID | severity (C/H/M/L) | path:line | issue | evidence | suggested fix | confidence (H/M/L) |
 |---|---|---|---|---|---|---|

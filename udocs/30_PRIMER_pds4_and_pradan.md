@@ -178,4 +178,4 @@ latitudes are planetocentric or planetographic (doc 10) is not stated.
 
 While every product in a comparison is Chandrayaan-2, this cancels out. It stops
 cancelling the moment LRO enters, which is the plan. Recorded in
-`CONTEXT_HANDOFF.md` as an open decision for a human, not resolved by assumption.
+`docs/project/CONTEXT_HANDOFF.md` as an open decision for a human, not resolved by assumption.

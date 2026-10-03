@@ -5,7 +5,7 @@ asking in good faith. The tone throughout is **calm and factual, never
 defensive, never apologetic.** Own every real limitation in one sentence and
 move on — hedging or over-explaining is what invites a second attack. Every
 number here matches `docs/INTERNALS_SCRIPT.md` and traces to
-`CONTEXT_HANDOFF.md` / `udocs/50_findings.md` / `data/processed/demo_real/README.md`.
+`docs/project/CONTEXT_HANDOFF.md` / `udocs/50_findings.md` / `data/processed/demo_real/README.md`.
 
 **One rule that applies to every answer below: if you don't know something,
 say "I don't know, I'll check" — not a guess.** A wrong confident answer is

@@ -1,4 +1,4 @@
-"""Cross-matcher agreement (CONTRACTS.md C14, Phase_1/LLD/agreement.md §3)."""
+"""Cross-matcher agreement (docs/plan/CONTRACTS.md C14, Phase_1/LLD/agreement.md §3)."""
 
 from __future__ import annotations
 

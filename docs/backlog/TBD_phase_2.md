@@ -13,7 +13,7 @@ been measured on real hardware yet.
   https://download.pytorch.org/whl/cu124` (documented in `README.md`).
 - **Current state:** the development machine has no loaded NVIDIA kernel
   module; torch is CPU-only there. No run on any GPU has ever happened in this
-  project (`CONTEXT.md` §"most likely to mislead").
+  project (`docs/project/CONTEXT.md` §"most likely to mislead").
 - **Done when:** `lunar-reg env` reports CUDA available on the target machine
   (RTX 4060 per `README.md`'s stated target, or whatever GPU is actually used).
 

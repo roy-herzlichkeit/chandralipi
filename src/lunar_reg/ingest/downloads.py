@@ -15,7 +15,7 @@ the pipeline:
   suspicious, not a failure: it may be a legitimate leftover such as PRADAN's
   keep-alive page, but it is reported so it is never invisible.
 
-The file format is frozen by CONTRACTS.md C08; the behaviour by
+The file format is frozen by docs/plan/CONTRACTS.md C08; the behaviour by
 ``Phase_1/LLD/downloads.md`` §4. ``bytes`` and ``sha256`` are measured from the
 file on disk by :func:`record_file` (never copied from a server header); the
 frozen C08 keys leave no room for a separate provenance field, and none is
@@ -126,7 +126,7 @@ _DESCRIPTIONS = {
 
 @dataclass
 class DownloadEntry:
-    """One C08 ``files`` record. Field names are frozen (CONTRACTS.md C08)."""
+    """One C08 ``files`` record. Field names are frozen (docs/plan/CONTRACTS.md C08)."""
 
     path: str  # repo-relative POSIX
     bytes: int
@@ -224,7 +224,7 @@ def _abs(path: str | os.PathLike) -> Path:
 
 def _check_choice(name: str, value: str, allowed: tuple[str, ...]) -> None:
     if value not in allowed:
-        raise ValueError(f"{name}={value!r} is not one of {allowed} (CONTRACTS.md C08)")
+        raise ValueError(f"{name}={value!r} is not one of {allowed} (docs/plan/CONTRACTS.md C08)")
 
 
 def record_file(

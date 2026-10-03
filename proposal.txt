@@ -1,0 +1,626 @@
+:::VIDEO:::
+
+VIDEO SCRIPT - about 7 minutes (spoken at ~140 words per minute)
+Each block: [time] SCREEN = what to show, SAY = what to say (rewrite in your own words).
+Every number below comes from a real run. If a cell says [INSERT RESULT], record that part only after the run exists.
+
+[0:00 - 0:30] OPENING
+SCREEN: Title card "Chandralipi - registering Chandrayaan-2 images to lunar reference maps". Then a side-by-side of one OHRC strip and the LRO NAC map of the Vikram landing site.
+SAY: This is Chandralipi, our answer to ISRO problem statement SIH26166. Chandrayaan-2 takes extraordinary pictures of the Moon, but the position recorded with each picture can be off by kilometres. Our software finds the same ground in a Chandrayaan-2 image and in a trusted lunar map, point by point, and uses those points to lay the image exactly on the map. On the left is OHRC, at 25 centimetres per pixel. On the right is NASA's LRO map of the same place.
+
+[0:30 - 1:20] DATA
+SCREEN: A map of the Moon with footprints: OHRC strips at Vikram (69.4 S, 32.3 E), the NAC map box, the SELENE tiles, and the JAXA/WAC demo pair near the equator. Then a table of instruments and resolutions.
+SAY: We work with all three Chandrayaan-2 optical cameras: OHRC at 0.25 metres per pixel, TMC-2 at 5 metres, and the infrared spectrometer IIRS at 80 metres, with about 256 colour bands. The reference maps come from other agencies: NASA's LRO NAC map of the Vikram site at 1 metre, LRO WAC at 100 metres, and Japan's SELENE Terrain Camera maps at 7.4 metres. ISRO's archive, PRADAN, is downloaded by a person, never by a script. Everything public is fetched by our own verified script, and every file is checksummed into a manifest. Today about 57 GB of real data is on disk.
+
+[1:20 - 2:10] FINDING IMAGES THAT ACTUALLY OVERLAP
+SCREEN: Two strips near the south pole drawn in latitude/longitude (looking like they cover half the Moon), then the same strips in a polar map projection (two thin lines far apart). Then the overlap table for the NAC sites.
+SAY: Before you can match two images, they must show the same ground. That sounds trivial, and it is the first place things go wrong. Near the pole a strip's longitudes wrap around the whole Moon, so a simple latitude-longitude box says it covers places hundreds of kilometres away. We test overlap in a proper map projection, using ISRO's per-pixel position grid instead of the four corners. On our data the four-corner shortcut was wrong by 639 metres, and a box-based footprint over-stated area by up to 4.2 times. Searching the catalogues, we found 11 NASA map sites that OHRC, TMC-2 and IIRS all cover; the Vikram site is one of them.
+
+[2:10 - 3:00] INGESTION AND PREPROCESSING
+SCREEN: A PDS4 XML label with fields highlighted, then the provenance tags in a results row. Then the preprocessing chain: raw, contrast, shadow mask, resampled.
+SAY: Ingestion reads each product's label, not just its pixels, and every value we take from it carries a tag saying where it came from: measured, computed, documented, or inferred. That tag travels into every result. Preprocessing brings both images to a common ground scale and evens out brightness. Lunar shadows are pitch black because there is no atmosphere, so we keep track of which pixels are real data and which are empty fill or deep shadow. Our preset for OHRC against NAC more than doubled the useful matches for the classical matchers on the real Vikram pair: SIFT went from 58 to 163 inliers and AKAZE from 68 to 204.
+
+[3:00 - 4:20] MATCHING - EACH ALGORITHM
+SCREEN: The same image pair matched by each matcher in turn, with match lines drawn. Then a diagram (label it 'in progress'): coarse pass, tiles, per-tile matching, stitching, GPU memory meter.
+SAY: Matching finds pairs of points that show the same crater or ridge in both images. We run classical detectors - SIFT, ASIFT, AKAZE - and neural matchers - LightGlue and LoFTR - through one common interface, so the same pair can be compared fairly. Large strips do not fit in GPU memory, so we first do a coarse pass at 8 metres per pixel to find where the image really is. On the real 2024 OHRC strip, that coarse pass found the recorded position was off by 556 metres east and 2,888 metres south. At our 4-metre working scale one window fits on the GPU. For full-resolution strips, which we are building now, the reference is warped into the source's own frame using that estimate, cut into tiles, and each tile is matched separately. Each tile's result is classified - matched, too few points, out of memory - so nothing fails silently, and tile sizes come from the GPU's measured memory limits, not a guess.
+
+[4:20 - 5:20] REGISTRATION
+SCREEN: Inlier/outlier points (green/red). Then the fitted transform applied, then a checkerboard blend of the registered OHRC over the NAC map, zooming into crater rims that line up.
+SAY: Some matches are wrong, so we fit the transform robustly with MAGSAC, keep only consistent points, refit on them, and then polish the result with ECC, which aligns the brightness patterns directly to a fraction of a pixel. On the Vikram pair at our 4-metre working scale, LightGlue kept 808 points with a fit error of 0.99 pixels, and ASIFT kept 2,180 points, with a bootstrap uncertainty of only 0.12 pixels across the frame. Look at the checkerboard: the crater rims continue straight across the tile borders. That visual check matters, because we once saw a 100 percent inlier ratio on a result that was 50 pixels wrong.
+
+[5:20 - 6:20] OUTPUT AND HOW WE JUDGE IT
+SCREEN: The results browser: a result row with RMSE, inlier count, inlier ratio, uniformity score, uncertainty map. Then the registered GeoTIFF opened in a GIS viewer over the map.
+SAY: For every pair we save what ISRO asked for: the registered image as a georeferenced GeoTIFF, every match point, RMSE, inlier count and inlier ratio. We add two things the usual RMSE hides. A uniformity score checks that the points cover the whole image. In a controlled test, points packed in one blob gave the same RMSE as points spread evenly, but were 51 times more wrong at the far edge. And a bootstrap uncertainty map shows how much to trust each part of the image. Failures are saved too, with their reason, so a failed pair is a finding, not a gap.
+
+[6:20 - 7:00] WHAT IS NEXT AND CLOSING
+SCREEN: The roadmap: native-resolution refinement on the GPU, TMC-2 and IIRS registered at Vikram [INSERT RESULT], the illumination bridge, multi-GPU distribution across two machines.
+SAY: Next, we refine at OHRC's full 25-centimetre resolution on the GPU, register TMC-2 and IIRS strips over Vikram, and spread large jobs across two GPUs with a queue that survives a machine dropping out. Chandralipi is open, tested by more than 900 automated tests, and honest about what it knows. Thank you.
+
+TOTAL SPOKEN TEXT: about 960 words = about 7 minutes at a calm pace.
+RECORDING TIPS: record each block separately; show the real terminal or viewer for at least one block so judges see it run; keep the checkerboard on screen for 5 seconds; do not read numbers you cannot point to on screen.
+:::PROPOSAL:::
+
+CHANDRALIPI
+Multi-modal, Sun-angle and scale invariant image correspondence for Chandrayaan-2 OHRC, TMC-2 and IIRS
+Problem statement: SIH26166 (Indian Space Research Organisation)
+Team: [TEAM NAME]   Members: [NAMES]   Institute: [INSTITUTE]
+
+How to read this document. Every number in it comes from a real run of our software, and the kind of evidence is stated next to it: "measured on real data", "measured on synthetic data with a known answer", or "documented" (read in a paper or an archive document). Where a run has not happened yet, the text says [INSERT RESULT] instead of a number. Section 15 lists where each number comes from.
+
+
+1. THE PROBLEM, IN OUR WORDS
+
+1.1 What ISRO asked for
+
+ISRO asks for a generic software solution that finds correspondence between Chandrayaan-2 optical images and lunar reference images, with sub-pixel accuracy measured in the source image's pixels, and with the corresponding points spread uniformly across the images. The deliverables are the software, a registered product with its match points, and evaluation metrics: RMSE, inlier count and inlier ratio. The title names the three Chandrayaan-2 optical instruments, OHRC, TMC and IIRS, and the three difficulties: modality, Sun angle and scale.
+
+1.2 Why it is hard
+
+Registration means finding the geometric mapping that lays one image exactly on top of another. On the Moon three things make that difficult at once.
+
+Illumination. The Moon has no atmosphere, so shadows are black and hard-edged. When the Sun moves, the lit half and the dark half of every crater rim swap sides. A crater photographed with the Sun in the east and the same crater with the Sun in the west can look like two different objects. We measured this on synthetic terrain with a known answer: SIFT, the standard feature matcher, found 228 correct matches when the two Sun directions differed by 15 degrees, 4 at 30 degrees and 0 at 60 degrees. It is a cliff, not a slope.
+
+Scale. OHRC sees 0.25 m per pixel, TMC-2 5 m, IIRS 80 m, and the reference maps range from 1 m (LRO NAC) through 7.4 m (SELENE Terrain Camera) to 100 m (LRO WAC). Between IIRS and OHRC the ratio is 320 to 1. No matcher works directly across ratios like that.
+
+Modality. IIRS is not a camera in the usual sense. It records about 256 spectral bands from 0.8 to 5 micrometres. Its short-wavelength bands see reflected sunlight like a camera; its long-wavelength bands increasingly see heat. Matching IIRS to a panchromatic map is a cross-modal problem.
+
+A fourth difficulty is not in the problem statement but dominated our work: the archive metadata itself. The position recorded with a Chandrayaan-2 product is a prediction from the spacecraft's orbit and pointing. On the 2024 OHRC strip of the Vikram landing site we measured it to be off by 556 m east and 2,888 m south. A registration method has to find the image before it can register it.
+
+1.3 Why the usual answer is not enough
+
+The closest published work, Makharia et al. (arXiv:2509.04775), compares classical and deep-learning matchers on Chandrayaan-2 data and reports sub-pixel RMSE. We read it in full. Their RMSE is the residual of the fitted transform on the same points that produced the fit. That number is almost blind to where the points are. We tested this directly on synthetic data with a known transform, keeping 400 points and identical noise and changing only their layout: an even grid gave a fit RMSE of 0.698 px with a true worst-case error of 0.114 px; a tight blob gave a fit RMSE of 0.724 px with a true worst-case error of 5.861 px. The RMSE moved by 4 percent, the real error by 51 times. A result can report sub-pixel RMSE and be six pixels wrong at the far edge of the same image. This is exactly why ISRO added "maintaining uniform distribution across the images" to the requirement, and it shapes how we measure success.
+
+
+2. WHAT WE BUILT, IN ONE PAGE
+
+Chandralipi is a Python package, a command-line tool, a results store and two viewers. Given a Chandrayaan-2 product and a reference map, it:
+
+1. reads the product's PDS4 label and pixels, with a provenance tag on every value it takes from the label;
+2. computes where the image really lies on the Moon from ISRO's per-pixel geometry grid, and checks overlap with the reference in a proper map projection;
+3. finds the image on the reference with a coarse pass, then cuts matching windows around that position;
+4. preprocesses both images with a named, measured preset;
+5. matches them with classical (SIFT, ASIFT, AKAZE) and neural (LightGlue, LoFTR) matchers through one interface, tile by tile for large images;
+6. fits a transform robustly (MAGSAC++ / RANSAC), refits on the inliers, and refines it to sub-pixel level with ECC (Enhanced Correlation Coefficient);
+7. evaluates the result with RMSE, inlier count and inlier ratio, plus a uniformity score and a bootstrap uncertainty map;
+8. stores the registered GeoTIFF, the match points, every metric, and every failure with its reason.
+
+Where we are today, honestly:
+- Done and measured on real data: OHRC (2024-04-25 strip) registered to the LRO NAC 1 m map at the Vikram site with four matchers; a JAXA SELENE to SELENE pair and a SELENE to LRO WAC cross-agency pair with five matchers each; a preset ablation on the real Vikram pair.
+- Done and measured on synthetic data with known answers: the illumination cliff, the RMSE-versus-distribution result, the ECC refinement behaviour, the uniformity gate.
+- Built, not yet run on real data: site-agnostic pairing of TMC-2 and IIRS with any reference (the TMC-2 and IIRS strips we first downloaded do not cross the Vikram site; we found this, measured it and redesigned for it).
+- Planned with frozen interfaces and tests already written: refinement at OHRC's native 0.25 m on the GPU, an illumination bridge that renders the reference terrain under the source image's Sun, and a multi-GPU job queue across two machines.
+
+More than 900 automated tests run on every change (928 passed at the last recorded run).
+
+
+3. REQUIREMENT-BY-REQUIREMENT
+
+Status: DONE = built and run on real data; DONE (synthetic) = built and verified on data with a known answer; PARTIAL = built, real-data result pending; PLANNED = designed, interfaces and tests written, not built.
+
+R1. Correspondence between Chandrayaan-2 optical images and lunar reference images.
+- OHRC to LRO NAC 1 m map, Vikram site: DONE. Four matchers produced valid registrations on the real 2024 strip (section 6.1).
+- TMC-2 and IIRS to a reference: PARTIAL. Code for any-site pairing is built (section 5.3). On-disk strips are 529 to 652 km from Vikram (measured from their per-pixel grids), so they are paired where they do overlap a reference, near the south pole: [INSERT RESULT]. Strips that cross the Vikram references are identified for download.
+- Cross-agency reference handling (JAXA and NASA): DONE. SELENE TC to LRO WAC, real data, five matchers (section 6.2).
+
+R2. Generic software solution.
+- One pipeline, any matcher, any reference: DONE. Matchers are plug-ins behind one interface; references are rows in a configuration file (configs/references.json); new data needs no code change.
+- Runs on a consumer laptop GPU (RTX 4060, 8 GB): DONE. GPU memory use was measured (dense neural matching tiles cap near 1,408 px under an 8 GB budget), and out-of-memory is a classified outcome, not a crash. Per-GPU memory profiles that size tiles automatically: PLANNED (Phase 2).
+
+R3. Sub-pixel accuracy of the source image.
+- Sub-pixel fit at the working scale: DONE on real data. OHRC to NAC at 4 m per working pixel: fit RMSE 0.88 to 1.28 px across matchers; bootstrap uncertainty median 0.12 to 0.65 px.
+- Sub-pixel at OHRC's native 0.25 m: PLANNED (native refinement, Phase 2): [INSERT RESULT].
+- Note: real data has no ground truth. We say so in every result row and report the fit residual as a self-residual, not as accuracy. Accuracy is measured on synthetic scenes with known transforms.
+
+R4. Uniform distribution of correspondences.
+- Uniformity score and gate: DONE. Computed for every result from an adaptive grid over the frame (coverage, entropy, spacing). On the real Vikram pair all four matchers passed the gate (scores 0.83 to 0.99).
+- Spatial uncertainty map: DONE. A bootstrap over the inliers predicts how wrong the transform could be at each point of the frame.
+
+R5. Robustness to Sun angle.
+- Measured the problem: DONE (synthetic): the SIFT cliff (228, 4, 0 correct matches at 15, 30, 60 degrees).
+- Neural matchers and contrast-normalised ECC: DONE (synthetic): local-contrast normalisation before ECC cut the median error at a 30-degree Sun difference from 0.30 to 0.06 px (4.8 times).
+- Sun geometry for every image computed from NASA's SPICE ephemeris: built (code and tests done); its use in the 2023-strip diagnosis run: [INSERT RESULT].
+- Illumination bridge (render the reference under the source's Sun): PLANNED (Phase 1B), built only if Phase 1 shows Sun angle is the cause of the remaining failures.
+
+R6. Robustness to scale.
+- Common working scale chosen per pair, coarse-to-fine search: DONE. Tested at 4 m (OHRC-NAC), 38 m (SELENE-SELENE) and 100 m (SELENE-WAC).
+- Native-resolution refinement: PLANNED (Phase 2).
+
+R7. Multi-modal (IIRS).
+- Band reduction by incremental PCA that never loads the whole cube: DONE (code and tests).
+- IIRS matched against a reference at its own scale (WAC 100 m or SELENE), never against OHRC: design DONE, real result [INSERT RESULT].
+
+R8. Deliverables: registered product, match points, metrics.
+- Registered product as a georeferenced GeoTIFF: DONE.
+- Match points saved per pair (source and reference coordinates, inlier flags): DONE.
+- RMSE, inlier count, inlier ratio: DONE, in every result row, plus median, 95th percentile and maximum residual, uniformity and uncertainty.
+
+
+4. DATA
+
+4.1 What we use
+
+Source images (Chandrayaan-2, from ISRO PRADAN, downloaded by hand):
+- OHRC: four calibrated products (ncp) and four raw products (nrp) over the Vikram site, 2023-08-23 (three passes) and 2024-04-25; 0.25 m per pixel; each strip about 12,000 by 100,000 pixels.
+- TMC-2: two calibrated strips (nadir 2023-05-21, fore 2023-10-26) and ISRO's derived orthoimage and terrain model of 2023-10-27.
+- IIRS: two calibrated cubes (2022-12-26 and 2023-01-25).
+
+Reference images (public, scripted downloads, each checksummed):
+- LRO NAC map-projected orthoimage and terrain model of the Vikram site (NAC_DTM_VIKRAMSITE1), 1 m per pixel, two epochs.
+- SELENE (Kaguya) Terrain Camera ortho map tiles covering 66 to 72 degrees south, 30 to 33 degrees east, 7.4 m per pixel; plus morning, evening and terrain tiles.
+- LRO WAC 100 m crops and SELENE TC pairs used for the cross-agency demonstration.
+- NASA NAIF generic SPICE kernels (leap seconds, lunar constants, planetary ephemeris DE440s) for Sun geometry.
+
+About 57 GB of raw data is on disk (measured with du on 2026-10-01). Every downloaded file is recorded in a manifest with its size and SHA-256 hash, and a verifier reports any missing, truncated or altered file.
+
+4.2 How we choose what to download
+
+We learned the hard way that "the catalogue says they overlap" is not enough. Our first TMC-2 and IIRS downloads were chosen from the catalogue as covering 90 to 100 percent of the Vikram box. Measured against ISRO's own per-pixel position grids, their nearest pixel is 529 to 652 km from the site. The cause is geometric: a strip that passes near the pole spans most of the 360 degrees of longitude, so a longitude-latitude box test says it covers almost everything. We now test coverage only in a projection suited to the area (polar stereographic near the poles, a local equidistant projection elsewhere), with every polygon edge densified, and we require a control set of products with known answers to come out right before a coverage number is trusted.
+
+With that method we crossed NASA's catalogue of 668 NAC map products against the OHRC, TMC-2 and IIRS footprint catalogues. 25 NAC sites overlap at least one OHRC image and 11 are covered by all three Chandrayaan-2 instruments (measured on catalogue outlines, which are accurate to about 8 km). The Vikram site is one of them, with about 227 square km seen by all three; NOBILE04 near the south pole (about 283 square km) and BOOSTIMPCT1 near the equator (about 219 square km) are the other strongest candidates.
+
+4.3 What the archive taught us
+
+- ISRO ships a per-pixel geometry grid with each calibrated product. A single perspective transform fitted to the four label corners disagrees with that grid by a median of 2,554.6 OHRC pixels, which is 639 m (measured on real data, reproduced independently from the raw CSV). A pushbroom camera has no single viewpoint, so no single perspective transform describes it. We use the grid.
+- Bounding boxes over-state footprints: OHRC 3.9 to 4.2 times, TMC-2 2.2 to 2.3 times (measured on real products). That was a live bug, now fixed.
+- The NAC map's GDAL-reported transform uses degrees where metres are meant. We read the georeference from the PDS4 label instead and decide the sign of the upper-left corner from the data: the flipped sign fits the label's bounding box to 935 m, the written sign misses by 23.9 km.
+- The polar catalogue layers store their "latitude" fields in projected metres, not degrees.
+- ISRO's catalogue publishes incidence, emission and phase angles as 0. That is a placeholder, not a measurement, and we never use it as one.
+- ISRO's names are not the obvious ones: the label's solar incidence angle is "solar_incidence". Its value on the reference OHRC label, 83.270815 degrees, is exactly 90 minus the label's Sun elevation, an internal consistency check we use.
+- The TMC-2 derived orthoimage is 176,604 by 41,628 pixels, uncompressed, with no declared no-data value. It is never read whole; we read it windowed or decimated (a decimated read takes 16 s and 234 MB of memory, measured).
+
+
+5. THE PIPELINE
+
+5.1 Ingestion
+
+Each product is opened through its PDS4 label. Field names are read from real labels, never written from memory, and every value carries one of five provenance tags: MEASURED (a run on our data or hardware produced it), COMPUTED (derived from measured inputs), DOCUMENTED (read from a label or document), INFERRED (a fit or a reasoning step) and UNKNOWN. On the reference OHRC label 22 of 25 fields resolve (12 verified against the file, 5 documented, 6 unverified, with tests that pin each state). The binary layout is checked against the file size: 101,074 lines by 12,000 samples by 1 byte equals the 1,212,888,000-byte image file exactly.
+
+A product catalogue scans the archive on disk and reports each instrument as present, partial, absent or unreadable. An absent instrument is an outcome that is counted and printed, never an error.
+
+5.2 Georeference and footprint
+
+For map references the georeference comes from the label's cartography block, with the sign rule above. For Chandrayaan-2 products the ground position of any pixel comes from ISRO's geometry grid, interpolated between grid nodes; where no grid exists, the label corners are used and the result is tagged accordingly.
+
+The datum (the reference sphere that latitude and height refer to) is checked against data rather than assumed.
+
+5.3 Pairing: which image goes with which reference
+
+References are listed in a configuration file. For every Chandrayaan-2 product with a geometry grid and every reference, the pipeline:
+- projects all grid nodes into the reference's own map projection (never comparing in longitude-latitude);
+- tests each node against the reference's valid pixels, using a decimated read for very large rasters;
+- classifies the pair as overlap, disjoint, no grid, reference missing or unreadable, with counts and the first example of each;
+- for an overlap, picks the "deepest" overlap node (the one farthest from any edge) as the centre of the matching window, and estimates the overlap area;
+- for a disjoint pair, records the distance to the nearest valid reference pixel.
+
+Each result records whether its reference is independent of the source (an LRO or SELENE map) or not (ISRO's own TMC-2 ortho, which can only give a relative check). A new strip or a new reference needs a file or a configuration row, not code.
+
+5.4 Coarse pass: finding the image
+
+Before fine matching, both images are reduced to 8 m per pixel and matched over a wide search area. On the 2024 OHRC strip this pass, with LightGlue, found 106 inliers and a shift of 556 m east and 2,888 m south between the recorded position and the true one. The fine pass then searches a window around the corrected position.
+
+5.5 Preprocessing
+
+Preprocessing is a chain of named steps, each of which can be switched off for measurement: radiometric scaling to 8 bits with no-data reserved as 0, contrast normalisation (CLAHE), shadow masking, and resampling to the common ground scale with area averaging. Three named presets were compared on the real Vikram pair ("none", "ohrc_nac", "clahe_shadow") and on 120 synthetic cases. The "ohrc_nac" preset raised SIFT from 58 to 163 inliers, AKAZE from 68 to 204 and LightGlue from 392 to 421, and raised the uniformity scores of SIFT from 0.67 to 0.82 and AKAZE from 0.67 to 0.91 (measured on real data). It tied with "clahe_shadow" on the real pair and won on the synthetic set by a small margin (median true error 0.1370 against 0.1373 px), so it became the default. That run is being repeated now that ASIFT no longer crashes (section 5.6): [INSERT RESULT].
+
+Validity masks travel with the images, so ECC and the metrics never treat empty fill or reserved no-data pixels as terrain.
+
+5.6 Matching
+
+All matchers implement one interface: two images in, a list of corresponding points with scores out. That makes them interchangeable and lets the same pair be scored the same way for every matcher.
+
+Classical matchers (OpenCV):
+- SIFT: the reference baseline. Scale- and rotation-invariant gradient descriptors, compared with a ratio test (0.75, tighter than the usual 0.8 because cross-modal pairs produce near-ties) and a symmetry check that keeps only pairs that choose each other.
+- ASIFT: SIFT run over many simulated affine views. More robust to viewpoint change, but it produces very many keypoints. On the real Vikram pair it crashed inside OpenCV's brute-force matcher, which accepts at most 262,143 reference descriptors (we measured the boundary exactly: 262,143 works, 262,144 fails). We now keep the strongest 50,000 keypoints by detector response, record in every result whether capping happened, and re-run the affected measurements [INSERT RESULT].
+- AKAZE: a binary descriptor on a nonlinear scale space, compared with Hamming distance (using the wrong distance norm on binary descriptors gives no error and silently poor matches, so the norm is fixed per detector).
+- RIFT2: a clean-room implementation of a phase-congruency matcher designed for cross-modal images, kept as a baseline.
+
+Neural matchers (pretrained, used without retraining):
+- LightGlue: keypoints and descriptors matched by an attention network that reasons about the whole set at once. On our real data it was the most reliable across agencies (section 6.2).
+- LoFTR: a detector-free transformer matcher that produces dense matches; its input is padded to a multiple of 8 pixels (on a 250 by 330 crop the median error was 2.0 px unpadded and 0.31 px padded, measured).
+- SuperGlue: available behind an explicit opt-in flag only, because its licence is non-commercial; every result made with it carries a licence field.
+
+Cross-matcher agreement. Several matchers on the same pair should agree. Before refinement we compare where their transforms put the image corners and report the disagreement in pixels; a disagreement is a warning that at least one of them locked onto the wrong place.
+
+Large images. Neural matchers cannot take a whole strip at once on an 8 GB card. The design (Phase 2, in progress) uses the coarse estimate to warp each reference tile into the source tile's own frame before matching, so the matcher only has to correct a small residual. A prototype of this "prior-rectified tiling" gave 604 raw matches with a median error of 0.10 px on a synthetic scene with 0.8 scale, 15 degrees rotation and a 3 px prior error (measured, architect check). Each tile's outcome is classified (ok, too few matches, out of memory, outside the reference), counted and stored.
+
+5.7 Estimating and refining the transform
+
+- Robust fit: homographies with MAGSAC++ (OpenCV USAC), affine models with RANSAC. Fits are seeded, and centred in double precision before fitting, so that large map coordinates (around 500,000 px) do not lose precision; on exact synthetic correspondences around (500,000, 500,000) the residual stays below 0.001 px (measured).
+- Refit on inliers at a tighter threshold.
+- ECC refinement in the fitted model's own motion type, using validity masks for both images so that shadows and empty fill do not pull the result. ECC does not run blind: if it moves the transform more than a set number of pixels from the robust fit, the move is rejected and recorded.
+- Measured behaviour (synthetic, known transform): four different matchers on the same pair converged to the same final error after ECC (0.011 px at matched Sun angle, 0.092 px at 15 degrees, 0.304 px at 30 degrees), although their raw fits differed by an order of magnitude. The matcher only has to get close enough; ECC sets the final accuracy. Normalising local contrast before ECC cut the 30-degree error 4.8 times (0.30 to 0.06 px median) and won in every run once the illumination differed.
+
+5.8 Evaluation
+
+Every result row carries:
+- the metrics ISRO named: RMSE, inlier count and inlier ratio;
+- residual median, 95th percentile and maximum, in pixels and in metres;
+- a uniformity score from an adaptive grid over the frame (grid size chosen from the number of points so that 20 points cannot fill 20 cells by construction), combining coverage, entropy and spacing, with a pass/fail gate;
+- a bootstrap uncertainty: the inliers are resampled, the transform refitted many times, and the spread of predicted positions at probe points across the frame is reported (median and 95th percentile) and drawn as a map;
+- the cross-matcher disagreement;
+- the provenance of every number and the parameters of the run.
+
+On real data there is no ground truth, so the RMSE is labelled as the fit's self-residual. True accuracy is measured on synthetic scenes generated from fractal terrain with craters, rendered under chosen Sun angles, and warped by known transforms. The synthetic axis and the real axis are kept separate in every table and in the viewers.
+
+5.9 Outputs and viewers
+
+For each pair the results store keeps a compressed archive with the match points, inlier flags, the transform and its uncertainty, a row in a Parquet index with every metric, and the registered image as a GeoTIFF in the reference's coordinate system, ready to open in QGIS or any GIS. Failed pairs are written to a separate failures table with their classified reason; a failure is a finding, not a gap. Two read-only viewers show the store: a Streamlit dashboard and a static web page with checkerboard overlays and match plots (both are being updated to the new results format in Phase 1). Every run writes a run record with the exact command, the code version, the host, the GPU, library versions, start and end times and the counts of every outcome.
+
+5.10 Scaling up (designed, partly built)
+
+- GPU memory: dense matching memory was measured on the laptop GPU; per-GPU memory profiles that choose tile sizes automatically are Phase 2.
+- Distribution (Phases 3 and 4): a strip is split into jobs, each a self-contained description of one tile (file, window, prior transform, matcher, seed). Workers take jobs from a queue with leases: a worker that dies loses its lease, its job is re-queued and the loss is counted. Workers renew their leases while working, so a slow tile is not taken away from a live worker. A local SQLite queue runs on one machine; a Redis Streams queue spreads the same jobs across the laptop's RTX 4060 and a second machine's RTX 3060, with jobs routed by measured GPU memory. A reducer combines the results deterministically: the same plan gives a byte-identical transform with one worker or three. All of this has frozen interfaces and tests already written; the code is [INSERT RESULT] until those phases run.
+
+
+6. RESULTS SO FAR
+
+6.1 Chandrayaan-2 OHRC to LRO NAC, Vikram landing site (real data)
+
+Source: OHRC raw strip of 2024-04-25. Reference: LRO NAC map-projected orthoimage, 1 m per pixel. Working scale 4 m per pixel, 3 km window. Coarse pass: LightGlue at 8 m per pixel, 106 inliers, recorded position corrected by 556 m east and 2,888 m south. The matched transform differs from the label-predicted position by about 2.94 km.
+
+matcher    inliers  fit RMSE (px)  median (px)  uniformity  bootstrap uncertainty median / p95 (px)
+ASIFT      2,180    1.15           0.86         0.99 pass   0.12 / 0.19
+LightGlue    808    0.99           0.78         0.92 pass   0.19 / 0.36
+SIFT         140    0.88           0.68         0.83 pass   0.38 / 0.74
+AKAZE        144    1.28           1.05         0.86 pass   0.65 / 1.14 (above the uncertainty gate)
+
+All four matchers registered the same strip and all four passed the uniformity gate. Three passed the uncertainty gate; AKAZE, with the fewest well-spread points, did not, and the result says so. One working pixel here is 4 m; refinement at OHRC's native 0.25 m is the next step [INSERT RESULT].
+
+6.2 Cross-agency demonstration: JAXA SELENE and NASA LRO WAC (real data)
+
+When the ISRO archive was unreachable before an early demo, we ran the full pipeline on public data from two other agencies instead. The current run (results format version 2) gives:
+
+SELENE TC to SELENE TC, two passes about two hours apart, 38.4 m per working pixel:
+matcher    inliers  fit RMSE (px)  uniformity  uncertainty median (px)
+SIFT         507    0.56           0.89        0.11
+AKAZE        619    0.57           0.85        0.12
+ASIFT      3,859    0.61           0.87        0.05
+LoFTR      4,636    0.61           0.99        0.04
+LightGlue    874    0.71           0.86        0.15
+All five pass both gates.
+
+SELENE TC to LRO WAC, two agencies, two cameras, 100 m per working pixel:
+matcher    inliers  fit RMSE (px)  uniformity       uncertainty median (px)
+SIFT         130    0.47           0.70 pass        0.36
+ASIFT        512    0.51           0.69 fail        0.25
+LoFTR        425    0.62           0.79 pass        0.19
+AKAZE         34    0.92           0.58 fail        1.26 (fails)
+LightGlue    478    0.95           0.84 pass        0.17
+Three of five pass both gates. The failures are reported, not hidden.
+
+A negative result we kept. A second, visually striking location with a large symmetric crater matched badly: two neural matchers reported inlier ratios of 99.6 and 100 percent with RMSE of 53 to 72 px. We caught it by looking at the checkerboard overlay, not the table. A rotationally symmetric crater is a poor target, because every point of its rim looks like every other. This is why the uniformity score, the uncertainty map and a visual check are all part of our acceptance, not just the inlier ratio.
+
+6.3 Measured on synthetic data with a known answer
+
+- RMSE versus distribution: 4 percent change in RMSE, 51 times change in true worst-case error (section 1.3).
+- Illumination cliff for SIFT: 228, 4 and 0 correct matches at 15, 30 and 60 degrees of Sun azimuth difference.
+- ECC convergence and the 4.8 times gain from local-contrast normalisation (section 5.7).
+- The ECC "automatic prefilter" idea did not work: its correlation statistic cannot tell sensor noise from illumination change (it scored 0.917 on a noisy pair against a 0.97 threshold and chose wrong). We ship it disabled and documented, rather than tuning it until a test passes.
+- Weak "pseudo ground truth" built from metadata has an error floor of 23.09 m (about 92 OHRC pixels): useful to start a coarse search, not to claim sub-pixel accuracy, and not enough to train a fine matcher.
+
+6.4 Pending, with the run that will produce it
+
+- TMC-2 and IIRS registered to an independent reference: [INSERT RESULT] (needs strips over a reference site; identified, see 4.2).
+- TMC-2 and IIRS registered to ISRO's TMC-2 ortho near the south pole (relative check): [INSERT RESULT].
+- Diagnosis of the three 2023-08-23 OHRC strips at Vikram, which do not yet register: each will be classified as wrong prior, illumination, or data problem: [INSERT RESULT].
+- Native 0.25 m OHRC refinement on the GPU: [INSERT RESULT].
+- Multi-GPU run across two machines: [INSERT RESULT].
+
+
+7. WHAT IS NEW IN OUR APPROACH
+
+We do not claim a new matcher. We claim a way of using matchers that makes the answer trustworthy, and several specific techniques that we have not seen in the lunar registration work we read.
+
+7.1 Acceptance by distribution, not by residual. Our central measured finding is that the residual RMSE reported in published lunar work cannot show whether a registration is right across the image. We accept a result only when its points are spread (adaptive uniformity gate) and when its bootstrap uncertainty across the frame is small, and we report both next to the RMSE. This turns ISRO's "uniform distribution" clause into a number that can fail.
+
+7.2 Find first, then register. Archive positions are off by kilometres. We run a cheap coarse pass to locate the image on the reference, then match finely around the corrected position. On the real 2024 OHRC strip this recovered a 2.9 km offset.
+
+7.3 Pushbroom geometry from ISRO's own grid. We use the per-pixel geometry grid that ships with each calibrated product, instead of four corners, which we measured to be 639 m wrong.
+
+7.4 Prior-rectified tiling (in progress). Each reference tile is warped into the source tile's frame using the coarse transform before matching, so the matcher corrects only a small residual and tiles can be matched independently on any GPU. Prototype: median raw-match error 0.10 px on a synthetic scene with scale, rotation and prior error.
+
+7.5 Site-agnostic pairing that is correct at the poles. Overlap is tested in the reference's own projection with a control set of known answers. This replaced a longitude-latitude test that had over-stated coverage by hundreds of kilometres.
+
+7.6 The illumination bridge (planned, conditional). When a source image and the reference were taken under very different Suns, we render the reference terrain model as a shaded relief under the source image's Sun, computed from NASA's SPICE ephemeris, and register through that rendering. It will be built only if the Phase 1 diagnosis shows illumination is the cause of the remaining failures.
+
+7.7 Failures as data. Every failure mode has its own outcome, counted and sampled, from a missing instrument to an out-of-memory tile. Every number carries its provenance. A reviewer can trace every figure in this document to the run that produced it.
+
+7.8 A fair comparison of classical and neural matchers on Chandrayaan-2 data, scored with the same distribution-aware metrics, including where each one fails.
+
+
+8. HOW WE BUILT IT
+
+- Language and libraries: Python 3.12, OpenCV 4.14, PyTorch, Kornia (LoFTR, LightGlue), rasterio and GDAL, pyproj, NumPy, SciPy, pandas and Parquet, Streamlit.
+- Tests: more than 900 automated tests (928 passed at the last recorded run), plus phase-level benchmark scripts that score each phase against a written rubric.
+- Process: the work is split into six phases with 76 small prompts. Each prompt has a design document, frozen interfaces, and a check script that must pass before it is committed. Check scripts and benchmarks are protected by checksums, so they cannot be quietly weakened. Each phase ends with a review pack and an external review; 38 findings from one adversarial review were adjudicated and applied before coding.
+- Reproducibility: seeded fits, run records with the code version for every run, a manifest with hashes for every input file.
+- Data rules: ISRO's PRADAN portal is only ever used by a person; no credentials are stored; nothing in the raw data folder is ever deleted or overwritten.
+
+
+9. LIMITATIONS, STATED PLAINLY
+
+- Our real-data accuracy figures are self-residuals at a 4 m working scale. Native-resolution sub-pixel accuracy on real OHRC is not yet measured.
+- We have one OHRC strip registered on real data so far (2024-04-25). The three 2023 strips over the same site do not yet register; diagnosing why is the next run.
+- TMC-2 and IIRS have no real registration result yet, because the first strips we downloaded do not cross a reference site. The replacement strips are identified.
+- Real data has no ground truth. Accuracy claims rest on synthetic scenes with known transforms, kept separate from real results.
+- Near the poles, low Sun and long shadows reduce the usable texture.
+- Neural matchers are used pretrained, not trained on lunar data. A lunar fine-tune would need correspondence ground truth that does not exist publicly, and far more GPU time than one laptop provides.
+
+
+10. ROADMAP
+
+Phase 0 - correctness of the core (done and approved): classified outcomes, seeded fits, ECC with masks, persisted failures, correct uniformity.
+Phase 1 - the real Chandrayaan-2 pipeline (in progress; 19 of 27 steps done): downloads and manifest, catalogue, NAC georeference, geometry grid, datum, preprocessing presets, Sun geometry, cross-matcher agreement, site-agnostic pairing, real runs and the 2023 diagnosis.
+Phase 2 - GPU and native resolution: measured memory profiles, prior-rectified tiling, native 0.25 m refinement.
+Phase 1B - illumination bridge, only if Phase 1 shows it is needed.
+Phase 3 - distributed on one machine: job queue, workers, reducer, fault injection.
+Phase 4 - distributed on two machines: Redis Streams queue, node caches, GPU-memory routing, determinism across hosts.
+Each phase ends with a review pack and is merged only after review.
+
+
+11. IMPACT
+
+11.1 For ISRO
+- A working, open method to place Chandrayaan-2 images on established lunar maps, which improves every downstream use: mosaics, change detection, landing-site studies, and comparison with other missions.
+- An independent check of archive positions: on one strip we measured a 2.9 km offset between the recorded and the matched position. Run over the archive, the same pipeline can measure that offset for every product and report it back.
+- A metric discipline (distribution-aware acceptance, provenance on every number) that can be used to evaluate other registration tools, including commercial ones.
+- Software that runs on an ordinary laptop GPU and scales out to more machines, so it can be used without a data centre.
+
+11.2 For India
+- Better-registered Chandrayaan-2 data makes Indian lunar data easier to combine with NASA and JAXA data, which raises its value for international science and for planning future Indian lunar missions.
+- The lessons and tools carry over to Earth observation from Indian satellites, where registration across sensors, times and resolutions is the same problem with an atmosphere added.
+- Everything is documented for a reader without remote-sensing background, so students can learn and extend it.
+
+11.3 For our team
+- We learned to work with real planetary archives, their formats and their errors, and to separate what we measured from what we assumed.
+- We built a reusable, tested pipeline and a process (phases, frozen interfaces, protected checks, external review) that we can apply to the next problem.
+
+
+12. FEASIBILITY AND RISKS
+
+Hardware: one laptop with an RTX 4060 (8 GB) is enough for everything up to Phase 3; Phase 4 adds a second machine with an RTX 3060. Data: 57 GB on disk, budget 120 GB.
+
+risk                                            mitigation
+Archive positions off by kilometres             coarse pass before fine matching (measured on real data)
+Strips that do not cross a reference site       site-agnostic pairing; catalogue search with a control set; per-pixel check after download
+Illumination differences                        neural matchers, contrast-normalised ECC, conditional illumination bridge
+GPU memory limits                               measured limits, tiling, out-of-memory as a classified outcome
+Matcher crashes on very large keypoint sets     measured BFMatcher limit, keypoint cap recorded in each result
+Over-trusting the inlier ratio or RMSE          uniformity gate, uncertainty map, checkerboard review
+ISRO portal access                              human-only downloads, manifest and verifier; public data used for demos when the portal is unreachable
+
+
+13. ALTERNATIVES WE CONSIDERED
+
+- Classical matching only: collapses under Sun-angle change (measured), so it is a baseline, not the solution.
+- Training a lunar-specific deep matcher: no public lunar correspondence ground truth; our metadata-based pseudo truth has a 23 m floor; training needs roughly 3 to 4 times inference memory, which an 8 GB card cannot provide at useful tile sizes. Kept as future work.
+- Commercial GIS auto-registration: tuned for Earth imagery with soft shadows and moderate scale ratios, closed source, and reports only the fitted-point RMSE.
+- Crater-based matching: strong where craters are clear, weak in shadowed polar terrain and between very different scales; usable later as an extra matcher behind the same interface.
+
+
+14. REFERENCES
+
+- ISRO SIH26166 problem statement, Smart India Hackathon.
+- Makharia et al., Comparative Evaluation of Traditional and Deep Learning Feature Matching Algorithms using Chandrayaan-2 Lunar Data, arXiv:2509.04775.
+- Lowe, Distinctive Image Features from Scale-Invariant Keypoints (SIFT), IJCV 2004.
+- Morel and Yu, ASIFT: A New Framework for Fully Affine Invariant Image Comparison, SIAM J. Imaging Sciences 2009.
+- Alcantarilla et al., Fast Explicit Diffusion for Accelerated Features in Nonlinear Scale Spaces (AKAZE), BMVC 2013.
+- Sun et al., LoFTR: Detector-Free Local Feature Matching with Transformers, CVPR 2021.
+- Lindenberger et al., LightGlue: Local Feature Matching at Light Speed, ICCV 2023.
+- Barath et al., MAGSAC++, CVPR 2020.
+- Evangelidis and Psarakis, Parametric Image Alignment using Enhanced Correlation Coefficient Maximization, IEEE TPAMI 2008.
+- PDS4 Standards Reference; ISRO Chandrayaan-2 OHRC, TMC-2 and IIRS archive software interface specifications (PRADAN).
+- LROC NAC and WAC data products (NASA PDS); SELENE Terrain Camera ortho maps (JAXA DARTS); NAIF SPICE generic kernels.
+
+
+15. WHERE EACH NUMBER COMES FROM
+
+OHRC to NAC results (6.1): results archive data/processed/results_archive_20260929/index.parquet (rows CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_*).
+Preset ablation (5.5): data/processed/ablation/ablation.json.
+SELENE and WAC results (6.2): data/processed/results/index.parquet, run record data/processed/demo_real/v2/run_record.json.
+Synthetic findings (1.2, 1.3, 5.7, 6.3): eval/error_budget.py and eval/uniformity.py runs, written up in udocs/50_findings.md and docs/MAKHARIA_PARITY.md.
+Archive findings (4.3): ingest/geometry_grid.py, ingest/manifest.py, Phase_1/LLD/lro_georeference.md, FABLE_NOTES.md.
+Distances of the first TMC-2 and IIRS strips (4.2): Phase_1/QUESTIONS.md Q-P1.18-1.
+Catalogue site search (4.2): .fable/site_overlaps_preview_20261002.json from .fable/ode_sdndtm_20261002.json.
+BFMatcher limit (5.6): Phase_1/LLD/asift_cap.md.
+Test count (2, 8): STATUS.md notes at P1.17 (scripts/ci.sh, 928 passed).
+Data volume (4.1, 12): du -sb data/raw on 2026-10-01, CLARIFY.md Q17.
+
+
+16. DESIGN DETAILS THAT DECIDE THE OUTCOME
+
+16.1 IIRS: a chain, never a direct jump
+
+IIRS (80 m) and OHRC (0.25 m) differ by 320 times in scale. No matcher bridges that, and no claim of IIRS-pixel to OHRC-pixel correspondence is physically meaningful: an IIRS pixel cannot be located better than its own footprint, and quantisation alone puts that at 80 / sqrt(12) = 23.09 m, which is 92 OHRC pixels (computed). So our design registers IIRS to a reference at its own scale and chains from there:
+
+IIRS (80 m) -> LRO WAC (100 m)         ratio 1.25, the route the published comparison used for IIRS (documented)
+IIRS (80 m) -> TMC-2 (5 m) or SELENE (7.4 m)   ratio 11 to 16, when no WAC is at hand
+TMC-2 (5 m) -> OHRC (0.25 m)           ratio 20, same modality, the existing pipeline path
+
+The pipeline already warns when a pair's scale ratio is above 8 (the single-hop limit), and a helper names the instrument to bridge through (for IIRS to OHRC it returns TMC-2). Turning that warning into an automatic chain is part of the TMC-2/IIRS work still to run.
+
+To turn a 256-band cube into one image that can be matched, we reduce bands by incremental PCA. It streams the cube in blocks of rows, so the whole cube is never in memory (built and tested). Two refinements are planned: fixing the sign of the first component, so that the image is not contrast-inverted from one product to the next, and restricting the reduction to the reflected-light bands (below about 2.5 micrometres), so that the heat signal of the long-wave bands does not dominate. The exact band split for IIRS still has to be verified against ISRO's documentation, which is now on disk. The physically better option, integrating the IIRS bands over the reference camera's spectral response to synthesise a band in the reference's own modality, depends on a response curve we have not yet found in the archive files, and is listed as an ablation arm.
+
+16.2 Sun geometry without guessing
+
+LRO's map products carry no Sun angles in their labels (we checked every label type). ISRO's OHRC labels carry an azimuth whose reference direction is not documented in any file we hold. So we compute the Sun's direction ourselves from NASA's SPICE toolkit and the three public generic kernels (leap seconds, lunar orientation and constants, planetary ephemeris DE440s), for the image time and the ground point: the Sun vector is converted to azimuth (clockwise from north) and elevation in the local horizon frame. Two independent cross-checks are recorded with it: the incidence angle that NASA's ODE catalogue lists for the same NAC frame (73.84 degrees for M1442997156LE, documented), and a fit of the NAC terrain model's shaded relief to the NAC image over all azimuths. From the SPICE values we also work out which of four possible conventions ISRO's label azimuth follows, rather than assuming one. Code and tests are done; the run that applies it to the Vikram strips is [INSERT RESULT].
+
+16.3 How we decide that a registration is correct
+
+A result is accepted only when all of these hold, and each one is stored with the result:
+1. the robust fit kept at least a minimum number of inliers (8 by default; the real Vikram pair had 140 to 2,180);
+2. the inliers are spread across the frame (uniformity gate);
+3. the bootstrap uncertainty across the frame is below its gate;
+4. ECC refinement either improved the alignment or was rejected with its reason (it is never allowed to jump far from the robust fit);
+5. different matchers agree on where the image corners go, within a stated number of pixels;
+6. a person has looked at the checkerboard overlay for the demo results.
+A result that fails any of these is still saved, with the failed check named, so the counts of each failure can be compared across matchers, presets and dates.
+
+16.4 What the pipeline does when something is missing
+
+- An instrument with no products on disk: reported as absent and counted; the run continues with the others.
+- A product with no geometry grid: falls back to label corners and is tagged so in every number derived from it.
+- A strip that does not overlap any reference: classified as disjoint with its distance to the nearest reference, never silently skipped.
+- A tile that does not fit in GPU memory: classified as out-of-memory and counted; the other tiles continue.
+- A reference whose georeference cannot be confirmed against its own label: used, but every result from it is tagged as inferred and, for a Chandrayaan-2 reference, as relative only.
+
+
+17. HOW TO REPRODUCE THE MAIN RESULTS
+
+The commands below run on the laptop described in section 12 with the project's virtual environment.
+
+- List what is on disk per instrument:   lunar-reg catalog
+- Inspect a product's label and what was resolved from it:   lunar-reg inspect <label.xml>
+- Show where every field mapping comes from:   lunar-reg fields
+- Register one pair with a chosen matcher and preset:   lunar-reg register <source> <reference> --matcher lightglue --preprocess ohrc_nac
+- Re-run the Vikram site (OHRC to NAC):   python scripts/run_vikram.py --only 20240425T1406019344 --matchers sift,akaze,asift,lightglue
+- Re-run the SELENE / WAC demonstration:   python scripts/run_jaxa.py --root data/processed/results
+- Preset ablation:   python scripts/run_ablation.py --anchor-tag 20240425T1406019344 --presets none,ohrc_nac,clahe_shadow
+- Verify every downloaded file against the manifest:   python scripts/verify_downloads.py
+- Browse results:   scripts/run_dashboard.sh
+- Full test suite:   scripts/ci.sh
+Every run writes a run record next to its outputs with the exact command, code version, host, GPU and the count of every outcome, so a reviewer can check that a number in this document came from the run it is attributed to.
+
+
+18. GLOSSARY
+
+registration - finding the geometric mapping that lays one image exactly on another.
+source image / reference image - the image being moved (Chandrayaan-2) and the trusted map it is moved onto (LRO, SELENE).
+correspondence / match point - a pair of pixel positions, one in each image, that show the same ground.
+inlier / outlier - a match consistent with the fitted transform / a match that is not.
+RMSE - root mean square of the distances between matched points after the transform; on real data without ground truth it is the fit's own residual.
+homography / affine - an 8-parameter perspective mapping / a 6-parameter mapping without perspective.
+RANSAC, MAGSAC++ - methods that fit a transform while ignoring wrong matches.
+ECC - Enhanced Correlation Coefficient, a refinement that aligns the brightness patterns directly to a fraction of a pixel.
+uniformity score - how evenly the inliers cover the frame (0 to 1), with a pass/fail gate.
+bootstrap uncertainty - the spread of predicted positions when the transform is refitted on resampled inliers; shows where the result can be trusted.
+pushbroom - a camera that builds an image one line at a time as the spacecraft moves, so there is no single viewpoint.
+geometry grid - ISRO's table of latitude and longitude for a regular grid of pixels in each calibrated product.
+GSD - ground sample distance, metres on the ground per pixel.
+PDS4 - the NASA/ISRO archive format; each product has an XML label describing its pixels.
+SPICE - NASA's toolkit for spacecraft and planetary positions; used here to compute the Sun's direction.
+provenance tag - a label on every number saying whether it was measured, computed, documented, inferred or unknown.
+
+
+19. DATA HANDLING AND RESPONSIBLE USE
+
+- ISRO's PRADAN portal is used by a team member by hand. No script logs in, no session cookie is stored, and the software never automates the portal. Our scripts only prepare the list of products and the exact steps to follow.
+- Public data (NASA PDS and ODE, JAXA DARTS, NAIF) is fetched by our own script, at a polite rate (at least 3 seconds between NASA requests and 30 seconds between JAXA requests, one attempt per file per session), and every file is recorded with its size and SHA-256 hash.
+- Raw data is never deleted or overwritten by the software. Outputs that are replaced are moved to an archive folder, not deleted.
+- Secrets (the queue password for the multi-machine setup, Phase 4) live in an environment file that is never committed. The planned multi-machine queue is bound to the local network with a password, and can be tunnelled over SSH or run with TLS on untrusted networks.
+- Licences are respected: SuperGlue is off by default because of its non-commercial licence, and any result made with it says so.
+- Large rasters are read in windows or decimated, never whole, so the software runs inside a 12 GB memory budget on a 15 GB laptop.
+
+
+20. WHAT WE WILL HAND OVER
+
+At the end of the project ISRO receives:
+1. the source code with its tests, under an open licence [INSERT LICENCE];
+2. a command-line tool and a Python package that register any Chandrayaan-2 product with a geometry grid to any reference listed in a configuration file;
+3. for every registered pair: the registered GeoTIFF, the match points, the transform and its uncertainty, and a metrics row with RMSE, inlier count, inlier ratio, uniformity and uncertainty;
+4. a failures table with the reason for every pair that did not register;
+5. the results viewers (dashboard and static web page);
+6. the measured findings listed in sections 4.3 and 6, each traceable to its run record;
+7. documentation written for a reader without remote-sensing background, from what registration is to how each stage works;
+8. the phase plans, review packs and review decisions, so that anyone can see how each part was checked.
+
+
+:::SUMMARY:::
+
+CHANDRALIPI - SUMMARY
+SIH26166 (ISRO): multi-modal, Sun-angle and scale invariant image correspondence for Chandrayaan-2 OHRC, TMC and IIRS
+Team: [TEAM NAME]
+
+1. VIDEO SUMMARY (what the 7-minute video shows)
+
+The video walks through one real registration, from raw archive files to a registered image, in the order the software works.
+
+- Data (0:30): the three Chandrayaan-2 optical instruments (OHRC 0.25 m, TMC-2 5 m, IIRS 80 m with about 256 bands) and the reference maps from NASA (LRO NAC 1 m, LRO WAC 100 m) and Japan (SELENE Terrain Camera 7.4 m). ISRO data is downloaded by hand; public data by a verified script, with every file hashed.
+- Finding overlap (1:20): why a latitude-longitude test over-states coverage near the poles by hundreds of kilometres, and how we test overlap in a proper map projection using ISRO's per-pixel position grid. A catalogue search finds 11 NASA map sites seen by all three Chandrayaan-2 instruments; Vikram is one.
+- Ingestion and preprocessing (2:10): labels read field by field with a provenance tag on every value; a measured preprocessing preset that raised SIFT from 58 to 163 inliers and AKAZE from 68 to 204 on the real Vikram pair.
+- Matching (3:00): SIFT, ASIFT, AKAZE, LightGlue and LoFTR behind one interface; a coarse pass that found the 2024 OHRC strip's recorded position off by 556 m east and 2,888 m south; tiling for full-resolution strips.
+- Registration (4:20): robust fitting with MAGSAC++, refit on inliers, ECC refinement; a checkerboard overlay where crater rims run straight across tile borders.
+- Output (5:20): registered GeoTIFF, match points, RMSE, inlier count, inlier ratio, plus a uniformity score and a bootstrap uncertainty map; failures saved with their reason.
+- Next steps (6:20): native 0.25 m refinement on the GPU, TMC-2 and IIRS over Vikram, and multi-GPU distribution across two machines.
+
+
+2. TEXT SUMMARY (the proposal in brief)
+
+The problem. ISRO asks for software that finds corresponding points between Chandrayaan-2 images and lunar reference maps with sub-pixel accuracy and with the points spread across the whole image. Three things make it hard: the Sun angle changes how terrain looks (shadows are black and swap sides), the instruments differ in scale by up to 320 times, and IIRS sees partly reflected light and partly heat. A fourth difficulty dominated our work: the positions recorded in the archive are predictions and can be kilometres off.
+
+Our central finding. The RMSE that published lunar work reports is the residual of a fit on its own points, and it is nearly blind to where those points are. On synthetic data with a known answer, moving the same 400 points from an even grid into a tight blob changed the RMSE by 4 percent and the real worst-case error by 51 times. That is why ISRO's requirement mentions uniform distribution, and why we accept a registration only when its points are spread across the frame and its bootstrap uncertainty is small, reported next to the RMSE.
+
+What works on real data today.
+- OHRC to LRO NAC at the Vikram landing site (2024-04-25 strip, 4 m working scale): four matchers registered it. ASIFT kept 2,180 inliers with a bootstrap uncertainty of 0.12 px; LightGlue 808 inliers with a fit RMSE of 0.99 px; all four passed the uniformity gate.
+- JAXA SELENE to SELENE: all five matchers pass both gates, fit RMSE 0.56 to 0.71 px at 38.4 m per pixel.
+- JAXA SELENE to NASA LRO WAC, two agencies and two cameras: SIFT, LoFTR and LightGlue pass both gates; ASIFT and AKAZE do not, and the result says so.
+
+What we measured on synthetic data with a known answer.
+- SIFT's correct matches fall from 228 to 4 to 0 as the Sun direction changes by 15, 30 and 60 degrees.
+- After ECC refinement, four different matchers converge to the same final error; normalising local contrast first cut the 30-degree error 4.8 times.
+- A four-corner perspective model of an OHRC strip is 639 m wrong against ISRO's per-pixel geometry grid; bounding boxes over-state footprints up to 4.2 times.
+
+What is new.
+- Acceptance by distribution and uncertainty, not by residual alone.
+- Find the image first (coarse pass), then register it; this recovered a 2.9 km offset on real data.
+- Pushbroom geometry from ISRO's own per-pixel grid.
+- Prior-rectified tiling for full-resolution strips (prototype: 0.10 px median raw-match error on a synthetic scene).
+- Pairing of any product with any reference, correct at the poles, driven by a configuration file.
+- Sun geometry computed from NASA's SPICE ephemeris, with independent cross-checks.
+- A conditional illumination bridge that renders the reference terrain under the source image's Sun.
+- Every failure classified and counted; every number tagged with where it came from.
+
+Honest limits. Our real-data accuracy figures are fit residuals at a 4 m working scale; native 0.25 m refinement is the next step [INSERT RESULT]. TMC-2 and IIRS have no real registration yet: the first strips we downloaded are 529 to 652 km from the reference site, and the replacement strips are identified. Real data has no ground truth, so accuracy claims rest on synthetic scenes and are labelled that way.
+
+
+3. PROJECT SUMMARY
+
+Chandralipi is an open Python pipeline with a command-line tool, a results store and two viewers. For each pair of images it reads the archive labels, locates the image on the reference, preprocesses, matches with classical and neural matchers, fits and refines the transform, and evaluates and stores the result. Every output ISRO asked for is produced: the registered GeoTIFF, the match points, RMSE, inlier count and inlier ratio, plus uniformity and uncertainty.
+
+The engineering is built to be trusted. More than 900 automated tests run on every change (928 at the last recorded run). The work is split into six phases and 76 small, checked steps; the checks are protected by checksums so they cannot be quietly weakened, and each phase ends with a review. Every run writes a record of the exact command, code version, machine, GPU and outcome counts. About 57 GB of real data is on disk, every file hashed in a manifest.
+
+Status: Phase 0 (correctness of the core) is done and approved. Phase 1 (the real Chandrayaan-2 pipeline) is in progress, 19 of 27 steps done. Planned next: GPU and native-resolution refinement (Phase 2), the illumination bridge if needed (Phase 1B), and distribution of tiles across one and then two GPU machines with a fault-tolerant job queue (Phases 3 and 4).
+
+Hardware: one laptop with an RTX 4060 (8 GB) for everything up to Phase 3, plus a second machine with an RTX 3060 for Phase 4.
+
+
+4. HOW IT HELPS
+
+ISRO
+- Places Chandrayaan-2 images precisely on established lunar maps, which improves mosaics, change detection, landing-site work and comparison with other missions.
+- Measures the archive's own position errors: on one strip we found a 2.9 km offset between the recorded and the matched position. Run across the archive, the same tool can report that offset for every product.
+- Gives a way to judge any registration result, ours or a commercial tool's, by how its points are spread and how uncertain it is across the image, not by RMSE alone.
+- Runs on an ordinary laptop GPU and scales to more machines, so it does not need a data centre.
+
+India
+- Makes Indian lunar data easier to combine with NASA and JAXA data, which raises its scientific value and supports planning of future Indian lunar missions.
+- The same methods apply to Earth observation from Indian satellites, where matching across sensors, dates and resolutions is the same problem.
+- The documentation is written for a reader without remote-sensing background, so students can learn from it and extend it.
+
+Our team
+- We learned to work with real planetary archives, their formats and their errors, and to keep what we measured separate from what we assumed.
+- We built a tested, reusable pipeline and a working process (phases, frozen interfaces, protected checks, external review) that we can take to the next problem.
+- We found and fixed real problems on first contact with real data: a 639 m geometry error, a 4.2 times footprint inflation, a GDAL unit mistake in a NASA map, and catalogue coverage claims that were off by hundreds of kilometres.
+
+
+5. KEY NUMBERS AT A GLANCE (each from a real run; kind of evidence in brackets)
+
+OHRC strip registered to the LRO NAC 1 m map at Vikram:   4 of 4 matchers [real]
+Inliers on that pair:   140 (SIFT), 144 (AKAZE), 808 (LightGlue), 2,180 (ASIFT) [real]
+Fit RMSE on that pair at 4 m per pixel:   0.88 to 1.28 px [real, self-residual]
+Uniformity on that pair:   0.83 to 0.99, all pass [real]
+Archive position error found by the coarse pass:   556 m east, 2,888 m south [real]
+Preset gain on that pair:   SIFT 58 to 163 inliers, AKAZE 68 to 204 [real]
+SELENE to SELENE:   5 of 5 matchers pass both gates, RMSE 0.56 to 0.71 px [real]
+SELENE to LRO WAC:   3 of 5 matchers pass both gates [real]
+RMSE versus true error when points cluster:   RMSE +4 percent, true worst-case error 51 times [synthetic, known answer]
+SIFT correct matches at 15 / 30 / 60 degrees Sun change:   228 / 4 / 0 [synthetic, known answer]
+Contrast-normalised ECC at 30 degrees Sun change:   0.30 to 0.06 px median, 4.8 times better [synthetic, known answer]
+Four-corner model versus ISRO's per-pixel grid:   639 m median disagreement [real]
+Footprint inflation from bounding boxes:   up to 4.2 times [real]
+NASA NAC map sites covered by OHRC, TMC-2 and IIRS together:   11 of 668, catalogue outlines, accurate to about 8 km [real catalogues]
+OpenCV brute-force matcher limit that crashed ASIFT:   262,143 reference descriptors [measured]
+Automated tests passing:   928 [real]
+Raw data on disk:   about 57 GB, every file hashed [real]
+Native 0.25 m OHRC accuracy:   [INSERT RESULT]
+TMC-2 and IIRS registered to an independent reference:   [INSERT RESULT]

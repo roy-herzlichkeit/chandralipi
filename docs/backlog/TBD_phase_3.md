@@ -55,7 +55,7 @@ host-RSS proxies.
 ## 3.5 Classified outcomes carried through the queue
 - **File(s):** extends whatever failure-classification exists today in
   `pipeline.py` / `overlap.py` (`OverlapStatus`) to the queue path.
-- **Required, per this project's standing rule** (`CONTEXT.md` §3.2, and
+- **Required, per this project's standing rule** (`docs/project/CONTEXT.md` §3.2, and
   restated for the distributed case in the design doc Part 5): every job ends
   in exactly one outcome from `OK / NO_MATCHES / DEGENERATE_OVERLAP /
   READ_FAILED / OOM / WORKER_LOST / TIMEOUT`, counted and sampled, printed on

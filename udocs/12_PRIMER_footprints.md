@@ -97,7 +97,7 @@ was already traversing `1, 2, 4, 3` correctly. My throwaway test had bypassed
 the pipeline and assembled the ring by hand in naive numeric order, so the bug
 was in the test, and the "measurement" measured my own mistake.
 
-The retraction is preserved in `CONTEXT_HANDOFF.md` §1.1 rather than deleted,
+The retraction is preserved in `docs/project/CONTEXT_HANDOFF.md` §1.1 rather than deleted,
 because a later reader needs to know the claim was made and withdrawn. A silently
 deleted false alarm is worse than a documented one — someone finds the old
 statement somewhere and acts on it.

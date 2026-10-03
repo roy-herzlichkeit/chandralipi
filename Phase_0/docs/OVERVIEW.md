@@ -4,7 +4,7 @@
 **Image registration** means finding where each pixel of one picture sits in another picture of the same ground. Here the "source" picture is from **OHRC** (the Orbiter High Resolution Camera on India's Chandrayaan-2, 0.25 m per pixel) and the "reference" picture is an **LRO NAC orthoimage** (a NASA map of the Moon's surface, 1 m per pixel, already placed on a map grid). The pipeline finds **correspondences** (pairs of points that show the same crater edge in both pictures), fits a **transform** (a small matrix that maps any source pixel to a reference pixel), and refines it.
 
 ## Why Phase 0 exists
-Before any new feature, the code had defects that change the numbers it stores. Examples, each with its audit ID in `AUDIT.md`:
+Before any new feature, the code had defects that change the numbers it stores. Examples, each with its audit ID in `docs/plan/AUDIT.md`:
 
 | defect | plain-language effect | example |
 |---|---|---|

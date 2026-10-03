@@ -1,6 +1,6 @@
 # PHASES — plan of record
 
-Order (G01): **0 → 1 → 2 → 1B → 3 → 4**. Each phase ends at a human review gate (tag `phase-<i>-approved`, G29). Contract IDs → `CONTRACTS.md`. Defect IDs (A###) → `AUDIT.md`. The file-ownership table (§3) is binding: a prompt may create, modify or delete only the files listed for it, plus new test files `tests/test_*.py`.
+Order (G01): **0 → 1 → 2 → 1B → 3 → 4**. Each phase ends at a human review gate (tag `phase-<i>-approved`, G29). Contract IDs → `docs/plan/CONTRACTS.md`. Defect IDs (A###) → `docs/plan/AUDIT.md`. The file-ownership table (§3) is binding: a prompt may create, modify or delete only the files listed for it, plus new test files `tests/test_*.py`.
 
 ## 1. Summary
 
@@ -20,7 +20,7 @@ Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 | item | rule |
 |---|---|
 | review gate | After the last prompt of phase i, Opus runs §Phase end of `CLAUDE.md` and stops. Phase i+1's `.00` preflight fails unless tag `phase-<i>-approved` exists. 1B needs `phase-2-approved`. Phase 3 needs `phase-1B-approved` (given after a built 1B, or after the one-commit skip branch of G02). |
-| P1.DL | Out-of-sequence, human-in-the-loop download session (G12). Runs at any time once `Phase_1/` exists, including before Phase 0 is approved. Writes only `data/raw/**` and `data/raw/DOWNLOADS.json`; never changes `STATUS.md` or git. |
+| P1.DL | Out-of-sequence, human-in-the-loop download session (G12). Runs at any time once `Phase_1/` exists, including before Phase 0 is approved. Writes only `data/raw/**` and `data/raw/DOWNLOADS.json`; never changes `docs/plan/STATUS.md` or git. |
 | RUN prompts | P1.18, P1.19, P1.20, P2.04, P2.11, P1B.06, P3.09, P4.06 execute pipelines on real data (G22). Their checks validate `run_record.json` (C15) and artefacts, never wall-clock. |
 | GPU prompts | P2.04, P2.11, P3.09, P4.06 need CUDA. If `torch.cuda.is_available()` is False they write a BLOCKER and stop. |
 | data prompts | P1.18, P1.19 and P1.20 need the 4 OHRC `nrp` strips + NAC ortho + NAC DTM on disk (present 2026-09-29). Missing IIRS / TMC-2 / OHRC `ncp` never blocks (G24); tests needing them are `@pytest.mark.data` and skip with a reason. |
@@ -28,12 +28,12 @@ Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 
 ## 3. Prompt list and file ownership
 
-`+` creates, `~` modifies, `−` deletes. Audit IDs closed by the prompt are in `AUDIT.md` (column `prompt`).
+`+` creates, `~` modifies, `−` deletes. Audit IDs closed by the prompt are in `docs/plan/AUDIT.md` (column `prompt`).
 
 ### Phase 0
 | id | title | files |
 |---|---|---|
-| P0.00 | preflight | STATUS.md ~ |
+| P0.00 | preflight | docs/plan/STATUS.md ~ |
 | P0.01 | test runner + CI baseline | pyproject.toml ~, scripts/ci.sh +, .github/workflows/ci.yml +, scripts/untar_data.py +, scripts/setup.sh ~ |
 | P0.02 | learned matchers merge | src/lunar_reg/match/learned.py ~, src/lunar_reg/match/loftr.py −, src/lunar_reg/match/superglue.py ~, src/lunar_reg/match/__init__.py ~, src/lunar_reg/match/classical.py ~, src/lunar_reg/match/stitch.py ~ (docstring only) |
 | P0.03 | dedupe shadow_mask and scale_ratio | src/lunar_reg/preprocess/radiometric.py ~, src/lunar_reg/preprocess/__init__.py ~, src/lunar_reg/constants.py ~, src/lunar_reg/ingest/pseudo_gt.py ~ |
@@ -50,7 +50,7 @@ Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 ### Phase 1
 | id | title | files |
 |---|---|---|
-| P1.00 | preflight | STATUS.md ~ |
+| P1.00 | preflight | docs/plan/STATUS.md ~ |
 | P1.DL | download session (out of sequence) | data/raw/** +, data/raw/DOWNLOADS.json + |
 | P1.01 | downloads manifest + verifier | src/lunar_reg/ingest/downloads.py +, scripts/verify_downloads.py + |
 | P1.02 | public fetch script (+ run step) | scripts/fetch_public.py +, data/raw/** + (run step) |
@@ -75,13 +75,13 @@ Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 | P1.19 | RUN: apply preset default + anchor into live store | src/lunar_reg/pipeline.py ~, docs/PREPROCESS_ABLATION.md +, data/processed/** (artefacts only) |
 | P1.20 | RUN: 2023 diagnosis + exp-1 gate | data/processed/vikram/** +, docs/VIKRAM_2023_DIAGNOSIS.md + |
 | P1.21 | viewers | scripts/export_web_data.py ~, dashboard/app.py ~, src/lunar_reg/viz/figures.py ~, scripts/reindex_results.py ~, scripts/demo.py ~ |
-| P1.22 | docs + status refresh | README.md ~, CONTEXT.md ~, CONTEXT_HANDOFF.md ~, docs/results/ + |
+| P1.22 | docs + status refresh | README.md ~, docs/project/CONTEXT.md ~, docs/project/CONTEXT_HANDOFF.md ~, docs/results/ + |
 | P1.23 | code docstrings + script hints | scripts/setup.sh ~, scripts/up.sh ~, scripts/run_dashboard.sh ~, .gitignore ~, src/lunar_reg/ingest/__init__.py ~, src/lunar_reg/ingest/fieldmap.py ~, src/lunar_reg/ingest/manifest.py ~, src/lunar_reg/preprocess/config.py ~ (docstrings/comments only) |
 
 ### Phase 2
 | id | title | files |
 |---|---|---|
-| P2.00 | preflight (CUDA live) | STATUS.md ~ |
+| P2.00 | preflight (CUDA live) | docs/plan/STATUS.md ~ |
 | P2.01 | CUDA setup + free memory | scripts/setup.sh ~, src/lunar_reg/device.py ~, README.md ~, scripts/README.md ~ |
 | P2.02 | device profiles | src/lunar_reg/device.py ~, configs/device_profiles/README.md + |
 | P2.03 | benchmark CLI | src/lunar_reg/cli.py ~, src/lunar_reg/match/benchmark.py ~, src/lunar_reg/match/memory.py ~ |
@@ -97,7 +97,7 @@ Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 ### Phase 1B
 | id | title | files |
 |---|---|---|
-| P1B.00 | preflight + exp-1 gate | STATUS.md ~, Phase_1B/SKIPPED.md + (only when the gate says SKIP_1B) |
+| P1B.00 | preflight + exp-1 gate | docs/plan/STATUS.md ~, Phase_1B/SKIPPED.md + (only when the gate says SKIP_1B) |
 | P1B.01 | DTM shaded-relief renderer | src/lunar_reg/eval/render.py +, src/lunar_reg/eval/scenes.py ~ |
 | P1B.02 | rendered reference preparation | src/lunar_reg/pairs.py ~ |
 | P1B.03 | pooled multi-matcher consensus | src/lunar_reg/consensus.py + |
@@ -108,7 +108,7 @@ Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 ### Phase 3
 | id | title | files |
 |---|---|---|
-| P3.00 | preflight | STATUS.md ~ |
+| P3.00 | preflight | docs/plan/STATUS.md ~ |
 | P3.01 | job descriptor | src/lunar_reg/distributed/__init__.py +, src/lunar_reg/distributed/job.py + |
 | P3.02 | job outcomes + result files | src/lunar_reg/distributed/outcome.py + |
 | P3.03 | planner | src/lunar_reg/distributed/planner.py + |
@@ -122,7 +122,7 @@ Total prompts: **76** (13 + 27 + 12 + 7 + 10 + 7). P1.DL is out of sequence and 
 ### Phase 4
 | id | title | files |
 |---|---|---|
-| P4.00 | preflight (hosts + redis) | STATUS.md ~ |
+| P4.00 | preflight (hosts + redis) | docs/plan/STATUS.md ~ |
 | P4.01 | Redis Streams queue | src/lunar_reg/distributed/redis_queue.py +, pyproject.toml ~ |
 | P4.02 | node-local cache + byte accounting | src/lunar_reg/distributed/cache.py +, src/lunar_reg/distributed/worker.py ~ |
 | P4.03 | capacity-aware routing | src/lunar_reg/distributed/scheduler.py +, src/lunar_reg/distributed/planner.py ~ |

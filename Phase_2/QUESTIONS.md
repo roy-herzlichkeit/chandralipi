@@ -3,7 +3,7 @@
 Implementers append entries here (format in root `CLAUDE.md` §Doubts). Empty at plan time.
 
 ## Q-P2.02-1  DeviceProfile carries an appended `extra: dict` field (not in the C16 dataclass)
-context: CONTRACTS.md C16 (`DeviceProfile` fields `slug, device_name, total_bytes, matchers, measured_utc, source, path`); src/lunar_reg/device.py `DeviceProfile`
+context: docs/plan/CONTRACTS.md C16 (`DeviceProfile` fields `slug, device_name, total_bytes, matchers, measured_utc, source, path`); src/lunar_reg/device.py `DeviceProfile`
 question: C16's JSON has `free_bytes_at_measure`, `torch`, `cuda`, `driver`, `run_record` but the dataclass has no field for them, so `load` then `save` would drop them and write a file that is no longer C16-complete. Is an appended `extra: dict = field(default_factory=dict)` (holding every non-dataclass key, written back by `save` in C16 key order) acceptable, or should these become named fields?
 what I did meanwhile: appended `extra` after `path` (all C16 fields keep their names, order and defaults), plus helper methods `to_dict()` and `entry(matcher, precision)`. Reversible: P2.03 can read/write the same keys through `extra`; promoting them to named fields later only changes the dataclass.
 
@@ -18,7 +18,7 @@ question: the LLD says "the profile whose device_name equals the CUDA device nam
 what I did meanwhile: implemented that rule. Invalid profile files raise `ValueError` (not skipped). A relative `root` that does not exist under the CWD is also tried under the repo root, so the default `configs/device_profiles` works from any working directory. Reversible: local to `load_profile_for`.
 
 ## Q-P2.02-4  `LoFTRMatcher.max_tile_px` drops `TileBudget.fits` (AUDIT A126 caller side)
-context: src/lunar_reg/match/learned.py:112 (`return plan_dense_tile(self.device, self.precision, self.name).tile_px`); AUDIT.md A126 ("have callers refuse or warn loudly when it is False"); Phase_2/LLD/device.md §P2.02
+context: src/lunar_reg/match/learned.py:112 (`return plan_dense_tile(self.device, self.precision, self.name).tile_px`); docs/plan/AUDIT.md A126 ("have callers refuse or warn loudly when it is False"); Phase_2/LLD/device.md §P2.02
 question: P2.02 adds `fits` but its DO fence covers only device.py, the profile README and tests, and no later Phase 2 LLD or prompt names this caller. On a GPU with too little free memory LoFTR still gets the 256-px floor tile with no warning. Which prompt should make `max_tile_px` (or `TiledMatcher`/`register_pair`, which P2.05/P2.06 touch) log a WARNING or classify the run (e.g. `RunStatus.OOM`/a `TileStatus`) when `not budget.fits`?
 what I did meanwhile: nothing in learned.py (outside the fence). `plan_dense_tile` and `DeviceProfile.plan_tile` return `fits=False` (also for a 0-byte, i.e. UNKNOWN, reading) and `TileBudget.__str__` says "DOES NOT FIT". Reversible: a few lines in the caller.
 
@@ -68,7 +68,7 @@ question: item 5 moved learned.py (LoFTR, DISK+LightGlue) to "empty_cache only w
 what I did meanwhile: nothing in superglue.py. register_pair still classifies a SuperGlue `torch.OutOfMemoryError` as OOM and empties the cache after it. Reversible.
 
 ## Q-P2.06-1  TiledMatcher's default `tile_px` now leaves room for the two rectification margins
-context: src/lunar_reg/match/tiled.py `TiledMatcher.__init__`; Phase_2/LLD/tiling.md §P2.06 steps 2 and "Learned-matcher fixes" (A080); CONTRACTS.md C18 (`tile_px=None`)
+context: src/lunar_reg/match/tiled.py `TiledMatcher.__init__`; Phase_2/LLD/tiling.md §P2.06 steps 2 and "Learned-matcher fixes" (A080); docs/plan/CONTRACTS.md C18 (`tile_px=None`)
 question: the rectified reference patch is `tile_px + 2 * ref_margin_px` on a side, and P2.06 makes `LoFTRMatcher.match` refuse a reference above `max_tile_px`. With the old default (`tile_px = matcher.max_tile_px`) every LoFTR tile would be MATCHER_ERROR. Is defaulting to `max(64, max_tile_px - 2 * ref_margin_px)` (640 when the matcher advertises no limit, as before) the intended reading?
 what I did meanwhile: implemented that default; an explicit `tile_px` is used unchanged (a caller passing `tile_px = max_tile_px` with LoFTR gets every tile classified MATCHER_ERROR, visible in `report()`). Reversible: one expression in `__init__`.
 
@@ -78,7 +78,7 @@ question: C18 freezes only `match_arrays`. Are these choices acceptable? (a) sig
 what I did meanwhile: implemented (a)–(c). No caller of `match_datasets` exists yet. Reversible: local to tiled.py.
 
 ## Q-P2.06-3  Tile-outcome details the LLD leaves open
-context: src/lunar_reg/match/tiled.py `TileStatus`, `TileDiagnostics`, `_match_tile`; CONTRACTS.md C18; Phase_0/skills/classified-outcomes/SKILL.md
+context: src/lunar_reg/match/tiled.py `TileStatus`, `TileDiagnostics`, `_match_tile`; docs/plan/CONTRACTS.md C18; Phase_0/skills/classified-outcomes/SKILL.md
 question: are these choices acceptable? (a) `TileStatus.is_failure` (and `n_failed`) counts only MATCHER_ERROR and OOM; EMPTY is "matcher ran, found nothing", OUT_OF_REFERENCE and SKIPPED_NODATA are data gaps, and `report()` says so in words; (b) `TileOutcome.index` is the tile's position in `plan_tiles` order (an int, per test_C18_members), not `Tile.index` (a `(row, col)` tuple); windows are `(row_off, col_off, height, width)`; (c) `n_matches` is the count the tile contributed after the per-tile cap, with `detail = "capped from <raw>"` when the cap applied; (d) the source tile's valid fraction is checked before the reference is rectified (same status; only the detail text says which side was short); (e) the `except torch.OutOfMemoryError` clause comes before `except Exception` and resolves torch through `sys.modules`, so CPU-only callers never import torch; (f) the summary log line is WARNING when any tile failed, INFO otherwise; (g) `prior` and `offset_prior` together raise ValueError. stitch.py is unchanged (`StitchStats.n_tiles` still counts tiles that contributed matches; the total is in `last_diagnostics`).
 what I did meanwhile: implemented (a)–(g). No script prints `report()` yet because no script calls TiledMatcher; the first caller (P2.08/P2.10) must print `tm.last_diagnostics.report()` on every run. Reversible: local to tiled.py.
 

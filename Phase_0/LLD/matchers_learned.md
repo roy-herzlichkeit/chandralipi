@@ -1,7 +1,7 @@
 # LLD — learned matchers merge (P0.02)
 
 Closes: A001 (match-1), A002 (match-2), A013 (S16 matchers), A014 (match-9, matcher side), A015 (match-10), A016 (match-15, P0 part), A089 (match-14).
-Evidence for every bug: `AUDIT.md` rows above; kornia facts: `.fable/research_20260929.json` entry "kornia 0.8.3 LoFTR / DISK / LightGlueMatcher".
+Evidence for every bug: `docs/plan/AUDIT.md` rows above; kornia facts: `.fable/research_20260929.json` entry "kornia 0.8.3 LoFTR / DISK / LightGlueMatcher".
 
 ## 1. Files
 | file | action |

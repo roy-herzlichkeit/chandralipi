@@ -1,4 +1,4 @@
-# CONTEXT.md — Chandralipi
+# docs/project/CONTEXT.md — Chandralipi
 
 Entry point for a reader with no prior exposure to this project. Written for a
 model or engineer picking it up cold.
@@ -11,20 +11,20 @@ model or engineer picking it up cold.
 | **Language** | Python 3.10+, package `src/lunar_reg/` |
 | **Tests** | `bash scripts/ci.sh` (ruff + CPU suite); last saved run: 984 passed, 21 deselected, ruff clean (`docs/results/ci_20261002.txt`) |
 | **Size** | [INSERT RESULT] (no run artefact records the line count) |
-| **Review** | `FABLE_REVIEW.md` — ten open questions for an adversarial second pass; four are scoped in as the current pass |
+| **Review** | `docs/plan/FABLE_REVIEW.md` — ten open questions for an adversarial second pass; four are scoped in as the current pass |
 
 ## Where to look first
 
 | Document | Contains |
 |---|---|
-| **`CONTEXT_HANDOFF.md`** | **The detailed status review.** Known data issues, known result issues, what needs a human decision, current metrics. Read this second. |
-| `TIMELINE.md` | How the project got here, phase by phase, reconstructed from the development transcript |
+| **`docs/project/CONTEXT_HANDOFF.md`** | **The detailed status review.** Known data issues, known result issues, what needs a human decision, current metrics. Read this second. |
+| `docs/project/TIMELINE.md` | How the project got here, phase by phase, reconstructed from the development transcript |
 | `docs/CROSS_MODAL_IIRS.md` | IIRS↔panchromatic architecture; every claim tagged PAPER / MEASURED / EXTRAPOLATION / UNVERIFIED |
 | `docs/MAKHARIA_PARITY.md` | Why our numbers cannot be placed beside the closest published work's |
 | `docs/REPORT_SECTION.md` | Draft results section for submission |
 | `docs/VRAM_CONSTRAINTS.md` | Measured tiling limits |
 | `web/DESIGN.md` | Showcase site visual system |
-| **`FABLE_REVIEW.md`** | **Ten open questions for an adversarial second pass**, each with the code path, why it is uncertain, and what a useful answer looks like. Carries an explicit budget: four questions are in scope, the rest are recorded for a later reviewer. Read this if you are the reviewer. |
+| **`docs/plan/FABLE_REVIEW.md`** | **Ten open questions for an adversarial second pass**, each with the code path, why it is uncertain, and what a useful answer looks like. Carries an explicit budget: four questions are in scope, the rest are recorded for a later reviewer. Read this if you are the reviewer. |
 | `udocs/` | Eighteen learning notes for a software engineer with no domain background. Gitignored; not part of the deliverable. Includes `60_MATHS.md` (every formula derived), `61_ML_and_where_it_fits.md` (what learning is used and what would help), `70_SYSTEM_DESIGN_distributed_gpu.md` (a scale-out design, **not built**). |
 
 ## The one-paragraph state
@@ -53,7 +53,7 @@ showcase. Status as of 2026-10-02, each item from the artefact it cites:
   (`docs/results/live_store_20261002.txt`); IIRS ↔ optical is still open.
 - **JAXA/NASA substitute (2026-09-08/09).** Run while PRADAN was unreachable;
   write-up in `docs/results/jaxa_wac_2026-09-08.md`, summarised in
-  `CONTEXT_HANDOFF.md` §7.
+  `docs/project/CONTEXT_HANDOFF.md` §7.
 
 Self-residual numbers on real pairs are fit agreement, not accuracy: no real
 pair has ground truth.
@@ -93,7 +93,7 @@ These are not style preferences; violating them has caused real bugs here.
 
 3. **Numbers come from runs.** No figure is stated that has not been produced.
    Where something cannot be measured on this hardware, that is said rather than
-   estimated — see the VRAM section of `CONTEXT_HANDOFF.md` for the clearest
+   estimated — see the VRAM section of `docs/project/CONTEXT_HANDOFF.md` for the clearest
    example, and `ingest/pseudo_gt.py::estimate_confidence`, which returns `None`
    for a total rather than summing over unknown terms.
 
@@ -128,6 +128,6 @@ These are not style preferences; violating them has caused real bugs here.
 
 ## Immediate next steps
 
-The phased plan carries them: `PHASES.md` lists the phases and `STATUS.md`
+The phased plan carries them: `docs/plan/PHASES.md` lists the phases and `docs/plan/STATUS.md`
 names the current prompt. The exp-1 gate decision that opens Phase 1B is in
 `data/processed/vikram/exp1_gate.json`.

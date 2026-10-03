@@ -1,6 +1,6 @@
 # HLD — Chandralipi target architecture
 
-Scope: the state after Phases 0 → 1 → 2 → 1B → 3 → 4 (`PHASES.md`). Decisions: `DECISIONS.md`. Frozen interfaces: `CONTRACTS.md` (IDs `C<nn>`). Defects driving the work: `AUDIT.md`.
+Scope: the state after Phases 0 → 1 → 2 → 1B → 3 → 4 (`docs/plan/PHASES.md`). Decisions: `docs/plan/DECISIONS.md`. Frozen interfaces: `docs/plan/CONTRACTS.md` (IDs `C<nn>`). Defects driving the work: `docs/plan/AUDIT.md`.
 
 ## 1. Components
 

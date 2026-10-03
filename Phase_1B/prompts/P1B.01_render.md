@@ -1,6 +1,6 @@
 # P1B.01 — DTM shaded-relief renderer
 DEPENDS ON: P1B.00
-LOAD: `CONTRACTS.md` (C21 render), `Phase_1B/LLD/render.md`, `src/lunar_reg/ingest/sun.py`, `src/lunar_reg/eval/scenes.py`
+LOAD: `docs/plan/CONTRACTS.md` (C21 render), `Phase_1B/LLD/render.md`, `src/lunar_reg/ingest/sun.py`, `src/lunar_reg/eval/scenes.py`
 GOAL: Render the NAC DTM as shaded relief with cast shadows under any sun direction.
 DO:
 1. Create `src/lunar_reg/eval/render.py` per LLD §1.

@@ -5,8 +5,8 @@ Snapshot generated 2026-09-28 23:49 IST at commit `bbf9585` ("Register Chandraya
 The working tree had uncommitted changes when this snapshot was taken (`git status --short`, excluding this file):
 
 ```
- M CONTEXT.md
- M CONTEXT_HANDOFF.md
+ M docs/project/CONTEXT.md
+ M docs/project/CONTEXT_HANDOFF.md
  M docs/DEMO_SCRIPT.md
  M scripts/export_web_data.py
  M udocs/50_findings.md
@@ -338,19 +338,19 @@ Directories at depth 4 whose contents lie deeper show a file count instead. Ever
 ├── .env
 ├── .gitignore
 ├── CLAUDE.md
-├── CONTEXT.md
-├── CONTEXT_HANDOFF.md
-├── FABLE_REVIEW.md
+├── docs/project/CONTEXT.md
+├── docs/project/CONTEXT_HANDOFF.md
+├── docs/plan/FABLE_REVIEW.md
 ├── pyproject.toml
 ├── README.md
-├── README_TITLE.md
-├── TBD_phase_1.md
-├── TBD_phase_2.md
-├── TBD_phase_3.md
-├── TBD_phase_4.md
-├── TBD_phase_5.md
-├── TBDs.md
-└── TIMELINE.md
+├── docs/project/README_TITLE.md
+├── docs/backlog/TBD_phase_1.md
+├── docs/backlog/TBD_phase_2.md
+├── docs/backlog/TBD_phase_3.md
+├── docs/backlog/TBD_phase_4.md
+├── docs/backlog/TBD_phase_5.md
+├── docs/backlog/TBDs.md
+└── docs/project/TIMELINE.md
 ```
 
 ## 2. Files
@@ -373,8 +373,8 @@ One row per file, excluding the skipped directories (516 files).
 | `.claude/settings.local.json` | 11 | * Claude Code local settings (single top-level key: `permissions`) |
 | `configs/default.yaml` | 36 | Default pipeline configuration (per its header comment) |
 | `CLAUDE.md` | 73 | * Instructions file for Claude sessions (sections: ROLE, MEMORY, TOKEN ECONOMY, …); untracked, created 23:47:56 during this snapshot |
-| `CONTEXT_HANDOFF.md` | 677 | Chandralipi — context handoff |
-| `CONTEXT.md` | 129 | CONTEXT.md — Chandralipi |
+| `docs/project/CONTEXT_HANDOFF.md` | 677 | Chandralipi — context handoff |
+| `docs/project/CONTEXT.md` | 129 | docs/project/CONTEXT.md — Chandralipi |
 | `dashboard/app.py` | 321 | Interactive browser for the registration pipeline's outputs |
 | `data/processed/demo_real/JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_01_matches.png` | binary | * matches figure for result `JAXA_SELENE_TC-JAXA_SELENE_TC_akaze` (filenames match `scripts/demo.py` figure names) |
 | `data/processed/demo_real/JAXA_SELENE_TC-JAXA_SELENE_TC_akaze_02_checkerboard.png` | binary | * checkerboard figure for result `JAXA_SELENE_TC-JAXA_SELENE_TC_akaze` (filenames match `scripts/demo.py` figure names) |
@@ -520,7 +520,7 @@ One row per file, excluding the skipped directories (516 files).
 | `docs/REPORT_SECTION.md` | 147 | Results, and how they relate to prior work |
 | `docs/VRAM_CONSTRAINTS.md` | 111 | Memory constraints on an 8 GB RTX 4060 |
 | `.env` | 1 | * Local environment variables (gitignored; contents not reproduced) |
-| `FABLE_REVIEW.md` | 467 | Review brief for Fable |
+| `docs/plan/FABLE_REVIEW.md` | 467 | Review brief for Fable |
 | `gdocs/01_WHY_THIS_PROBLEM_STATEMENT_EXISTS.md` | 226 | 01 · Why this problem statement exists |
 | `gdocs/02_PURPOSE_OF_THE_PROJECT.md` | 201 | 02 · The purpose of this project |
 | `gdocs/03_WHY_I_CHOSE_THIS_PROJECT.md` | 137 | 03 · Why we chose this project — the story we tell, and why it is true |
@@ -564,7 +564,7 @@ One row per file, excluding the skipped directories (516 files).
 | `old_assets/sih_pptx_template.pptx` | binary | * PowerPoint template (SIH) |
 | `pyproject.toml` | 72 | * Python package metadata (`lunar-reg` 0.1.0), deps, pytest/ruff/mypy config |
 | `README.md` | 751 | lunar-reg — Illumination-Robust Multi-Sensor Lunar Image Registration |
-| `README_TITLE.md` | 1823 | SIH26166 — Understanding the Problem Statement |
+| `docs/project/README_TITLE.md` | 1823 | SIH26166 — Understanding the Problem Statement |
 | `scripts/build_demo_results.py` | 130 | Run the pipeline over a spread of generated scenes and persist the results |
 | `scripts/demo.py` | 156 | One-pair end-to-end demo, for the video and the internal-round submission |
 | `scripts/export_web_data.py` | 207 | Export stored pipeline results for the showcase site |
@@ -632,12 +632,12 @@ One row per file, excluding the skipped directories (516 files).
 | `src/lunar_reg/viz/figures.py` | 201 | Rendered views of a registered pair, as plain RGB arrays |
 | `src/lunar_reg/viz/__init__.py` | 5 | Diagnostic and reporting figures |
 | `src/lunar_reg/viz/plots.py` | 129 | Diagnostic figures |
-| `TBD_phase_1.md` | 198 | Phase 1 — Close out classical/neural results (pre-cluster) |
-| `TBD_phase_2.md` | 47 | Phase 2 — Cluster computing, Stage 1: one machine, one real GPU |
-| `TBD_phase_3.md` | 69 | Phase 3 — Cluster computing, Stage 2: one machine, N GPUs |
-| `TBD_phase_4.md` | 71 | Phase 4 — Cluster computing, Stage 3: many machines |
-| `TBD_phase_5.md` | 37 | Phase 5 — Optional: surfacing cluster execution in the dashboards |
-| `TBDs.md` | 47 | TBDs — remaining work, phase by phase |
+| `docs/backlog/TBD_phase_1.md` | 198 | Phase 1 — Close out classical/neural results (pre-cluster) |
+| `docs/backlog/TBD_phase_2.md` | 47 | Phase 2 — Cluster computing, Stage 1: one machine, one real GPU |
+| `docs/backlog/TBD_phase_3.md` | 69 | Phase 3 — Cluster computing, Stage 2: one machine, N GPUs |
+| `docs/backlog/TBD_phase_4.md` | 71 | Phase 4 — Cluster computing, Stage 3: many machines |
+| `docs/backlog/TBD_phase_5.md` | 37 | Phase 5 — Optional: surfacing cluster execution in the dashboards |
+| `docs/backlog/TBDs.md` | 47 | TBDs — remaining work, phase by phase |
 | `tests/conftest.py` | 39 | Shared fixtures |
 | `tests/test_align.py` | 77 | Transform estimation and the sub-pixel path |
 | `tests/test_conditioning.py` | 160 | Stress tests for the conditioning metric, including the layouts that broke U |
@@ -658,7 +658,7 @@ One row per file, excluding the skipped directories (516 files).
 | `tests/test_rift2.py` | 353 | RIFT2: clean-room implementation checks |
 | `tests/test_scenes_and_budget.py` | 137 | Synthetic illumination scenes and the error-attribution harness |
 | `tests/test_tiling.py` | 75 | Tiling is what keeps OHRC inside the memory budget, so its edges matter |
-| `TIMELINE.md` | 195 | Development timeline |
+| `docs/project/TIMELINE.md` | 195 | Development timeline |
 | `udocs/00_ROADMAP.md` | 97 | Roadmap — how to understand this project |
 | `udocs/01_WHAT_AND_WHY.md` | 150 | 01 · What this project does, and why |
 | `udocs/10_PRIMER_geodesy.md` | 160 | 10 · Latitude and longitude are not x and y |

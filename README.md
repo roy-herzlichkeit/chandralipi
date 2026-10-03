@@ -333,7 +333,7 @@ loaded — only the overlap window comes off disk.
 ### Polar footprints
 
 The first three real OHRC products downloaded (2026-01-03, table in
-`CONTEXT_HANDOFF.md` §1.1b) sit at about −85° latitude, where a
+`docs/project/CONTEXT_HANDOFF.md` §1.1b) sit at about −85° latitude, where a
 lat/lon polygon stops describing the ground: meridians converge, so longitude
 bounds lose their meaning and a straight edge in lat/lon is not straight on the
 Moon. Above `POLAR_LATITUDE_DEG` (80°) a pair is therefore clipped in a

@@ -156,7 +156,7 @@ that a clean success would not have surfaced.
 **What this does not do.** It does not produce a single Chandrayaan-2
 cross-instrument result — finding 6 above still stands unchanged. Full
 writeup: `data/processed/demo_real/README.md`; status entry:
-`CONTEXT_HANDOFF.md` §7.
+`docs/project/CONTEXT_HANDOFF.md` §7.
 
 ---
 
@@ -207,7 +207,7 @@ real. `footprint_from_row` was already traversing `1, 2, 4, 3` correctly; my
 throwaway test had bypassed the pipeline and assembled the ring by hand in naive
 order. The bug was in my test.
 
-Retracted explicitly in `CONTEXT_HANDOFF.md` §1.1 and left in place rather than
+Retracted explicitly in `docs/project/CONTEXT_HANDOFF.md` §1.1 and left in place rather than
 deleted, because a later reader needs to know the claim was made and withdrawn.
 Lesson: when a test reports a spectacular number, suspect the test first.
 

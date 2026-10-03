@@ -67,7 +67,7 @@ which exist so that "we refused this pair for a stated reason" never looks like
 **An honest note:** `params.py` holds **11 placeholder preprocessing parameters**
 that are marked as reasonable defaults to tune, **not** as values matched to any
 published paper. That labelling is deliberate. Choosing the final values is an
-open item recorded in `CONTEXT_HANDOFF.md`.
+open item recorded in `docs/project/CONTEXT_HANDOFF.md`.
 
 ---
 

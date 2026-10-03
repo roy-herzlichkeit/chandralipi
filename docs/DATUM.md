@@ -4,7 +4,7 @@ This page explains the coordinate convention every lunar position in this
 project uses, where each part of it comes from, and how it is checked. It
 assumes no background in geodesy; every term is defined where it first appears.
 
-Decision record: `DECISIONS.md` G13. Design: `Phase_1/LLD/datum.md`. Code:
+Decision record: `docs/plan/DECISIONS.md` G13. Design: `Phase_1/LLD/datum.md`. Code:
 `src/lunar_reg/constants.py`. Test: `tests/test_datum.py`.
 
 ---

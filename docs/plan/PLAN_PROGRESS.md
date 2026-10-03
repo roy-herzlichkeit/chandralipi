@@ -1,17 +1,17 @@
 # PLAN_PROGRESS — Task B
 
-**COMPLETE** (sessions B1–B3, 2026-09-29). The plan is committed on `main` for external review; implementation starts with `P0.00` (`STATUS.md`).
+**COMPLETE** (sessions B1–B3, 2026-09-29). The plan is committed on `main` for external review; implementation starts with `P0.00` (`docs/plan/STATUS.md`).
 
 ## Global artefacts
-- [x] 1. AUDIT.md — 132 rows, phase + closing prompt per row (from `.fable/audit_20260929.json`); every row is referenced by an LLD (checked by script in B3)
-- [x] 2. HLD.md — components K1–K20, data flows, cross-cutting rules
-- [x] 3. DECISIONS.md — G01–G35 (G27 reordered after G26; G14 revised; G30–G35 added)
-- [x] 4. CONTRACTS.md — C01–C27 with producer/consumer phases and proving tests
-- [x] 5. PHASES.md — 73 prompts with file ownership; TBD → prompt map
+- [x] 1. docs/plan/AUDIT.md — 132 rows, phase + closing prompt per row (from `.fable/audit_20260929.json`); every row is referenced by an LLD (checked by script in B3)
+- [x] 2. docs/plan/HLD.md — components K1–K20, data flows, cross-cutting rules
+- [x] 3. docs/plan/DECISIONS.md — G01–G35 (G27 reordered after G26; G14 revised; G30–G35 added)
+- [x] 4. docs/plan/CONTRACTS.md — C01–C27 with producer/consumer phases and proving tests
+- [x] 5. docs/plan/PHASES.md — 73 prompts with file ownership; TBD → prompt map
 - [x] 6. Root CLAUDE.md (implementer-facing)
-- [x] 7. STATUS.md (current = P0.00)
+- [x] 7. docs/plan/STATUS.md (current = P0.00)
 - [x] 8. Tool-level deny rules: superseded by CLARIFY Q22/R8 → G05 (MANIFEST.sha256 + git-diff check)
-- [x] 9. PLAN_PROGRESS.md (this file)
+- [x] 9. docs/plan/PLAN_PROGRESS.md (this file)
 
 ## Phase folders (10)
 | phase | prompts | LLD files | harness tests (collected) | checks | contracts proved |
@@ -22,26 +22,26 @@
 | Phase_1B | 7 | 5 | 19 | 7 + verify | C21 |
 | Phase_3 | 10 | 5 | 38 | 10 + verify | C22–C26 |
 | Phase_4 | 7 | 4 | 18 | 7 + verify | C27 |
-Each folder also has `benchmark/{RUBRIC.md,run.sh,score.py}`, `ASSUMPTIONS.md`, `DECISIONS.md`, `REVIEW_FOCUS.md`, `docs/{OVERVIEW.md,REVIEW_CHECKLIST.md}`, `QUESTIONS.md`, and `harness/MANIFEST.sha256`. Shared skills: `Phase_0/skills/{classified-outcomes,provenance-fields,atomic-writes,tests-and-checks}`, `Phase_1/skills/run-prompts`, `Phase_2/skills/gpu-safety`.
+Each folder also has `benchmark/{RUBRIC.md,run.sh,score.py}`, `ASSUMPTIONS.md`, `docs/plan/DECISIONS.md`, `REVIEW_FOCUS.md`, `docs/{OVERVIEW.md,REVIEW_CHECKLIST.md}`, `QUESTIONS.md`, and `harness/MANIFEST.sha256`. Shared skills: `Phase_0/skills/{classified-outcomes,provenance-fields,atomic-writes,tests-and-checks}`, `Phase_1/skills/run-prompts`, `Phase_2/skills/gpu-safety`.
 
 ## Final consistency pass (11) — results of the B3 checks
-- [x] every TBD → ≥ 1 phase (`PHASES.md` §4); every audit row → an existing prompt and an LLD mention (script: 132/132)
+- [x] every TBD → ≥ 1 phase (`docs/plan/PHASES.md` §4); every audit row → an existing prompt and an LLD mention (script: 132/132)
 - [x] every contract's producer precedes its consumers (C01–C27 order checked against INDEX order)
 - [x] no prompt LOADs a file that does not exist at that point (script: 12 LOAD paths not yet on disk, each created by an earlier prompt)
 - [x] no banned words in Opus-facing docs (grep over CLAUDE/CONTRACTS/DECISIONS/PHASES/HLD and every Phase prompt, LLD, skill, ASSUMPTIONS, DECISIONS, REVIEW_FOCUS; "TBD n.m" backlog references excepted)
 - [x] every harness test file collects (`pytest --co`, 356 tests) and, run against today's code, fails only for "not implemented yet" reasons (import errors, missing attributes, reproduced audit bugs) — checked per phase
 
 ## How an external reviewer should read this plan
-1. `CLARIFY.md` (binding answers) → `DECISIONS.md` → `HLD.md` → `CONTRACTS.md` → `PHASES.md`.
+1. `docs/plan/CLARIFY.md` (binding answers) → `docs/plan/DECISIONS.md` → `docs/plan/HLD.md` → `docs/plan/CONTRACTS.md` → `docs/plan/PHASES.md`.
 2. Per phase: `docs/OVERVIEW.md`, `REVIEW_FOCUS.md`, then `prompts/INDEX.md` and the LLDs; `harness/tests/test_contracts_P<i>.py` shows exactly what "done" means.
-3. Evidence behind defects: `AUDIT.md` (+ `.fable/audit_20260929.json`); behind data sources: `.fable/research_20260929.json`; behind signatures: `.fable/module_facts_20260929.txt`.
+3. Evidence behind defects: `docs/plan/AUDIT.md` (+ `.fable/audit_20260929.json`); behind data sources: `.fable/research_20260929.json`; behind signatures: `.fable/module_facts_20260929.txt`.
 4. Things the architect checked by running code in B3 (not benchmark figures): the NAC upper-left sign rule on the real label (flipped 935 m vs as-written 23.9 km bbox residual); prior-rectified tiling prototype (median raw-match error 0.10 px on the C18 scene); LoFTR padding (median error 2.0 px unpadded vs 0.31 px padded on the P0.02 scene); geometry-grid CSV fixture format; that A009, A071, A107, A125 and A001 reproduce as test failures today.
 
 ## Open items for the human
 - CLARIFY R2 (ISRO SIS PDFs → `docs/external/`), R3b (second host details) — neither blocks Phases 0–3.
 - P1.DL tonight: product list and click-by-click steps in `Phase_1/LLD/downloads.md` §2–§3.
 - `redis-server` install (sudo) before P4.06.
-- Task D (external adversarial review): 38 items adjudicated in `REVIEW_DECISIONS_PLAN.md` (23 ACCEPT, 13 ACCEPT_MODIFIED, 2 REJECT, 0 NEEDS_HUMAN); how they were applied: `MERGE_PLAN_PLAN.md`. Harness now collects 374 tests.
+- Task D (external adversarial review): 38 items adjudicated in `docs/plan/REVIEW_DECISIONS_PLAN.md` (23 ACCEPT, 13 ACCEPT_MODIFIED, 2 REJECT, 0 NEEDS_HUMAN); how they were applied: `docs/plan/MERGE_PLAN_PLAN.md`. Harness now collects 374 tests.
 
 ## Fix log
 | session | fix |

@@ -2,13 +2,13 @@
 
 ## Diff range
 
-`phase-1-approved..HEAD` (DECISIONS.md G07; HEAD = 4cbf731 before this pack commit)
+`phase-1-approved..HEAD` (docs/plan/DECISIONS.md G07; HEAD = 4cbf731 before this pack commit)
 
 ```
  Phase_2/QUESTIONS.md                        | 159 +++++++
  Phase_2/prompts/INDEX.md                    |  24 +-
  README.md                                   |  12 +-
- STATUS.md                                   |  16 +-
+ docs/plan/STATUS.md                                   |  16 +-
  configs/device_profiles/README.md           |  64 +++
  configs/device_profiles/rtx4060-laptop.json | 139 +++++++
  docs/GPU_RUN.md                             | 130 ++++++
@@ -205,7 +205,7 @@ CHECK OK: Phase 2 verify
 Implementers append entries here (format in root `CLAUDE.md` §Doubts). Empty at plan time.
 
 ## Q-P2.02-1  DeviceProfile carries an appended `extra: dict` field (not in the C16 dataclass)
-context: CONTRACTS.md C16 (`DeviceProfile` fields `slug, device_name, total_bytes, matchers, measured_utc, source, path`); src/lunar_reg/device.py `DeviceProfile`
+context: docs/plan/CONTRACTS.md C16 (`DeviceProfile` fields `slug, device_name, total_bytes, matchers, measured_utc, source, path`); src/lunar_reg/device.py `DeviceProfile`
 question: C16's JSON has `free_bytes_at_measure`, `torch`, `cuda`, `driver`, `run_record` but the dataclass has no field for them, so `load` then `save` would drop them and write a file that is no longer C16-complete. Is an appended `extra: dict = field(default_factory=dict)` (holding every non-dataclass key, written back by `save` in C16 key order) acceptable, or should these become named fields?
 what I did meanwhile: appended `extra` after `path` (all C16 fields keep their names, order and defaults), plus helper methods `to_dict()` and `entry(matcher, precision)`. Reversible: P2.03 can read/write the same keys through `extra`; promoting them to named fields later only changes the dataclass.
 
@@ -220,7 +220,7 @@ question: the LLD says "the profile whose device_name equals the CUDA device nam
 what I did meanwhile: implemented that rule. Invalid profile files raise `ValueError` (not skipped). A relative `root` that does not exist under the CWD is also tried under the repo root, so the default `configs/device_profiles` works from any working directory. Reversible: local to `load_profile_for`.
 
 ## Q-P2.02-4  `LoFTRMatcher.max_tile_px` drops `TileBudget.fits` (AUDIT A126 caller side)
-context: src/lunar_reg/match/learned.py:112 (`return plan_dense_tile(self.device, self.precision, self.name).tile_px`); AUDIT.md A126 ("have callers refuse or warn loudly when it is False"); Phase_2/LLD/device.md §P2.02
+context: src/lunar_reg/match/learned.py:112 (`return plan_dense_tile(self.device, self.precision, self.name).tile_px`); docs/plan/AUDIT.md A126 ("have callers refuse or warn loudly when it is False"); Phase_2/LLD/device.md §P2.02
 question: P2.02 adds `fits` but its DO fence covers only device.py, the profile README and tests, and no later Phase 2 LLD or prompt names this caller. On a GPU with too little free memory LoFTR still gets the 256-px floor tile with no warning. Which prompt should make `max_tile_px` (or `TiledMatcher`/`register_pair`, which P2.05/P2.06 touch) log a WARNING or classify the run (e.g. `RunStatus.OOM`/a `TileStatus`) when `not budget.fits`?
 what I did meanwhile: nothing in learned.py (outside the fence). `plan_dense_tile` and `DeviceProfile.plan_tile` return `fits=False` (also for a 0-byte, i.e. UNKNOWN, reading) and `TileBudget.__str__` says "DOES NOT FIT". Reversible: a few lines in the caller.
 
@@ -270,7 +270,7 @@ question: item 5 moved learned.py (LoFTR, DISK+LightGlue) to "empty_cache only w
 what I did meanwhile: nothing in superglue.py. register_pair still classifies a SuperGlue `torch.OutOfMemoryError` as OOM and empties the cache after it. Reversible.
 
 ## Q-P2.06-1  TiledMatcher's default `tile_px` now leaves room for the two rectification margins
-context: src/lunar_reg/match/tiled.py `TiledMatcher.__init__`; Phase_2/LLD/tiling.md §P2.06 steps 2 and "Learned-matcher fixes" (A080); CONTRACTS.md C18 (`tile_px=None`)
+context: src/lunar_reg/match/tiled.py `TiledMatcher.__init__`; Phase_2/LLD/tiling.md §P2.06 steps 2 and "Learned-matcher fixes" (A080); docs/plan/CONTRACTS.md C18 (`tile_px=None`)
 question: the rectified reference patch is `tile_px + 2 * ref_margin_px` on a side, and P2.06 makes `LoFTRMatcher.match` refuse a reference above `max_tile_px`. With the old default (`tile_px = matcher.max_tile_px`) every LoFTR tile would be MATCHER_ERROR. Is defaulting to `max(64, max_tile_px - 2 * ref_margin_px)` (640 when the matcher advertises no limit, as before) the intended reading?
 what I did meanwhile: implemented that default; an explicit `tile_px` is used unchanged (a caller passing `tile_px = max_tile_px` with LoFTR gets every tile classified MATCHER_ERROR, visible in `report()`). Reversible: one expression in `__init__`.
 
@@ -280,7 +280,7 @@ question: C18 freezes only `match_arrays`. Are these choices acceptable? (a) sig
 what I did meanwhile: implemented (a)–(c). No caller of `match_datasets` exists yet. Reversible: local to tiled.py.
 
 ## Q-P2.06-3  Tile-outcome details the LLD leaves open
-context: src/lunar_reg/match/tiled.py `TileStatus`, `TileDiagnostics`, `_match_tile`; CONTRACTS.md C18; Phase_0/skills/classified-outcomes/SKILL.md
+context: src/lunar_reg/match/tiled.py `TileStatus`, `TileDiagnostics`, `_match_tile`; docs/plan/CONTRACTS.md C18; Phase_0/skills/classified-outcomes/SKILL.md
 question: are these choices acceptable? (a) `TileStatus.is_failure` (and `n_failed`) counts only MATCHER_ERROR and OOM; EMPTY is "matcher ran, found nothing", OUT_OF_REFERENCE and SKIPPED_NODATA are data gaps, and `report()` says so in words; (b) `TileOutcome.index` is the tile's position in `plan_tiles` order (an int, per test_C18_members), not `Tile.index` (a `(row, col)` tuple); windows are `(row_off, col_off, height, width)`; (c) `n_matches` is the count the tile contributed after the per-tile cap, with `detail = "capped from <raw>"` when the cap applied; (d) the source tile's valid fraction is checked before the reference is rectified (same status; only the detail text says which side was short); (e) the `except torch.OutOfMemoryError` clause comes before `except Exception` and resolves torch through `sys.modules`, so CPU-only callers never import torch; (f) the summary log line is WARNING when any tile failed, INFO otherwise; (g) `prior` and `offset_prior` together raise ValueError. stitch.py is unchanged (`StitchStats.n_tiles` still counts tiles that contributed matches; the total is in `last_diagnostics`).
 what I did meanwhile: implemented (a)–(g). No script prints `report()` yet because no script calls TiledMatcher; the first caller (P2.08/P2.10) must print `tm.last_diagnostics.report()` on every run. Reversible: local to tiled.py.
 
@@ -365,11 +365,11 @@ what I did meanwhile: (a) as described; nothing under the repo tree outside the 
 
 ## LLD deviations
 
-Built from every `Phase_2/QUESTIONS.md` entry that records a choice beyond or against `Phase_2/LLD/**` or `CONTRACTS.md`, and from `git log phase-1-approved..HEAD`. Each file:line was checked at HEAD 4cbf731, then re-checked row by row by an audit workflow (one checker per LLD area, a completeness sweep, and an adversarial check of every new row). Entries that record a choice the LLD leaves open but that changes no contract or LLD rule are listed too, marked "(LLD silent)". Entries with no code choice (Q-P2.02-2, Q-P2.02-4, Q-P2.04-1, Q-P2.05-3, Q-P2.08-1, Q-P2.08-3, Q-P2.11-2) have no row; they are open questions about later work.
+Built from every `Phase_2/QUESTIONS.md` entry that records a choice beyond or against `Phase_2/LLD/**` or `docs/plan/CONTRACTS.md`, and from `git log phase-1-approved..HEAD`. Each file:line was checked at HEAD 4cbf731, then re-checked row by row by an audit workflow (one checker per LLD area, a completeness sweep, and an adversarial check of every new row). Entries that record a choice the LLD leaves open but that changes no contract or LLD rule are listed too, marked "(LLD silent)". Entries with no code choice (Q-P2.02-2, Q-P2.02-4, Q-P2.04-1, Q-P2.05-3, Q-P2.08-1, Q-P2.08-3, Q-P2.11-2) have no row; they are open questions about later work.
 
 | file:line | LLD section | what differs | why |
 |---|---|---|---|
-| src/lunar_reg/device.py:412 (`extra`), :460 (`to_dict`), :484 (`entry`) | CONTRACTS.md C16 `DeviceProfile` fields | Appended field `extra: dict` (holds `free_bytes_at_measure`, `torch`, `cuda`, `driver`, `run_record`) plus public methods `to_dict()` and `entry()`; `dataclasses.fields(DeviceProfile)` has one field more than C16. | Q-P2.02-1: without it `load` then `save` drops C16 JSON keys. |
+| src/lunar_reg/device.py:412 (`extra`), :460 (`to_dict`), :484 (`entry`) | docs/plan/CONTRACTS.md C16 `DeviceProfile` fields | Appended field `extra: dict` (holds `free_bytes_at_measure`, `torch`, `cuda`, `driver`, `run_record`) plus public methods `to_dict()` and `entry()`; `dataclasses.fields(DeviceProfile)` has one field more than C16. | Q-P2.02-1: without it `load` then `save` drops C16 JSON keys. |
 | src/lunar_reg/device.py:544 (`load_profile_for`), :535 (`_resolve_profile_root`) | device.md §P2.02 | Several files for one device: canonical `<slug>.json` wins, then file-name order, one WARNING; invalid files raise; a relative root missing under the CWD is retried under the repo root. | Q-P2.02-3: LLD silent; harness test rules out raising. |
 | src/lunar_reg/device.py:491 (`plan_tile`), :433 (`load` source check), :351 (`_validate_matchers`) | device.md §P2.02; C16/G19 | Planner estimate is `max(fixed + k*S^2, largest measured peak at tile <= S, 1)`, `fits=False` when free bytes <= 0; `load` refuses `bytes_per_px <= 0` (or non-finite), non-finite `fixed_bytes`, malformed points, `schema != 1` and any `source` other than `measured`. | Q-P2.02-5: measured fits can have a negative intercept (Q-P2.04-1); G19 provenance. |
 | src/lunar_reg/match/memory.py:85 (`OOM_MARKERS`), :96 (`_is_oom`), :197 (`_exception_outcome`) | device.md §P2.03 (two OOM markers) | OOM also for `MemoryError`, `DefaultCPUAllocator: can't allocate memory`, and return code -9 (SIGKILL); the same markers also classify in-process `measure_peak_memory` exceptions (OOM, else SETUP_ERROR), which the LLD does not cover. | Q-P2.03-1: read literally a host OOM would be SETUP_ERROR and the sweep would continue to larger sizes. |
@@ -395,7 +395,7 @@ Built from every `Phase_2/QUESTIONS.md` entry that records a choice beyond or ag
 | data/processed/gpu_run/snap_rows.py, vram_computed.py (gitignored) | runner_gpu_runs.md §P2.11 steps 3-4 | Store-row snapshots and the COMPUTED VRAM figures are written by two small scripts kept beside their outputs under `data/`, not committed tooling; runs used preprocess `none` (runner default). | Q-P2.11-3 (open). |
 | scripts/setup.sh:83, :89, :92, :158-160 | device.md §P2.01 ("`--cuda` installs `torch==<pinned>` ...; the verify step prints and asserts `torch.version.cuda` is not None when `--cuda` was given") | The requirement is `torch==<installed version with its local tag stripped, else 2.14.0>+<cuda-index>`, so it carries the index's local tag (e.g. `torch==2.14.0+cu130`). A failed install exits through `die`. The verify step also fails when `torch.__version__` does not end in `+<cuda-index>`, which rejects a CUDA build from another index that the LLD's check would accept. | A bare `torch==X.Y.Z` is already satisfied by an installed `X.Y.Z+cpu` or other-CUDA build (PEP 440), so pip would keep that build and ignore `--index-url` (setup.sh comment :74-79; README.md:83-84; scripts/README.md:59). No QUESTIONS entry. |
 | src/lunar_reg/preprocess/radiometric.py:110-112, :124-128, :145-149 (`to_uint8`) | tiling.md §P2.07 A082 | Three choices the LLD does not specify. (1) An explicit `sample_step` replaces `s` at every image size, including images <= 4e7 px where the LLD says to use all pixels. (2) `sample_step < 1` raises ValueError. (3) If the strided subsample `image[::s, ::s]` holds no valid pixel (masked path), or no finite pixel with s > 1 (unmasked path), but the image does, the percentiles fall back to every valid or finite pixel, with one WARNING from `_log_sample_fallback`. The LLD says to take percentiles from the strided subsample above 4e7 px. | LLD lists `sample_step` in the signature but never says what it does. The fallback keeps valid data from being written as nodata (all-zero output). Not recorded in QUESTIONS: Q-P2.07-1 covers only float32 vs float64. |
-| src/lunar_reg/align/native.py:87-89 (`NativeStatus.is_failure`), :325 | CONTRACTS.md C19 `NativeStatus` | The frozen C19 enum gains a public property `is_failure` (True for every member except OK; C19 lists no property, unlike C02 `RunStatus`). `refine_native_arrays` uses it to log the summary line at WARNING for failures and INFO for OK. | Q-P2.08-2(f): classified-outcomes pattern. Enum members and values are unchanged. |
+| src/lunar_reg/align/native.py:87-89 (`NativeStatus.is_failure`), :325 | docs/plan/CONTRACTS.md C19 `NativeStatus` | The frozen C19 enum gains a public property `is_failure` (True for every member except OK; C19 lists no property, unlike C02 `RunStatus`). `refine_native_arrays` uses it to log the summary line at WARNING for failures and INFO for OK. | Q-P2.08-2(f): classified-outcomes pattern. Enum members and values are unchanged. |
 | src/lunar_reg/sites/runner.py:188 (`NativeRunDiagnostics`), :86 (`__all__`), :319 (`SiteReport.native`), :374 (`report()`), :295 (products.json `native_status`), :1008 (run-record `native_<status>` counts), :936 (`native_geotiff_write_failed`) | runner_gpu_runs.md §P2.10 (LLD silent on reporting); C15 `outcome_counts` | Extra public API and new output keys (LLD silent): a public `NativeRunDiagnostics` class (per-status `counts`, first `samples`, `record()`, `report()`) exported in `__all__`; a new field `SiteReport.native: NativeRunDiagnostics \| None` (None when native is off), printed by `SiteReport.report()`; products.json OK rows gain `native_status` when the result carries it. When native is on, run_record.json `outcome_counts` gain `native_<status>` for every `NativeRunStatus` member. A failed native GeoTIFF write adds `native_geotiff_write_failed` and a `"<pair_id> (native): ..."` entry in `geotiff_failures`. C15's open `outcome_counts` map allows the new keys. | Q-P2.10-2(a): classified-outcomes convention 2 (counts + first sample + `report()`). |
 
 Run-procedure notes (no code location):

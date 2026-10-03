@@ -83,7 +83,7 @@ softer.
    produces. Diagnose, quantify, recommend. Let a human decide.
 6. **Distrust confident-sounding prior findings, including mine.** One of the
    items below exists specifically because I reported a catastrophic bug that
-   did not exist. The retraction is preserved in `CONTEXT_HANDOFF.md` §1.1.
+   did not exist. The retraction is preserved in `docs/project/CONTEXT_HANDOFF.md` §1.1.
 
 ---
 
@@ -99,8 +99,8 @@ Read in this order:
 
 | file | why |
 |---|---|
-| `CONTEXT.md` | one page, the whole shape |
-| `CONTEXT_HANDOFF.md` | the detailed status review — known issues, open decisions |
+| `docs/project/CONTEXT.md` | one page, the whole shape |
+| `docs/project/CONTEXT_HANDOFF.md` | the detailed status review — known issues, open decisions |
 | `udocs/50_findings.md` | every measured number in one place, with its module |
 | `udocs/23_PRIMER_metrics.md` | the headline claim, explained at length |
 
@@ -368,7 +368,7 @@ ordered = (corners[0], corners[1], corners[3], corners[2])
 error** from corner mis-ordering in production code. **It was not real.** The
 pipeline was already correct; my throwaway test had bypassed it and assembled
 the ring by hand in naive numeric order, so the "measurement" measured my own
-mistake. The retraction is preserved in `CONTEXT_HANDOFF.md` §1.1 rather than
+mistake. The retraction is preserved in `docs/project/CONTEXT_HANDOFF.md` §1.1 rather than
 deleted, because a reader who finds the original claim elsewhere needs to know
 it was withdrawn.
 
@@ -411,8 +411,8 @@ left disabled. Dead code that is documented as broken is still dead code.
 
 ## Q10 — Provenance audit across everything a panel will read
 
-**What I want.** A sweep of `docs/`, `README.md`, `CONTEXT.md`,
-`CONTEXT_HANDOFF.md`, `udocs/`, `scripts/build_demo_results.py`, and the
+**What I want.** A sweep of `docs/`, `README.md`, `docs/project/CONTEXT.md`,
+`docs/project/CONTEXT_HANDOFF.md`, `udocs/`, `scripts/build_demo_results.py`, and the
 dashboard/web export for any number that is **not traceable to a run**.
 
 Specific things to look for:

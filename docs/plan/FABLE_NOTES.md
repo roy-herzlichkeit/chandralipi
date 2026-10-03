@@ -1,6 +1,6 @@
 # FABLE_NOTES — architect memory (not for humans)
 
-Session A · 2026-09-29 · HEAD `bbf9585` + uncommitted (see REPO_TREE §0). Read-only session; only this file + CLARIFY.md written.
+Session A · 2026-09-29 · HEAD `bbf9585` + uncommitted (see REPO_TREE §0). Read-only session; only this file + docs/plan/CLARIFY.md written.
 Evidence tags: **R** = I read the code line · **M** = measured by a command this session or recorded in REPO_TREE §3 · **D** = repo doc says so, not re-verified · **I** = my inference, untested.
 
 ## 0. Environment facts
@@ -22,7 +22,7 @@ Evidence tags: **R** = I read the code line · **M** = measured by a command thi
 | `configs/default.yaml` = "validated defaults" (README layout) | never loaded; zero `yaml` refs in src/scripts/dashboard. `refine_threshold_px: 1.0` there is dead | R |
 | Tiled full-res matching is the OHRC path | `TiledMatcher` used only by `cli register`. `register_pair` = whole-image match. Vikram ran at 4 m/px on 3 km windows (750 px) | R |
 | Pipeline = ingest→overlap→crop→preprocess→match→align→eval | Real end-to-end path is `scripts/run_vikram.py`: label corners (bilinear) + hard-coded NAC transform → crop → resize → `register_pair`. `ingest/overlap.py`, `geometry_grid.py`, `lro.py`, `manifest.py` are NOT on the path that produced any real result | R |
-| "zero real OHRC pairs" (CONTEXT.md:38, HANDOFF §0/§7) | stale: 4 OHRC↔NAC results exist (index.parquet 13 rows) | M |
+| "zero real OHRC pairs" (docs/project/CONTEXT.md:38, HANDOFF §0/§7) | stale: 4 OHRC↔NAC results exist (index.parquet 13 rows) | M |
 | "save_results footgun not fixed" (HANDOFF §7) | fixed: `save_results` reindexes from disk (results.py:314-327) | R |
 | `results_ch2_synthetic_backup/` (CONTEXT, dashboard/app.py:91) | not in `data/processed/` | M |
 | 431 tests | 439 collected | M |
@@ -172,7 +172,7 @@ Difficulty: S ≤1 prompt · M 2–4 prompts · L ≥5 prompts or needs hardware
 | CLARIFY still open: R2 (ISRO OHRC SIS PDF), R3b (3060 host details) | — |
 
 ## 10. Session B1 (2026-09-29) — Task B progress + audit outcomes
-Resume point: `PLAN_PROGRESS.md` (RESUME NEEDED). Written: HLD.md, DECISIONS.md (G01–G29), PHASES.md (62 prompts, file-ownership §3), CLAUDE.md (implementer), STATUS.md. Not written: AUDIT.md, CONTRACTS.md, all Phase_* folders.
+Resume point: `docs/plan/PLAN_PROGRESS.md` (RESUME NEEDED). Written: docs/plan/HLD.md, docs/plan/DECISIONS.md (G01–G29), docs/plan/PHASES.md (62 prompts, file-ownership §3), CLAUDE.md (implementer), docs/plan/STATUS.md. Not written: docs/plan/AUDIT.md, docs/plan/CONTRACTS.md, all Phase_* folders.
 Audit workflow output (6 subsystem auditors + adversarial verify + 2 research agents): `.fable/audit_20260929.json` (full), `.fable/module_facts_20260929.txt` (exact signatures per subsystem, for CONTRACTS/LLD), `.fable/research_20260929.json` (validated ODE/PDS/JAXA/PRADAN URLs, Redis/fakeredis/torch API facts — not yet read by me).
 
 | new fact | tag |
@@ -194,18 +194,18 @@ Planned plan changes (apply when resuming):
 - Phase 2: match-3/5/6/7/11/12, S7, S8, S9, align-6/7.
 - Phase 1B: eval-7 (shadow steps), match-8/16 (RIFT2).
 
-## 11. Session B2 (2026-09-29) — revised plan (apply to PHASES.md/HLD/DECISIONS on resume)
-AUDIT.md written; its `prompt` column uses the numbering below (binding). PHASES.md still shows the OLD 62-prompt numbering → rewrite §1/§3 to this list first.
+## 11. Session B2 (2026-09-29) — revised plan (apply to docs/plan/PHASES.md/HLD/DECISIONS on resume)
+docs/plan/AUDIT.md written; its `prompt` column uses the numbering below (binding). docs/plan/PHASES.md still shows the OLD 62-prompt numbering → rewrite §1/§3 to this list first.
 - P0 (13): 00 preflight · 01 test runner+CI (S10,S19,tooling-2/5/15; move _pds4_label to conftest) · 02 learned matchers merge (loftr.py −, superglue LightGlue −, match-1/2/9/10/14/15) · 03 dedupe shadow_mask/scale_ratio · 04 remove footprint.py (moon_datum→constants) + default.yaml · 05 PDS4 resolver doc-order (ingest-1/14/20) · 06 fetch_catalogue corners (pr-3) · 07 provenance enum + seeded fit + float64 origin (S15, align-7/8) · 08 ECC model fidelity + no mutation + displacement gate + valid mask (S1, align-3/4/5) · 09 counts/refit/classification (S2,S3, align-1/2, pr-10, eval-1, match-19) · 10 results schema v2 (S13,S14, pr-2/7/8/9/11/18) · 11 run_vikram numeric crop geometry + tests (pr-5/6/20, tooling-3) · 12 eval correctness (eval-2..6/8/9, preprocess-6).
 - P1 (22 + DL): 00 · DL · 01 downloads manifest · 02 public fetch · 03 catalog (+manifest ingest-9/10) · 04 NAC georef (S11, ingest-2) · 05 geometry grid fixes (ingest-3/11/16, tooling-16) · 06 overlap wiring + fixes (TBD1.1, S5,S6, ingest-4..8/12/15/18) · 07 datum · 08 nodata/NaN radiometric+shadow (preprocess-1/12/13) · 09 preprocess pipeline geometry+StepStatus (preprocess-2..5/7/9, ingest-13) · 10 presets in register_pair (S4) · 11 sun geometry · 12 agreement · 13 pairs.py · 14 SuperGlue opt-in (match-20) · 15 TMC-2/IIRS (ingest-19, preprocess-10) · 16 site runner (pr-13/14/15/21) · 17 run_jaxa.py + cli register/inspect (pr-4/12/19, match-13, tooling-1) · 18 RUN re-run v2 + ablation · 19 apply default · 20 RUN 2023 diagnosis + gate · 21 viewers + docs (pr-1/16/17/22, S17, tooling-4/11..14, ingest-17, preprocess-8).
 - P2 (12): 00 · 01 CUDA env + free_memory_bytes (match-3, tooling-7) · 02 device profiles (match-4) · 03 benchmark CLI (match-6/7) · 04 RUN measure profile · 05 device/timing/VRAM/OOM (match-5) · 06 prior tiling + tile outcomes (S7,S8,S9, match-11/18) · 07 classical caps + RIFT2 memory guard (match-12/17, preprocess-11) · 08 native refine · 09 warp georef (align-6/9) · 10 runner GPU+native · 11 RUN GPU e2e + VRAM doc (tooling-10).
 - P1B (7): 00 gate · 01 DTM renderer (eval-7) · 02 rendered reference prep · 03 pooled consensus · 04 RIFT2 fixes (match-8/16) · 05 runner bridge · 06 RUN.
 - P3 (10) unchanged; P4 (7) unchanged, P4.04 absorbs tooling-6/8. Total 72.
 Decision changes (add to DECISIONS): G14 revised — NAC EDR/CDR/ortho labels carry NO sun geometry (research M); reference sun azimuth = fit of DTM hillshade to NAC ortho over azimuth 0–359° (ValueSource.INFERRED), elevation = 90 − ODE incidence (DOCUMENTED; ODE metadata incidence 73.8/74.7 for the two epochs); no SPICE. G30 phase-0 scope rule (text in AUDIT header). G31 redis-py pinned protocol=2; XAUTOCLAIM reply len 2 or 3; redis+fakeredis in `cluster` extra; redis-server not installed (apt 7.0.15, human sudo). G32 JAXA TC ortho: TCO_MAP_02_S66E030S69E033SC + S69E030S72E033SC from DARTS (VALIDATED, no range reads, 288 MB each, pace ≥30 s); DTM/morning/evening tiles DOCUMENTED only. ODE productid form `nac.m1442997156le` (lowercase). NAC 3M orthos/CONF available in SDNDTM, not needed.
-Next steps on resume: rewrite PHASES.md → update HLD component list (K-ids for sun fit in K11) → DECISIONS G14/G30–G32 + reorder G27 → CONTRACTS.md → Phase_0 folder.
+Next steps on resume: rewrite docs/plan/PHASES.md → update HLD component list (K-ids for sun fit in K11) → DECISIONS G14/G30–G32 + reorder G27 → docs/plan/CONTRACTS.md → Phase_0 folder.
 
 ## 12. Session B3 (2026-09-29) — Task B completed
-Written: CONTRACTS.md (C01–C27), PHASES.md rewritten (73 prompts), DECISIONS G30–G35 (+ G14 revised, G27 reordered), all six Phase folders (prompts, LLDs, skills, harness with MANIFEST, verify, benchmark, docs). Consistency pass in `PLAN_PROGRESS.md`.
+Written: docs/plan/CONTRACTS.md (C01–C27), docs/plan/PHASES.md rewritten (73 prompts), DECISIONS G30–G35 (+ G14 revised, G27 reordered), all six Phase folders (prompts, LLDs, skills, harness with MANIFEST, verify, benchmark, docs). Consistency pass in `docs/plan/PLAN_PROGRESS.md`.
 | new fact / decision | tag |
 |---|---|
 | NAC ul-x sign rule (fit raster boundary to cart bounds): flipped 935 m vs as-written 23.9 km residual; DTM GeoTIFF origin −11046/638262 at 3 m in the same projection | M |
@@ -221,7 +221,7 @@ Written: CONTRACTS.md (C01–C27), PHASES.md rewritten (73 prompts), DECISIONS G
 Open: R2 (SIS PDFs), R3b (second host). Next session (FABLE review role): review Phase 0 once `phase-0-done` exists.
 
 ## 13. Session D (2026-09-30) — external review adjudicated
-`REVIEW_DECISIONS_PLAN.md`: 38 items, 23 ACCEPT, 13 ACCEPT_MODIFIED, 2 REJECT (RC31 native upsampling, RC32 Ray), 0 NEEDS_HUMAN. New decisions G36–G39; G14, G33 revised.
+`docs/plan/REVIEW_DECISIONS_PLAN.md`: 38 items, 23 ACCEPT, 13 ACCEPT_MODIFIED, 2 REJECT (RC31 native upsampling, RC32 Ray), 0 NEEDS_HUMAN. New decisions G36–G39; G14, G33 revised.
 Patterns the reviewer caught that my own B3 consistency pass missed (check these explicitly in future plan passes):
 | pattern | instance | check to add |
 |---|---|---|

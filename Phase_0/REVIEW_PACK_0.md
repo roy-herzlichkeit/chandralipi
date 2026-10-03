@@ -14,16 +14,16 @@ Only the findings confirmed by reproduction were patched; partially-correct and 
 Other commits on the branch since `phase-0-done`: `9b75cdf` (the review), `d97121f` and `40531f3` (architect plan commits; `40531f3` answers Q-P0.R-1), `5bd5f8a` (re-measured score.json + Q-P0.R-1).
 
 ## Diff range
-`phase-base-approved..HEAD` (DECISIONS G07). Stat taken at HEAD = `40531f3`; the refresh commit adds only this file and `STATUS.md`.
+`phase-base-approved..HEAD` (DECISIONS G07). Stat taken at HEAD = `40531f3`; the refresh commit adds only this file and `docs/plan/STATUS.md`.
 
 ```
  .fable/inbox_P1DL_20260930.md           |  97 +++++++
  .github/workflows/ci.yml                |  22 ++
  .gitignore                              |   4 +
- CLARIFY.md                              |   1 +
- DECISIONS.md                            |   1 +
- FABLE_NOTES.md                          |   4 +
- PLAN_PROGRESS.md                        |   1 +
+ docs/plan/CLARIFY.md                              |   1 +
+ docs/plan/DECISIONS.md                            |   1 +
+ docs/plan/FABLE_NOTES.md                          |   4 +
+ docs/plan/PLAN_PROGRESS.md                        |   1 +
  Phase_0/QUESTIONS.md                    |  42 +++
  Phase_0/REVIEW.md                       |  22 ++
  Phase_0/REVIEW_PACK_0.md                | 333 ++++++++++++++++++++++++
@@ -37,7 +37,7 @@ Other commits on the branch since `phase-0-done`: `9b75cdf` (the review), `d9712
  Phase_1/harness/tests/test_P1_15.py     |  57 ++++-
  Phase_1/prompts/P1.15_tmc2_iirs.md      |   7 +-
  README.md                               |   1 -
- STATUS.md                               |  15 +-
+ docs/plan/STATUS.md                               |  15 +-
  configs/default.yaml                    |  36 ---
  pyproject.toml                          |  11 +-
  scripts/build_demo_results.py           |   8 +-
@@ -291,22 +291,22 @@ question: `spec_from_file_location` + `exec_module` does not register the module
 what I did meanwhile: removed `from __future__ import annotations` from scripts/fetch_catalogue.py (all its annotations evaluate natively on 3.10+; script imports and `--help` runs). One-line revert.
 
 ## Q-P0.08-1  eval/error_budget.py formats detail["ecc_cc"], which C07 now makes always-present and possibly None
-context: src/lunar_reg/eval/error_budget.py:230-233; CONTRACTS.md C07 (refine_full detail keys always present; ecc_cc float or None; "ecc_skipped" removed per Phase_0/LLD/ecc.md §3)
+context: src/lunar_reg/eval/error_budget.py:230-233; docs/plan/CONTRACTS.md C07 (refine_full detail keys always present; ecc_cc float or None; "ecc_skipped" removed per Phase_0/LLD/ecc.md §3)
 question: `if "ecc_cc" in detail: note += f", cc={detail['ecc_cc']:.3f}"` now raises TypeError whenever ECC is not APPLIED (ecc_cc is None), and the `ecc_skipped` branch is dead. error_budget.py is not in P0.08's file list. Should P0.12 (which already edits error_budget.py) change this to `if detail.get("ecc_cc") is not None` and report `detail["ecc_status"]` instead of `ecc_skipped`?
 what I did meanwhile: nothing in error_budget.py. scripts/ci.sh is green (497 passed), so no current test reaches the None path.
 
 ## Q-P0.09-1  check_P0.09.sh takes ~69 s, over the G18 30 s check budget, because of a pre-existing ASIFT test
-context: Phase_0/harness/check_P0.09.sh (`repo_pytest ... tests/test_pipeline.py ...`); tests/test_pipeline.py::test_every_available_detector_produces_usable_matches[asift]; DECISIONS.md G18
+context: Phase_0/harness/check_P0.09.sh (`repo_pytest ... tests/test_pipeline.py ...`); tests/test_pipeline.py::test_every_available_detector_produces_usable_matches[asift]; docs/plan/DECISIONS.md G18
 question: That one parametrised case takes 64 s on its own, and 64.13 s on the untouched base (phase-base-approved, measured in a temporary worktree), so P0.09 did not cause it. The check passes but breaks the < 30 s budget. Should the ASIFT case get a marker / smaller input, or should the check exclude it (`-k "not asift"`)? Both need a plan or harness change I may not make.
 what I did meanwhile: nothing; check_P0.09 passes as written (exit 0).
 
 ## Q-P0.10-1  Re-running run_vikram / build_demo_results now refuses existing pair ids
-context: CONTRACTS.md C04/C05 (`save_results(..., overwrite=False)`); scripts/run_vikram.py:391, scripts/build_demo_results.py:115 (changed only as LLD §6 lists)
+context: docs/plan/CONTRACTS.md C04/C05 (`save_results(..., overwrite=False)`); scripts/run_vikram.py:391, scripts/build_demo_results.py:115 (changed only as LLD §6 lists)
 question: With refuse-to-overwrite as the default, a second run of either script into a store that already holds the same pair ids raises FileExistsError (checked for the whole batch before anything is written, so nothing is half-saved). Should those scripts gain an `--overwrite` flag or write to a fresh root per run? Not in P0.10's DO, so left as is.
 what I did meanwhile: save_results checks every target before writing any (a clash stops the batch cleanly); live store untouched (13 v1 pairs load read-only under the v2 reader).
 
 ## Q-P0.12-1  Prompt names `max_occupiable_cells`; LLD §3 / G33 do not define it
-context: Phase_0/prompts/P0.12_eval_correctness.md DO 3; Phase_0/LLD/eval_fixes.md §3; DECISIONS.md G33
+context: Phase_0/prompts/P0.12_eval_correctness.md DO 3; Phase_0/LLD/eval_fixes.md §3; docs/plan/DECISIONS.md G33
 question: DO 3 lists `max_occupiable_cells` but LLD §3 and G33 (revised, RC07) fix coverage = occupied / g_eff² with no such term. Was it meant to survive from the superseded min(n, g²) rule?
 what I did meanwhile: added `UniformityMetrics.max_occupiable_cells` as a read-only property (= min(n_points, total_cells)), not used in coverage/score and not in as_dict; the score follows LLD §3 exactly (20 spread points -> 0.946, quadrant-packed -> 0.336). Removing the property is a one-line revert.
 also noted: with the adaptive grid, coverage is a fraction of g_eff², so thinning can raise `coverage` (300 corner points -> 5 points: 1/64 -> 1/4). tests/test_eval.py::test_enforce_uniformity_cannot_create_coverage now asserts on fixed-8x8 occupied cells instead. Q-P0.08-1 (error_budget ecc_cc None) is fixed in this prompt, since error_budget.py is in P0.12's file list.

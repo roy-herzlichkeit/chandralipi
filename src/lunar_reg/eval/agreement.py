@@ -1,4 +1,4 @@
-"""Cross-matcher agreement on the pre-ECC transforms (CONTRACTS.md C14).
+"""Cross-matcher agreement on the pre-ECC transforms (docs/plan/CONTRACTS.md C14).
 
 Real lunar pairs have no ground truth. One of the few independent consistency
 signals is whether different matchers land on the same transform *before* ECC

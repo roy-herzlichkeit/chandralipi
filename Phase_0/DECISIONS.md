@@ -1,6 +1,6 @@
 # Phase 0 — local decisions
 
-May not contradict `DECISIONS.md`. ID | decision | reason | rejected alternatives.
+May not contradict `docs/plan/DECISIONS.md`. ID | decision | reason | rejected alternatives.
 
 | ID | decision | reason | rejected |
 |---|---|---|---|

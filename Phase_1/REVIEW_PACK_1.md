@@ -2,21 +2,21 @@
 
 ## Diff range
 
-`phase-0-approved..HEAD` (DECISIONS.md G07; HEAD = b7ca12e before this pack commit)
+`phase-0-approved..HEAD` (docs/plan/DECISIONS.md G07; HEAD = b7ca12e before this pack commit)
 
 ```
  .fable/ode_sdndtm_20261002.json                    |    1 +
  .fable/site_overlaps_preview_20261002.json         | 9354 ++++++++++++++++++++
  .fable/tools/read_esri_shp.py                      |   56 +
  .fable/vikram_candidates_20261002.json             |   96 +
- CLARIFY.md                                         |    1 +
- CONTEXT.md                                         |   96 +-
- CONTEXT_HANDOFF.md                                 |  110 +-
- CONTRACTS.md                                       |   38 +-
- DECISIONS.md                                       |    4 +-
- FABLE_NOTES.md                                     |    7 +-
- PHASES.md                                          |    6 +-
- PLAN_PROGRESS.md                                   |    4 +-
+ docs/plan/CLARIFY.md                                         |    1 +
+ docs/project/CONTEXT.md                                         |   96 +-
+ docs/project/CONTEXT_HANDOFF.md                                 |  110 +-
+ docs/plan/CONTRACTS.md                                       |   38 +-
+ docs/plan/DECISIONS.md                                       |    4 +-
+ docs/plan/FABLE_NOTES.md                                     |    7 +-
+ docs/plan/PHASES.md                                          |    6 +-
+ docs/plan/PLAN_PROGRESS.md                                   |    4 +-
  Phase_1/ASSUMPTIONS.md                             |    2 +-
  Phase_1/DOWNLOAD_BRIEF_TMC2_IIRS_VIKRAM.md         |   87 +
  Phase_1/LLD/asift_cap.md                           |   40 +
@@ -39,7 +39,7 @@
  Phase_1/prompts/P1.24_cross_pairs.md               |   15 +
  Phase_1/prompts/P1.25_asift_cap.md                 |   10 +
  README.md                                          |  105 +-
- STATUS.md                                          |   12 +-
+ docs/plan/STATUS.md                                          |   12 +-
  configs/references.json                            |    7 +
  dashboard/app.py                                   |  184 +-
  docs/DATUM.md                                      |  128 +
@@ -436,12 +436,12 @@ CHECK OK: Phase 1 verify
 Implementers append entries here (format in root `CLAUDE.md` §Doubts). Empty at plan time.
 
 ## Q-P1.01-1  DownloadStatus has no member for a recorded file that exists but cannot be read
-context: CONTRACTS.md C08 (`DownloadStatus`); src/lunar_reg/ingest/downloads.py `verify_downloads` (the `except OSError` branch)
+context: docs/plan/CONTRACTS.md C08 (`DownloadStatus`); src/lunar_reg/ingest/downloads.py `verify_downloads` (the `except OSError` branch)
 question: A recorded file that is present but unreadable (permission denied, I/O error while hashing, removed mid-run) used to raise out of `verify_downloads`, so the CLI never printed `report()`. C08 freezes the enum, so there is no `UNREADABLE` member. Should C08 gain `UNREADABLE = "unreadable"` (is_failure), as C09 `InstrumentStatus` already has?
 what I did meanwhile: such entries are recorded as `MISSING` (a failure, so the CLI exits 1) with the sample `"<path>: unreadable: <OSError>"`, and the MISSING description now reads "recorded but not on disk or unreadable (see sample)". Reversible: adding the member later only changes which status that branch records.
 
 ## Q-P1.02-1  C08 has no source/instrument/role values for the NAIF SPICE kernels
-context: CONTRACTS.md C08 (`source`, `instrument`, `role` lists); Phase_1/LLD/downloads.md §2.2 rows `spice_lsk`, `spice_pck`, `spice_de440s`; scripts/fetch_public.py `_RECORD_AS`
+context: docs/plan/CONTRACTS.md C08 (`source`, `instrument`, `role` lists); Phase_1/LLD/downloads.md §2.2 rows `spice_lsk`, `spice_pck`, `spice_de440s`; scripts/fetch_public.py `_RECORD_AS`
 question: `record_file` rejects values outside the frozen C08 lists, and none of them names NAIF (source), SPICE kernels (instrument) or a kernel (role). Should C08 gain `source "NAIF"`, `instrument "SPICE"` and `role "kernel"` (or which existing values should the kernels carry)?
 what I did meanwhile: the three kernels are recorded with `source "PDS_IMG"` (NAIF is a PDS node; the only generic PDS value), `instrument "DOC"`, `role "misc"`, `product_id` = file stem, and the real `naif.jpl.nasa.gov` URL in `url`, so the true origin is in every entry. No code reads these fields today. Reversible: change `_RECORD_AS["spice_"]` and re-record the three files with `record_file` (which replaces an entry with the same path).
 
@@ -461,7 +461,7 @@ question: By the §1 rules `NAC_DTM_VIKRAMSITE1.xml`, `ch2_tmc_ndn_*_d_dtm_*.xml
 what I did meanwhile: implemented the rules as written. Callers that need the DTMs can call `products(inst, product_type="other")`. The scan now parses only "data" labels, so in 3 existing tests in tests/test_ingest_labels.py (`test_scan_directory_finds_labels_and_skips_bad_ones`, `test_scan_directory_strict_reraises`, `test_ch2_and_lro_manifests_share_a_schema`) I renamed the fixture files from `good.xml`/`broken.xml`/`a.xml` to `*_d_img_d18.xml`. Their assertions did not change. Reversible: one rule line in `product_type_of`.
 
 ## Q-P1.03-3  C09 "PARTIAL ... (or the reverse)" is not defined in LLD §2; how unlabelled data files are found and reported
-context: CONTRACTS.md C09 ("PARTIAL = labels without their data file (or the reverse)"); Phase_1/LLD/catalog.md §2 (defines only the label-side rule); src/lunar_reg/ingest/catalog.py `_unlabelled_data`, `ProductCatalog.__post_init__`
+context: docs/plan/CONTRACTS.md C09 ("PARTIAL = labels without their data file (or the reverse)"); Phase_1/LLD/catalog.md §2 (defines only the label-side rule); src/lunar_reg/ingest/catalog.py `_unlabelled_data`, `ProductCatalog.__post_init__`
 question: LLD §2 does not say which files count as "data files" for the reverse case. Is this reading right: the label globs with the label suffix swapped for `.*`, kept when the suffix is in `pds4._IMG_SUFFIXES` (`.img`/`.qub`/`.dat`), a file being "labelled" when a found label resolved to it or a label of the same stem sits next to it? The list is exposed as `ProductCatalog.unlabelled_data` (a plain attribute set in `__post_init__`, NOT a dataclass field, so C09's field list is unchanged) and in the PARTIAL line of `report()`; there is no ScanStatus member for it (the LLD §1 enum is fixed).
 what I did meanwhile: implemented that reading (review finding on P1.03). Real `data/raw` is unchanged by it: 0 unlabelled data files, same 6 status lines (log line `unlabelled data files: {}` from `lunar-reg catalog`). Reversible: one helper and one attribute in catalog.py; `.tif` data files (LRO DTM, JAXA TC) are not considered, consistent with Q-P1.03-1.
 
@@ -531,7 +531,7 @@ question: The code does three things the LLD does not name. (a) `agreement_for_s
 what I did meanwhile: kept the raise (option 1). The message names both pair_ids and says "pass one result per matcher". Results without `pre_ecc_transform` are dropped before the duplicate check. Kept (b) and (c). Tests: `test_stored_duplicate_matcher_rejected`, `test_stored_duplicate_matcher_only_counts_usable_results`, `test_stored_without_source_image_rejected`, `test_probe_mapping_to_non_finite_point_skipped`. Reversible: one loop in `agreement_for_stored`; no C14 field changes.
 
 ## Q-P1.13-1  An all-nodata source window has no PrepStatus member; other choices beyond LLD pairs §1
-context: Phase_1/LLD/pairs.md §1 steps 3, 6, 9; CONTRACTS.md C11 `PrepStatus` (frozen); src/lunar_reg/pairs.py `_reduce`, `_find_grid`, `prepare_window_pair`
+context: Phase_1/LLD/pairs.md §1 steps 3, 6, 9; docs/plan/CONTRACTS.md C11 `PrepStatus` (frozen); src/lunar_reg/pairs.py `_reduce`, `_find_grid`, `prepare_window_pair`
 question: (a) Step 9 checks only the reference's valid fraction, and C11 has no member for an empty source, so a source window that is all nodata comes back `OK` with an all-False `source_valid`. `reduce_bands(method="pca")` raised ValueError on such a cube, which would make a bad item raise. Should an empty source be a failure (needs a C11 member, e.g. `EMPTY_SOURCE`), or is it the caller's job (register_pair's preprocess check catches it later)? (b) The code also does several things the LLD does not name. It looks for the geometry grid under `<product>/geometry` (the CH-2 bundle layout, parent of the `data` dir) before the label dir's parent. A grid that exists but cannot be read is `READ_FAILED`, with no fallback to the label corners. A grid that does not cover the window corners (NaN) is `NO_FOOTPRINT`. Grid corner queries sit at index −0.5 (grid nodes are pixel centres), clamped to the grid range. `win` is clamped to `lines`, and `l0` to the product. `centre_line` outside the product raises ValueError. Rows use `psy` for the margin and shift. `PrepDiagnostics` (counts + first sample + `report()`) is added per the classified-outcomes skill. Are these right?
 what I did meanwhile: (a) with "pca" and no valid pixel the plane is all zeros (all invalid), the same as "first" and "mean"; the outcome stays `OK` per LLD/C11 (test `test_all_nodata_multiband_source_does_not_raise`). (b) implemented as described. All of this is reversible inside `pairs.py`; no C11 field or member was changed.
 
@@ -571,12 +571,12 @@ question: A dry run never registers anything, so `any_ok` is always False and th
 what I did meanwhile: followed LLD §4 literally: exit `0 if report.any_ok else 1`, also for dry runs. Test `tests/test_site_runner.py::test_run_vikram_exit_follows_any_ok` pins this. Reversible: one line in `main`.
 
 ## Q-P1.16-3  Exp-1 gate: which results go into `agreement_for_stored` (Q-P1.12-1), and the strip fields when nothing is computed
-context: Phase_1/LLD/site_runner.md §3; CONTRACTS.md C20; src/lunar_reg/sites/runner.py `_strip`, `_pair_variant`, `compute_exp1_gate`
+context: Phase_1/LLD/site_runner.md §3; docs/plan/CONTRACTS.md C20; src/lunar_reg/sites/runner.py `_strip`, `_pair_variant`, `compute_exp1_gate`
 question: §3 runs agreement over "that strip's OK results". After Q-P1.12-1, `agreement_for_stored` raises on two results with one matcher or with several source/reference pairs. So the gate splits a strip's results into comparable groups by (`source_id`, `reference_id`, `source_sensor`, `reference_sensor`, pair-id variant = the suffix after `-<reference_sensor>_<matcher>`) and runs the §3 test (best by the §3 rule, agreement over the group, one result per matcher, the first by sorted pair_id) in each group. The strip passes when any group passes. This matters for P1.20: exp-1a stores raw and exp-1b stores calibrated results of the same 2023 tags in the live store, and a strip-wide best from a one-matcher calibrated group would otherwise hide a raw group that meets the C20 rule. The row reports the passing group with the most inliers, else the group of the strip-wide §3 best. Is that the intended set? A stored record that cannot be loaded is counted: strip `status = "load_failed"` when none of the tag's records loads, else `"ok; <n> stored record(s) not loaded"`; the one summary log line gives the total and the first reason. Other choices: a remaining ValueError gives strip `status = "agreement_failed"` and `passes_targets = False`. A strip with results has `status = "ok"`. A `no_result` strip has `best_matcher = None`, `u_score = None`, `agreement_px = None`, `n_inliers = 0`. A NaN `agreement_px` (fewer than 2 transforms) or `u_score` is written as `null`, so the document is strict JSON. `reference_sun = None` becomes `{}`. The thresholds 20 / 0.7 are module constants with `EXP1_THRESHOLDS_SOURCE = INFERRED` (chosen targets).
 what I did meanwhile: implemented as described. Tests: `test_exp1_gate_build_then_skip`, `test_exp1_gate_variants_do_not_crash_and_disagreement_fails`, `test_exp1_gate_empty_store`, `test_exp1_gate_any_comparable_group_passes`, `test_exp1_gate_unloadable_records_are_classified`. Reversible inside `_strip`.
 
 ## Q-P1.16-4  The OHRC prior shift is also applied to calibrated products whose prior comes from the geometry grid
-context: Phase_1/LLD/site_runner.md §2 step 4b; DECISIONS.md G38; src/lunar_reg/sites/runner.py `_run_product`
+context: Phase_1/LLD/site_runner.md §2 step 4b; docs/plan/DECISIONS.md G38; src/lunar_reg/sites/runner.py `_run_product`
 question: (556, −2888) m was measured against the **label-corner** prior of the raw strip. G38 restricts the shift by instrument only. So an OHRC calibrated (`ncp`) product, whose prep uses the geometry grid, also gets the shift when its coarse pass fails. The grid and corner priors differ (LLD datum §3.5). In the P1.16 dry run both 20240425T1406019344 products got `prior shift 556,-2888 m (E,S)`; the calibrated one has `prior from geometry_grid` (data/processed/vikram/runs/p1_16_dry/products.json). Should the shift apply only when the prior source is label corners? LLD runs.md exp-1b passes `--prior-shift ''` for calibrated products, so the planned runs are not affected.
 what I did meanwhile: followed LLD §2 / G38 as written (per instrument). Reversible: one condition in `_run_product`.
 
@@ -669,7 +669,7 @@ question: Should `load_all_pairs` (C04 module) return the scanned path with each
 what I did meanwhile: scripts/reindex_results.py `scanned_paths` replays `sorted(pairs/*.npz)` minus the failed stems and checks the count against `loaded` (aborts if the directory changed); `plan_stash_moves` plans every move before any file moves and refuses the whole move (exit 1, nothing moved, index not touched) when a suffixed name is taken too. Tested in tests/test_viewers.py, including a file whose stem differs from its stored pair_id. Reversible: swap the replay for paths from `load_all_pairs` if it gains them.
 
 ## Q-P1.23-1  A116 also names src/lunar_reg/ingest/pds4.py, which the P1.23 file list leaves out
-context: AUDIT.md A116 (locations include `src/lunar_reg/ingest/pds4.py:17-23`); Phase_1/LLD/viewers_docs.md §P1.23 "Files:" lists only `ingest/{__init__,fieldmap,manifest}.py` and `preprocess/config.py`
+context: docs/plan/AUDIT.md A116 (locations include `src/lunar_reg/ingest/pds4.py:17-23`); Phase_1/LLD/viewers_docs.md §P1.23 "Files:" lists only `ingest/{__init__,fieldmap,manifest}.py` and `preprocess/config.py`
 question: `pds4.py` module docstring lines 19-23 ("Geometry and illumination fields are **not** verified ... reported as unresolved until a real label is probed") and the `PDS4Product.geometry_resolved` docstring (pds4.py:265-267, "``False`` is the expected state until a real label has been probed") still contradict fieldmap.py (sun azimuth/elevation/incidence and the eight corners VERIFIED 2026-09-05 on a real OHRC label). May a later prompt (or this one, if the fence is widened) rewrite those two docstrings the same way?
 what I did meanwhile: left `pds4.py` untouched (outside the file fence); rewrote the other three ingest docstrings per A116. Reversible: a docstring-only edit to pds4.py later closes the remainder.
 
@@ -681,16 +681,16 @@ answer (architect, 2026-10-03, human chose option 1): .fable/tools/read_esri_shp
 
 ## LLD deviations
 
-Built from every non-blocking `Phase_1/QUESTIONS.md` entry that records a choice beyond or against `Phase_1/LLD/**` / `CONTRACTS.md`, and from the commit messages of `git log phase-0-approved..HEAD`. Every file:line was checked at HEAD. Entries where the code follows the LLD as written (Q-P1.03-1, Q-P1.03-2, Q-P1.04-1, Q-P1.06-1, Q-P1.16-2, Q-P1.16-4, Q-P1.20-1) and entries with no code choice (Q-P1.14-1, Q-P1.15-1) have no row.
+Built from every non-blocking `Phase_1/QUESTIONS.md` entry that records a choice beyond or against `Phase_1/LLD/**` / `docs/plan/CONTRACTS.md`, and from the commit messages of `git log phase-0-approved..HEAD`. Every file:line was checked at HEAD. Entries where the code follows the LLD as written (Q-P1.03-1, Q-P1.03-2, Q-P1.04-1, Q-P1.06-1, Q-P1.16-2, Q-P1.16-4, Q-P1.20-1) and entries with no code choice (Q-P1.14-1, Q-P1.15-1) have no row.
 
 | file:line | LLD section | what differs | why |
 |---|---|---|---|
 | src/lunar_reg/pipeline.py:135 (`_degenerate_input`; used at :240-257) | preprocess_presets.md §2, §4 | An input with no valid pixel or all valid pixels equal skips the preset for both images, goes to matching unchanged and records `extra["preprocess_skipped"]`; the LLD says all-zero input -> DEGENERATE -> PREPROCESS_FAILED. | Human answer to Q-P1.19-3 (option b; commit f1c2f89); restores six protected harness tests built on blank images with `PipelineConfig()` defaults. |
 | src/lunar_reg/match/classical.py:65 (`ASIFT_DETECT_THREADS = 4`; applied at :208) | asift_cap.md (no thread bound); outside any prompt's fence | ASIFT detection runs with at most 4 OpenCV threads and restores the previous setting; output bit-identical. | Q-P1.20-0: the default thread count exhausted host RAM and froze the machine three times in P1.20 exp-1a (measurements: data/processed/probes/asift_memory_20261002.txt); commit 56a06f0. |
-| src/lunar_reg/ingest/downloads.py:396 | CONTRACTS.md C08 `DownloadStatus` | A recorded but unreadable file is classified `MISSING` with sample `"<path>: unreadable: ..."` (C08 has no UNREADABLE member). | Q-P1.01-1: previously raised out of `verify_downloads`, so `report()` never printed. |
-| scripts/fetch_public.py:144 (`_RECORD_AS`) | CONTRACTS.md C08 source/instrument/role lists; downloads.md §2.2 spice rows | NAIF SPICE kernels recorded as `source "PDS_IMG"`, `instrument "DOC"`, `role "misc"`, real NAIF URL in `url`. | Q-P1.02-1: frozen C08 lists have no NAIF/SPICE/kernel values. |
+| src/lunar_reg/ingest/downloads.py:396 | docs/plan/CONTRACTS.md C08 `DownloadStatus` | A recorded but unreadable file is classified `MISSING` with sample `"<path>: unreadable: ..."` (C08 has no UNREADABLE member). | Q-P1.01-1: previously raised out of `verify_downloads`, so `report()` never printed. |
+| scripts/fetch_public.py:144 (`_RECORD_AS`) | docs/plan/CONTRACTS.md C08 source/instrument/role lists; downloads.md §2.2 spice rows | NAIF SPICE kernels recorded as `source "PDS_IMG"`, `instrument "DOC"`, `role "misc"`, real NAIF URL in `url`. | Q-P1.02-1: frozen C08 lists have no NAIF/SPICE/kernel values. |
 | scripts/fetch_public.py:175 (`PRESENT_UNRECORDED`); :341 (size_mismatch recording) | downloads.md §5 | Extra FetchStatus member for a destination on disk without a matching DOWNLOADS.json entry (never overwritten); a Content-Length mismatch is recorded in `failures` and the `.part` removed. | Q-P1.02-2: data rule forbids overwriting under data/raw/. |
-| src/lunar_reg/ingest/catalog.py:258 (`_unlabelled_data`), :366 | catalog.md §2; CONTRACTS.md C09 "PARTIAL ... (or the reverse)" | Reverse PARTIAL case defined: data files (`.img/.qub/.dat`) with no resolving or same-stem label; exposed as non-field attribute `ProductCatalog.unlabelled_data` and in `report()`. | Q-P1.03-3: LLD defines only the label-side rule. |
+| src/lunar_reg/ingest/catalog.py:258 (`_unlabelled_data`), :366 | catalog.md §2; docs/plan/CONTRACTS.md C09 "PARTIAL ... (or the reverse)" | Reverse PARTIAL case defined: data files (`.img/.qub/.dat`) with no resolving or same-stem label; exposed as non-field attribute `ProductCatalog.unlabelled_data` and in `report()`. | Q-P1.03-3: LLD defines only the label-side rule. |
 | src/lunar_reg/ingest/overlap.py:1215 (`_corner_window`), :907 (`n_self_pairs_skipped`) | overlap.md §1 `WindowStatus`, §3 A050 | Footprint with < 4 corners -> `NO_PIXEL_SIZE` with detail; skipped self-pairs counted in a new `OverlapDiagnostics` field shown by `report()`. | Q-P1.06-2: no member names the case; convention 2 forbids silent skips. |
 | src/lunar_reg/ingest/overlap.py:576 (`_rewrap_ring`) | overlap.md §3 A047 | Each ring is unwrapped and shifted as a whole so its mean longitude is in (ref − 180, ref + 180], not per vertex. | Q-P1.06-3: per-vertex rewrap made antipodal products overlap and `intersect` asymmetric. |
 | tests/test_datum.py:182 | datum.md §3 step 5 | MEASURED line prints both the median over the 25 sub-grid nodes and the single strip-centre distance. | Q-P1.07-1: "median ... of the strip centre" is undefined for one point. |
@@ -700,14 +700,14 @@ Built from every non-blocking `Phase_1/QUESTIONS.md` entry that records a choice
 | src/lunar_reg/preprocess/resample.py:75 | preprocess_geometry.md §6 | Mask resampled with `INTER_NEAREST_EXACT` (pixel-centre geometry) rather than plain nearest. | Q-P1.09-3: plain INTER_NEAREST was offset by up to half an output pixel. |
 | src/lunar_reg/pipeline.py:284 (`ecc_nodata = 0`), :229 (`"preprocess"` in extra) | preprocess_presets.md §2 | After a preset, ECC gets `nodata=0` also when `config.nodata` is set or a float input has NaN/inf; `preprocess` written into both `RunOutcome.extra` and `PairResult.extra`. | Q-P1.10-1: presets encode nodata as 0; failure rows need the preset name. |
 | src/lunar_reg/preprocess/presets.py:135 (`_constant_output`), :247 | preprocess_presets.md §4 | A non-"none" preset output with < 2 distinct valid values is DEGENERATE_OUTPUT (step `output_check`). | Q-P1.10-2: flat outputs otherwise reached the matcher as TOO_FEW_MATCHES. |
-| scripts/fit_reference_sun.py:346 (`product_id`), :463 (`ode_elevation_source`); src/lunar_reg/ingest/sun.py:110 (`AZIMUTH_FIT_SOURCE`) | sun_geometry.md §2 steps 3-5; CONTRACTS.md C13 | Extra output keys (`product_id` per strip row, provenance keys, SPICE grid azimuth); C13 `AzimuthFit` provenance carried as a module constant; trailing `Z` dropped before `str2et`. | Q-P1.11-1: raw and calibrated labels share a tag; convention 1 (provenance in code). |
+| scripts/fit_reference_sun.py:346 (`product_id`), :463 (`ode_elevation_source`); src/lunar_reg/ingest/sun.py:110 (`AZIMUTH_FIT_SOURCE`) | sun_geometry.md §2 steps 3-5; docs/plan/CONTRACTS.md C13 | Extra output keys (`product_id` per strip row, provenance keys, SPICE grid azimuth); C13 `AzimuthFit` provenance carried as a module constant; trailing `Z` dropped before `str2et`. | Q-P1.11-1: raw and calibrated labels share a tag; convention 1 (provenance in code). |
 | src/lunar_reg/eval/agreement.py:163, :175 | agreement.md §1-§2 | `agreement_for_stored` raises on two usable results with one matcher and when no result has a `source_image`; probes mapping to non-finite points are skipped. | Q-P1.12-1: §2 keys transforms by matcher name, so a second result would silently replace the first. |
-| src/lunar_reg/pairs.py:297 (`_reduce`), :142 (`PrepDiagnostics`) | pairs.md §1 steps 3, 6, 9; CONTRACTS.md C11 | All-nodata source window returns `OK` with all-zero plane (no C11 member); grid looked up under `<product>/geometry`; unreadable grid `READ_FAILED`; grid corners at index −0.5; diagnostics object added. | Q-P1.13-1: choices the LLD does not name; C11 frozen. |
+| src/lunar_reg/pairs.py:297 (`_reduce`), :142 (`PrepDiagnostics`) | pairs.md §1 steps 3, 6, 9; docs/plan/CONTRACTS.md C11 | All-nodata source window returns `OK` with all-zero plane (no C11 member); grid looked up under `<product>/geometry`; unreadable grid `READ_FAILED`; grid corners at index −0.5; diagnostics object added. | Q-P1.13-1: choices the LLD does not name; C11 frozen. |
 | src/lunar_reg/pairs.py:213 (`_grid_key`), :228 (`_find_grid`) | pairs.md §1 step 3 | Grid token derived from product_id or label stem, matched case-insensitively; no unfiltered search. | Q-P1.13-2: real lower-case LIDs never match `find_geometry_files`' token regex, so the grid was never found. |
 | src/lunar_reg/ingest/fieldmap.py:317, :324 | tmc2_iirs.md §2, §3 | No TMC-2 view field (none exists in labels); IIRS gets scalar `first_band_center_wavelength` / `first_band_width` instead of a per-band list. | Q-P1.15-2: probe results; a `Field` resolves only the first match. |
 | src/lunar_reg/preprocess/pipeline.py:407 (`_incremental_pca_refusal`); scripts/probe_raster.py:53 (`ProbeStatus`) | tmc2_iirs.md §1 step 2, §4 | Incremental PCA route also requires `image.shape == (count, height, width)`; probe JSON gains `out_shape`, `n_border_samples`, `value_sources`, `status`, `error`. | Q-P1.15-3: a window of the dataset would be replaced by a full-size plane. |
 | src/lunar_reg/sites/runner.py:212 (`SiteReport`), :697 (`products.json`), :637 (`registered_geotiff_error`) | site_runner.md §1-§2 | Extra `SiteReport` fields, `products.json` per run, preview names `<SENSOR>_<tag>_*`, `registered/<pair_id>.tif`, extra `extra` provenance keys, extra run-record counts. | Q-P1.16-1: needed by `report()`, convention 1/2; avoids raw/calibrated preview collisions. |
-| src/lunar_reg/sites/runner.py:784 (`_strip`), :737 (`_pair_variant`) | site_runner.md §3; CONTRACTS.md C20 | Exp-1 gate splits a strip's results into comparable groups (source, reference, sensors, pair-id variant); strip passes when any group passes; `load_failed` / `agreement_failed` statuses. | Q-P1.16-3: after Q-P1.12-1 a strip-wide call would raise or hide a passing group. |
+| src/lunar_reg/sites/runner.py:784 (`_strip`), :737 (`_pair_variant`) | site_runner.md §3; docs/plan/CONTRACTS.md C20 | Exp-1 gate splits a strip's results into comparable groups (source, reference, sensors, pair-id variant); strip passes when any group passes; `load_failed` / `agreement_failed` statuses. | Q-P1.16-3: after Q-P1.12-1 a strip-wide call would raise or hide a passing group. |
 | scripts/run_jaxa.py:154 (`prepare_same`), :251 (`prepare_cross`), :222 | jaxa_cli_ablation.md §1 | Same-sensor read with GDAL `average`, masked, boundless; cross pair reprojected directly on NOOP; extra keys `common_gsd_m_source`, `georeference_status`, fit RMS. | Q-P1.17-1 (a)-(c): LLD names no resampling method. |
 | scripts/run_ablation.py:57 (`NOT_RUN`), :68 (`anchor_rows`), :289 (`labels`) | jaxa_cli_ablation.md §2 | Anchor matchers with no outcome get a `not_run` row (not a RunStatus); `label` on each synthetic row plus top-level `labels`; synthetic matchers = `("sift","lightglue") ∩ --matchers`. | Q-P1.17-1 (d), (e): fixed row count for P1.18. |
 | src/lunar_reg/cli.py:68 (`_read_for_register`), :122 (`register_document`) | jaxa_cli_ablation.md §3 | `register` sets ≤ 0 / nodata / non-finite to NaN before downsampling, passes masks, converts output values via `_plain_for_index`, default pair id from stems. | Q-P1.17-1 (f). |

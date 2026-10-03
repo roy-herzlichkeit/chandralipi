@@ -3,7 +3,7 @@ name: classified-outcomes
 description: The project's pattern for any batch or per-item operation that can fail — enum outcome, diagnostics with counts + first sample, report() printed by the caller every run. Used by P0.09, P0.10, P0.11 and every later phase.
 ---
 
-# Classified outcomes (CONTEXT.md convention 2)
+# Classified outcomes (docs/project/CONTEXT.md convention 2)
 
 ## Shape
 ```python

@@ -1,6 +1,6 @@
 # CLARIFY — answers are binding for Task B
 
-Reply per question with `default`, or a replacement. Evidence behind each question: `FABLE_NOTES.md` (section / bug ID in brackets).
+Reply per question with `default`, or a replacement. Evidence behind each question: `docs/plan/FABLE_NOTES.md` (section / bug ID in brackets).
 Format: `Q<n> | question | YOUR DEFAULT | why | impact if wrong (L/M/H)`
 
 ## Scope & priorities
@@ -81,12 +81,12 @@ ANSWER: opus agents will do the work, you will review the work, after that diff 
 Q22 | How strictly are the harness/benchmark fences enforced? | `.claude/settings.json` deny on Edit/Write/Bash writes to `Phase_*/harness/**` and `Phase_*/benchmark/**`, plus a PreToolUse hook that blocks the same paths. Opus sessions run with `defaultMode: acceptEdits` instead of today's `bypassPermissions`. | I haven't verified whether deny rules hold under bypassPermissions. The hook is the backstop [§0]. | M
 ANSWER: Please do remove those rules, they were enforced bby mistake, follow bypass permissions
 
-Q23 | Which docs may Opus edit? | Code, tests, `scripts/README.md`, and status tables in `CONTEXT.md` / `CONTEXT_HANDOFF.md` / `README.md`, with numbers only from runs. It never edits `gdocs/`, `udocs/`, `docs/REPORT_SECTION.md`, `docs/DEMO_SCRIPT.md`, `[INSERT RESULT]` cells, or `FABLE_*`. | Panel-facing prose is the human's. Stale status tables are the ones that mislead [S17]. | M
+Q23 | Which docs may Opus edit? | Code, tests, `scripts/README.md`, and status tables in `docs/project/CONTEXT.md` / `docs/project/CONTEXT_HANDOFF.md` / `README.md`, with numbers only from runs. It never edits `gdocs/`, `udocs/`, `docs/REPORT_SECTION.md`, `docs/DEMO_SCRIPT.md`, `[INSERT RESULT]` cells, or `FABLE_*`. | Panel-facing prose is the human's. Stale status tables are the ones that mislead [S17]. | M
 ANSWER: Everything.
 
 ## Repo issues (fix / keep / ask)
 
-Q24 | The uncommitted changes (CONTEXT, HANDOFF, DEMO_SCRIPT, `export_web_data.py` NaN guard, udocs, `results.json`) plus the untracked `gdocs/`, `REPO_TREE.md` and `CLAUDE.md`: what happens to them before Phase 1? | You commit them as a baseline snapshot on `main` before P1.00. `P1.00_preflight` then asserts a clean tree. | The preflight needs a known green baseline. The NaN-guard fix is real code that is currently uncommitted. | M
+Q24 | The uncommitted changes (CONTEXT, HANDOFF, DEMO_SCRIPT, `export_web_data.py` NaN guard, udocs, `results.json`) plus the untracked `gdocs/`, `docs/project/REPO_TREE.md` and `CLAUDE.md`: what happens to them before Phase 1? | You commit them as a baseline snapshot on `main` before P1.00. `P1.00_preflight` then asserts a clean tree. | The preflight needs a known green baseline. The NaN-guard fix is real code that is currently uncommitted. | M
 ANSWER: Yes they must be commited
 
 Q25 | Dead or duplicate code (S16, unused `configs/default.yaml`, no-caller `find_cross_sensor_pairs` / `enforce_uniformity` / `footprint.find_pairs`, the 4 failing tests S10, 60 unformatted files)? | Fix S10 in P1.01. Delete the duplicate LoFTR/LightGlue classes in `match/loftr.py` and `match/superglue.py` (keeping `SuperGlueMatcher`), and `ingest/footprint.py` if no tests depend on it after the move. Delete `configs/default.yaml`. Keep the no-caller library functions (documented features). Run `ruff format` only on files a prompt touches. | This shrinks what Opus has to read without touching validated logic. A whole-repo reformat would bury the real diffs. | L

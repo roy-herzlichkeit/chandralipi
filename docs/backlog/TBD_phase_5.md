@@ -30,7 +30,7 @@ produces something to show.
   `udocs/70_SYSTEM_DESIGN_distributed_gpu.md` Part 3 could reuse that same
   component rather than being built from scratch.
 - **Done when:** whatever was decided in 5.1 renders from real run data (per
-  this project's standing rule against invented numbers — `CONTEXT.md` §3.3),
+  this project's standing rule against invented numbers — `docs/project/CONTEXT.md` §3.3),
   not placeholder figures.
 
 ---

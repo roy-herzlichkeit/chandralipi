@@ -3,7 +3,7 @@ name: provenance-fields
 description: How to attach provenance to every new number (ValueSource, C01) and how to write numbers into docs (G19). Used by P0.07, P0.08, P0.12 and every prompt that adds a constant, a measured value or a doc number.
 ---
 
-# Provenance in code, numbers only from runs (CONTEXT.md conventions 1 and 3)
+# Provenance in code, numbers only from runs (docs/project/CONTEXT.md conventions 1 and 3)
 
 ## ValueSource (`lunar_reg.provenance`, C01)
 | member | use when |

@@ -15,12 +15,12 @@ Closes: A068 (pr-1), A117 (pr-16), A118 (pr-17), A119 (pr-22), A124 (tooling-14 
 Tests (`tests/test_viewers.py`): scale conjugation on a synthetic PairResult with different thumbnail scales puts a known point on the right pixel; export into `tmp_path` produces valid JSON (`allow_nan=False`) with `nFailures` and a relative `sourceDirectory`; the swap leaves no temp directory behind.
 
 ## P1.22 — docs and status refresh (split from the code-text items by review RC30)
-Closes: A121 (S17), A122 (tooling-11), A123 (tooling-12), A070 (tooling-13), A120 README part, A023 README part (`README.md:610-611`). Files: `README.md`, `CONTEXT.md`, `CONTEXT_HANDOFF.md`, `docs/results/` (new).
+Closes: A121 (S17), A122 (tooling-11), A123 (tooling-12), A070 (tooling-13), A120 README part, A023 README part (`README.md:610-611`). Files: `README.md`, `docs/project/CONTEXT.md`, `docs/project/CONTEXT_HANDOFF.md`, `docs/results/` (new).
 | item | change |
 |---|---|
 | S17 / A121 | regenerate `web/public/data/results.json` with `scripts/export_web_data.py`; every test count / status claim in README, CONTEXT, CONTEXT_HANDOFF is replaced by a value with its source: `scripts/ci.sh` output saved to `docs/results/ci_<date>.txt` (the count line), `lunar-reg catalog` output, the live index row count — each cited by path; otherwise `[INSERT RESULT]` |
 | A122 | README provenance table generated from `lunar-reg fields` output (paste the output block, cite the command); delete known-gap 3; replace the "no CH-2 product" paragraph with the `synthetic` flag explanation |
-| A123 | CONTEXT.md provenance counts replaced by the commands that produce them |
+| A123 | docs/project/CONTEXT.md provenance counts replaced by the commands that produce them |
 | A070 | copy the text of `data/processed/vikram/README.md` and `data/processed/demo_real/README.md` into `docs/results/vikram_2024.md` and `docs/results/jaxa_wac_2026-09-08.md` (text only, no images), and point README/CONTEXT links there |
 | A120 (README part) | README lines 390-396 stop claiming PCA in `ohrc_nac_config` |
 | A023 | README 610-611: "self-residual sub-pixel" wording (`self_residual_subpixel`, not accuracy) |

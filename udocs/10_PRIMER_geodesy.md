@@ -146,7 +146,7 @@ and **no coordinate-system element**. Whether the latitudes are planetocentric
 or planetographic is not stated anywhere in the file. It does not matter while
 we only compare Chandrayaan-2 products to each other, because any consistent
 convention cancels out. It matters the moment we mix in LRO, which is the
-entire plan. This is written down in `CONTEXT_HANDOFF.md` as a decision awaiting
+entire plan. This is written down in `docs/project/CONTEXT_HANDOFF.md` as a decision awaiting
 a human, not as a solved item.
 
 ## Rules of thumb to carry

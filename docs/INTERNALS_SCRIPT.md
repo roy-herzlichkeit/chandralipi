@@ -7,7 +7,7 @@ impact, references.
 
 What does **not** loosen up: every number in here traces to a file and a real
 run. If someone challenges a figure, the answer is "here's the run"
-(`CONTEXT_HANDOFF.md`, `udocs/50_findings.md`,
+(`docs/project/CONTEXT_HANDOFF.md`, `udocs/50_findings.md`,
 `data/processed/demo_real/README.md`) — never "trust me." Acronyms still get
 said in full the first time, just naturally, not as a drill.
 

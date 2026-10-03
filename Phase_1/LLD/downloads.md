@@ -110,7 +110,7 @@ print("recorded", entry["path"], entry["bytes"])
 ```
 Invocation: `.venv/bin/python data/raw/.tools/record_download.py <path> <source> <product_id> <instrument> <role> <url or ->`; for an unpacked product: `find data/raw/ch2/ohrc/<stem> -type f -print0 | while IFS= read -r -d '' f; do .venv/bin/python data/raw/.tools/record_download.py "$f" PRADAN <stem> OHRC auto -; done` (`auto` applies the role rule). Role rule: `.img`/`.qub`/`.tif` = `data`, `.xml`/`.lbl` = `label`, `*_g_grd_*` = `geometry`, browse PNG/JPG = `browse`, zip = `misc`.
 7. Print a final table: file count and bytes per instrument, failures, and what is still missing from §2.1.
-The session writes only under `data/raw/**` and `docs/external/**`; it does not edit `STATUS.md`, commit, or touch code.
+The session writes only under `data/raw/**` and `docs/external/**`; it does not edit `docs/plan/STATUS.md`, commit, or touch code.
 
 ## 4. P1.01 — `src/lunar_reg/ingest/downloads.py` + `scripts/verify_downloads.py`
 - `DEFAULT_MANIFEST = Path("data/raw/DOWNLOADS.json")`.
@@ -133,4 +133,4 @@ CLI: `python scripts/fetch_public.py [--only KEY[,KEY]] [--dry-run] [--manifest 
 | report | counts per `FetchStatus` + first sample, printed every run; exit 1 when any HTTP_ERROR/NETWORK_ERROR/SIZE_MISMATCH occurred on a VALIDATED row, else 0 |
 | `--dry-run` | prints the plan (key, url, dest, pacing) and makes no request |
 Tests (`tests/test_fetch_public.py`) monkeypatch `urllib.request.urlopen` and `time.sleep`; they never touch the network.
-**Run step (network, allowed by CLAUDE.md):** after the check passes, run `.venv/bin/python scripts/fetch_public.py --only ode_edrnac4_box,edr_le_label,edr_re_label,tc_ortho_n,tc_ortho_s,spice_lsk,spice_pck,spice_de440s`, then `.venv/bin/python scripts/verify_downloads.py --no-scan`, and paste both reports into `STATUS.md` notes (≤ 5 lines). The DOCUMENTED rows are fetched only when the human asks.
+**Run step (network, allowed by CLAUDE.md):** after the check passes, run `.venv/bin/python scripts/fetch_public.py --only ode_edrnac4_box,edr_le_label,edr_re_label,tc_ortho_n,tc_ortho_s,spice_lsk,spice_pck,spice_de440s`, then `.venv/bin/python scripts/verify_downloads.py --no-scan`, and paste both reports into `docs/plan/STATUS.md` notes (≤ 5 lines). The DOCUMENTED rows are fetched only when the human asks.

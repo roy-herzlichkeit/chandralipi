@@ -30,7 +30,7 @@ in it is read from the file it cites.
 | GPU runs | exist; device recorded per run | e.g. `data/processed/vikram/runs/p1_19_anchor/run_record.json` (`device`) |
 | JAXA/NASA substitute | write-up of the 2026-09-08/09 run | `docs/results/jaxa_wac_2026-09-08.md` |
 
-Next steps are carried by the phased plan (`PHASES.md`, `STATUS.md`), not by
+Next steps are carried by the phased plan (`docs/plan/PHASES.md`, `docs/plan/STATUS.md`), not by
 §6 below.
 
 ---
@@ -321,7 +321,7 @@ take the Streamlit and Vite servers during this period.
 *Superseded 2026-10-02:* the "current actual state" above is the 2026-09-05
 record. Products now on disk, IIRS included, are counted per instrument in
 `docs/results/catalog_20261002.txt` (`lunar-reg catalog`); the disk budget for
-`data/raw/` is set in `CLARIFY.md` Q17 as amended by `Phase_1/ASSUMPTIONS.md` A1-6b.
+`data/raw/` is set in `docs/plan/CLARIFY.md` Q17 as amended by `Phase_1/ASSUMPTIONS.md` A1-6b.
 
 ### 1.5 TMC-2 "products" are not distinct scenes
 
@@ -546,7 +546,7 @@ These are judgment calls, not implementation choices. Each was open on
 2026-09-05/09.
 
 *Superseded 2026-10-02:* open decisions are now carried by the phased plan
-(`PHASES.md`, `STATUS.md`, `Phase_*/QUESTIONS.md`), and several items below are
+(`docs/plan/PHASES.md`, `docs/plan/STATUS.md`, `Phase_*/QUESTIONS.md`), and several items below are
 out of date. Item 4: `lunar-reg fields` lists only `emission_angle_deg` and
 `phase_angle_deg` as unverified (`docs/results/fields_20261002.txt`). Item 5:
 `overlap.py` now uses the geometry grid when a footprint has one (§1.3,
@@ -650,7 +650,7 @@ paper / measured / extrapolation / unverified), `docs/MAKHARIA_PARITY.md`,
 
 ## 6. Immediate next actions, in dependency order
 
-*Superseded 2026-10-02:* the phased plan (`PHASES.md`, `STATUS.md`) carries
+*Superseded 2026-10-02:* the phased plan (`docs/plan/PHASES.md`, `docs/plan/STATUS.md`) carries
 the next steps. The list below is the 2026-09-05 record.
 
 Done since this document was first drafted:

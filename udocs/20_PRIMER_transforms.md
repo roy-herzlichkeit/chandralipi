@@ -139,7 +139,7 @@ prevent.
 of the four-corner homography has not been done. The justification is measured
 and strong — 639 m — but the change alters **every crop the pipeline produces**,
 so it should be a deliberate, reviewed change rather than something that
-appears in a diff. It is recorded in `CONTEXT_HANDOFF.md` as awaiting a decision.
+appears in a diff. It is recorded in `docs/project/CONTEXT_HANDOFF.md` as awaiting a decision.
 
 ## The general lesson
 

@@ -8,7 +8,7 @@ import subprocess
 from _h1 import REPO
 
 STALE = ("431 passed", "431 tests", "zero real OHRC", "No Chandrayaan-2 product was available")
-DOCS = ("README.md", "CONTEXT.md", "CONTEXT_HANDOFF.md")
+DOCS = ("README.md", "docs/project/CONTEXT.md", "docs/project/CONTEXT_HANDOFF.md")
 
 
 def test_stale_claims_gone():

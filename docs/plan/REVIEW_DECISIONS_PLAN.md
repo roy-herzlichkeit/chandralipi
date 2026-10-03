@@ -2,9 +2,9 @@
 
 Source: `adversarial_review.md` (38 items, plan-level review of the Task B plan at commit `89b63f5`). Adjudicated 2026-09-30 by the architect session.
 
-The review covered the plan, not code. No phase has started (`STATUS.md` = P0.00 READY), so there is no reviewer diff to merge. Every accepted item was applied straight to the plan documents and harness (see `MERGE_PLAN_PLAN.md`).
+The review covered the plan, not code. No phase has started (`docs/plan/STATUS.md` = P0.00 READY), so there is no reviewer diff to merge. Every accepted item was applied straight to the plan documents and harness (see `docs/plan/MERGE_PLAN_PLAN.md`).
 
-Decision values: ACCEPT (fix as suggested), ACCEPT_MODIFIED (the defect is real; the fix differs from the suggestion, reason given), REJECT (not a defect, or the suggested change is worse; reason given), NEEDS_HUMAN (contradicts `CLARIFY.md` or needs a human decision).
+Decision values: ACCEPT (fix as suggested), ACCEPT_MODIFIED (the defect is real; the fix differs from the suggestion, reason given), REJECT (not a defect, or the suggested change is worse; reason given), NEEDS_HUMAN (contradicts `docs/plan/CLARIFY.md` or needs a human decision).
 
 Evidence tags in the reason column follow the project's rule on evidence:
 - **M**: measured by the architect this session.
@@ -42,7 +42,7 @@ Evidence tags in the reason column follow the project's rule on evidence:
 | RC27 | ACCEPT_MODIFIED | The preflight check keeps skip-when-absent, because it runs before P1.DL can supply data. The Phase 1 benchmark gains `datum_checked`, which fails unless the real-data datum test actually ran and passed. | Phase 1 `score.py` (`q_datum_checked`), RUBRIC | 1 |
 | RC28 | ACCEPT_MODIFIED | Growth is real. `MAXLEN` was rejected because approximate trimming can drop pending jobs (I). Instead, acked and reclaimed entries are `XDEL`ed and `purge()` deletes the run's keys (`status --purge`). | C27; G36(d); `redis_queue.md`; `test_contracts_P4` | 4 |
 | RC29 | ACCEPT | C24 gains `renew`. `run_worker` renews every `lease_s/3` from a daemon thread. For Redis, renew checks ownership with `XPENDING` before `XCLAIM JUSTID`, because on fakeredis `XCLAIM` with min-idle 0 takes the entry back from the reclaimer (M, 2026-09-30). | C24, C27; G36(b); `queue.md`, `worker_reducer.md`, `redis_queue.md`; `test_contracts_P3` (`test_C24_renew`), `test_contracts_P4` | 3, 4 |
-| RC30 | ACCEPT | P1.22 is split: P1.22 covers docs and P1.23 covers code text (docstrings, CLI hints). The total is now 74 prompts. | PHASES.md; AUDIT A069/A116/A120; `viewers_docs.md`; INDEX; new P1.23 prompt, check and test | 1 |
+| RC30 | ACCEPT | P1.22 is split: P1.22 covers docs and P1.23 covers code text (docstrings, CLI hints). The total is now 74 prompts. | docs/plan/PHASES.md; AUDIT A069/A116/A120; `viewers_docs.md`; INDEX; new P1.23 prompt, check and test | 1 |
 | RC31 | REJECT | G10 is unchanged. Native-GSD refinement already exists: C19 matches at the reference native GSD. Matching 0.25 m OHRC against a 1 m reference upsampled 4× adds interpolated pixels, not reference information (I). The limit on accuracy is the reference, not the source sampling. | — | — |
 | RC32 | REJECT | G04 is unchanged. Ray would add a heavy dependency and a cluster runtime across a Linux laptop and a possibly-Windows second host (CLARIFY R3b open). The defects cited (hangs, spinning) are fixed directly by G36 (RC01, RC04, RC06, RC29) (I). | — | — |
 | RC33 | ACCEPT_MODIFIED | The URL goes to redis-py unchanged, so `rediss://` works when the broker is TLS-enabled. The runbook default stays LAN bind + `requirepass`, and it documents an SSH tunnel for untrusted networks. The URL is never logged. No TLS work is made mandatory. | C27 comment; `redis_queue.md`, `hosts_runbook.md` | 4 |
