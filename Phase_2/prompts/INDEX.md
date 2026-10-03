@@ -13,6 +13,6 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 7 | P2.06 | prior-driven tiling + tile outcomes | P2.05 | harness/check_P2.06.sh | done |
 | 8 | P2.07 | classical caps + RIFT2 memory guard | P2.06 | harness/check_P2.07.sh | done |
 | 9 | P2.08 | native-GSD refinement | P2.06 | harness/check_P2.08.sh | done |
-| 10 | P2.09 | georeferenced blockwise warp | P2.00 | harness/check_P2.09.sh | todo |
+| 10 | P2.09 | georeferenced blockwise warp | P2.00 | harness/check_P2.09.sh | done |
 | 11 | P2.10 | site runner: GPU + native mode | P2.05, P2.08, P2.09 | harness/check_P2.10.sh | todo |
 | 12 | P2.11 | RUN (gpu): end-to-end GPU run | P2.04, P2.10 | harness/check_P2.11.sh | todo |
