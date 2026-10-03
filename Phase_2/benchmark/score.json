@@ -1,0 +1,111 @@
+{
+  "axes": {
+    "correctness": {
+      "detail": {
+        "cpu_suite": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 1178,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "export.py: 2 warnings\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n1178 passed, 23 deselected, 325 warnings in 106.02s (0:01:46)\n"
+        },
+        "harness": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 43,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "...........................................                              [100%]\n=============================== warnings summary ===============================\nPhase_2/harness/tests/test_P2_05.py::test_lightglue_records_vram\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\nPhase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef\nPhase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/transform.py:178: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication\n    return Affine.translation(west, north) * Affine.scale(xsize, -ysize)\n\nPhase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef\nPhase_2/harness/tests/test_P2_09.py::test_valid_fraction_mask_based\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n43 passed, 5 warnings in 33.44s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.35
+    },
+    "quality": {
+      "detail": {
+        "parts": {
+          "native_within_1_coarse_px": {
+            "drift_coarse_px": 0.7361811246498786,
+            "status": "ok",
+            "value": 1.0
+          },
+          "no_oom": {
+            "ok": 4,
+            "oom": 0,
+            "value": 1.0
+          },
+          "profile_measured": {
+            "entries": 4,
+            "value": 1.0
+          },
+          "vram_headroom": {
+            "limit": 6120898560.0,
+            "max_peak_bytes": 2830844416.0,
+            "value": 1.0
+          }
+        },
+        "pass": {
+          "native_within_1_coarse_px": true,
+          "no_oom": true,
+          "profile_measured": true,
+          "vram_headroom": true
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.4
+    },
+    "spec_conformance": {
+      "detail": {
+        "contracts": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 64,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "................................................................         [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_contracts_P0.py::test_C15_roundtrip\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n64 passed, 1 warning in 34.67s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.25
+    },
+    "synthetic": {
+      "detail": {
+        "label": "SYNTHETIC \u2014 native refinement vs known transform (Q19)",
+        "max_err_px": 0.025902450988638748,
+        "status": "ok"
+      },
+      "direction": "<=",
+      "pass": true,
+      "threshold": 0.5,
+      "value": 0.025902450988638748,
+      "weight": 0.0
+    }
+  },
+  "created_utc": "2026-10-03T13:40:13+00:00",
+  "git_sha": "4cbf731ce35b8eea1fc867b3eb97941089402f57",
+  "pass": true,
+  "phase": "2",
+  "provenance": "measured",
+  "schema": 1,
+  "skips": {
+    "count": 0,
+    "reasons": {}
+  },
+  "weighted_total": 1.0
+}

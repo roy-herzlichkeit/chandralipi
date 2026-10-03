@@ -1,0 +1,416 @@
+# REVIEW_PACK_2
+
+## Diff range
+
+`phase-1-approved..HEAD` (DECISIONS.md G07; HEAD = 4cbf731 before this pack commit)
+
+```
+ Phase_2/QUESTIONS.md                        | 159 +++++++
+ Phase_2/prompts/INDEX.md                    |  24 +-
+ README.md                                   |  12 +-
+ STATUS.md                                   |  16 +-
+ configs/device_profiles/README.md           |  64 +++
+ configs/device_profiles/rtx4060-laptop.json | 139 +++++++
+ docs/GPU_RUN.md                             | 130 ++++++
+ docs/VRAM_CONSTRAINTS.md                    | 243 +++++++----
+ scripts/README.md                           |  11 +-
+ scripts/run_vikram.py                       |  20 +
+ scripts/setup.sh                            |  38 +-
+ src/lunar_reg/align/native.py               | 395 ++++++++++++++++++
+ src/lunar_reg/align/warp.py                 | 249 +++++++++--
+ src/lunar_reg/cli.py                        | 235 ++++++++++-
+ src/lunar_reg/device.py                     | 438 ++++++++++++++++++--
+ src/lunar_reg/match/benchmark.py            | 536 ++++++++++++++++++++----
+ src/lunar_reg/match/classical.py            |  78 +++-
+ src/lunar_reg/match/learned.py              | 160 ++++---
+ src/lunar_reg/match/memory.py               | 252 +++++++++--
+ src/lunar_reg/match/rift2/matcher.py        |  83 ++++
+ src/lunar_reg/match/tiled.py                | 621 +++++++++++++++++++++++-----
+ src/lunar_reg/pipeline.py                   | 176 +++++++-
+ src/lunar_reg/preprocess/radiometric.py     | 114 ++++-
+ src/lunar_reg/sites/runner.py               | 324 ++++++++++++++-
+ tests/test_benchmark_cli.py                 | 605 +++++++++++++++++++++++++++
+ tests/test_caps_and_memory.py               | 231 +++++++++++
+ tests/test_device_profiles.py               | 229 ++++++++++
+ tests/test_free_memory.py                   | 118 ++++++
+ tests/test_gpu_run_docs.py                  |  30 ++
+ tests/test_matcher_registry.py              |   4 +-
+ tests/test_native.py                        | 386 +++++++++++++++++
+ tests/test_pipeline_gpu.py                  | 292 +++++++++++++
+ tests/test_presets.py                       |   4 +-
+ tests/test_runner_native.py                 | 475 +++++++++++++++++++++
+ tests/test_setup_cuda_pin.py                | 109 +++++
+ tests/test_tiled_prior.py                   | 314 ++++++++++++++
+ tests/test_warp_georef.py                   | 265 ++++++++++++
+ 37 files changed, 7063 insertions(+), 516 deletions(-)
+```
+
+## verify.sh
+
+Exit code: 0 (`bash Phase_2/harness/verify.sh` at HEAD 4cbf731). An earlier attempt of this run was cut off by a session restart before it finished and is not used.
+
+```
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+53 passed, 1 warning in 7.88s
+== Phase 2 harness
+...........................................                              [100%]
+=============================== warnings summary ===============================
+Phase_2/harness/tests/test_P2_05.py::test_lightglue_records_vram
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+Phase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef
+Phase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/transform.py:178: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication
+    return Affine.translation(west, north) * Affine.scale(xsize, -ysize)
+
+Phase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef
+Phase_2/harness/tests/test_P2_09.py::test_valid_fraction_mask_based
+  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.
+    dataset = writer(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+43 passed, 5 warnings in 33.61s
+== downloads manifest
+downloads: manifest data/raw/DOWNLOADS.json present; 211 file entries, 0 recorded failures; hash NOT checked; unrecorded scan on
+  ok                211  recorded and unchanged on disk
+  unrecorded          1  on disk under raw_root but in no manifest entry  <-- SUSPICIOUS  e.g. ch2/_pradan/payload.xhtml: under data/raw, in no entry
+== ruff on files changed since phase-1-approved
+All checks passed!
+CHECK OK: Phase 2 verify
+```
+
+## score.json
+
+```json
+{
+  "axes": {
+    "correctness": {
+      "detail": {
+        "cpu_suite": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 1178,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "export.py: 2 warnings\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:143: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = writer(\n\ntests/test_tmc2_iirs.py::test_incremental_pca_matches_the_in_memory_component\ntests/test_tmc2_iirs.py::test_non_pca_method_with_a_dataset_stays_in_memory\ntests/test_tmc2_iirs.py::test_dataset_of_another_shape_is_not_used_for_the_window\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/io.py:140: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.\n    rd = DatasetReader(mempath, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n1178 passed, 23 deselected, 325 warnings in 106.02s (0:01:46)\n"
+        },
+        "harness": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 43,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "...........................................                              [100%]\n=============================== warnings summary ===============================\nPhase_2/harness/tests/test_P2_05.py::test_lightglue_records_vram\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\nPhase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef\nPhase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/transform.py:178: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication\n    return Affine.translation(west, north) * Affine.scale(xsize, -ysize)\n\nPhase_2/harness/tests/test_P2_09.py::test_warp_blockwise_uses_dst_georef\nPhase_2/harness/tests/test_P2_09.py::test_valid_fraction_mask_based\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/rasterio/__init__.py:377: NotGeoreferencedWarning: The given matrix is equal to Affine.identity or its flipped counterpart. GDAL may ignore this matrix and save no geotransform without raising an error. This behavior is somewhat driver-specific.\n    dataset = writer(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n43 passed, 5 warnings in 33.44s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.35
+    },
+    "quality": {
+      "detail": {
+        "parts": {
+          "native_within_1_coarse_px": {
+            "drift_coarse_px": 0.7361811246498786,
+            "status": "ok",
+            "value": 1.0
+          },
+          "no_oom": {
+            "ok": 4,
+            "oom": 0,
+            "value": 1.0
+          },
+          "profile_measured": {
+            "entries": 4,
+            "value": 1.0
+          },
+          "vram_headroom": {
+            "limit": 6120898560.0,
+            "max_peak_bytes": 2830844416.0,
+            "value": 1.0
+          }
+        },
+        "pass": {
+          "native_within_1_coarse_px": true,
+          "no_oom": true,
+          "profile_measured": true,
+          "vram_headroom": true
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.4
+    },
+    "spec_conformance": {
+      "detail": {
+        "contracts": {
+          "errors": 0,
+          "failed": 0,
+          "failed_ids": [],
+          "passed": 64,
+          "returncode": 0,
+          "skip_reasons": {},
+          "skipped": 0,
+          "tail": "................................................................         [100%]\n=============================== warnings summary ===============================\nPhase_0/harness/tests/test_contracts_P0.py::test_C15_roundtrip\n  /home/herzlichkeit/Desktop/Projects/sih/.venv/lib/python3.12/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n64 passed, 1 warning in 34.67s\n"
+        }
+      },
+      "direction": ">=",
+      "pass": true,
+      "threshold": 1.0,
+      "value": 1.0,
+      "weight": 0.25
+    },
+    "synthetic": {
+      "detail": {
+        "label": "SYNTHETIC \u2014 native refinement vs known transform (Q19)",
+        "max_err_px": 0.025902450988638748,
+        "status": "ok"
+      },
+      "direction": "<=",
+      "pass": true,
+      "threshold": 0.5,
+      "value": 0.025902450988638748,
+      "weight": 0.0
+    }
+  },
+  "created_utc": "2026-10-03T13:40:13+00:00",
+  "git_sha": "4cbf731ce35b8eea1fc867b3eb97941089402f57",
+  "pass": true,
+  "phase": "2",
+  "provenance": "measured",
+  "schema": 1,
+  "skips": {
+    "count": 0,
+    "reasons": {}
+  },
+  "weighted_total": 1.0
+}
+```
+
+## QUESTIONS
+
+# Phase 2 — questions
+
+Implementers append entries here (format in root `CLAUDE.md` §Doubts). Empty at plan time.
+
+## Q-P2.02-1  DeviceProfile carries an appended `extra: dict` field (not in the C16 dataclass)
+context: CONTRACTS.md C16 (`DeviceProfile` fields `slug, device_name, total_bytes, matchers, measured_utc, source, path`); src/lunar_reg/device.py `DeviceProfile`
+question: C16's JSON has `free_bytes_at_measure`, `torch`, `cuda`, `driver`, `run_record` but the dataclass has no field for them, so `load` then `save` would drop them and write a file that is no longer C16-complete. Is an appended `extra: dict = field(default_factory=dict)` (holding every non-dataclass key, written back by `save` in C16 key order) acceptable, or should these become named fields?
+what I did meanwhile: appended `extra` after `path` (all C16 fields keep their names, order and defaults), plus helper methods `to_dict()` and `entry(matcher, precision)`. Reversible: P2.03 can read/write the same keys through `extra`; promoting them to named fields later only changes the dataclass.
+
+## Q-P2.02-2  Should the profile planner also cap the tile at the entry's `max_tile_px`?
+context: Phase_2/LLD/device.md §P2.02 ("largest multiple of 64 ≤ MAX_DENSE_TILE_PX"); C16 entry key `max_tile_px`
+question: the fitted model `fixed + bytes_per_px * S^2` has no S^4 term, so above the largest measured tile it can under-estimate LoFTR's peak. Should `DeviceProfile.plan_tile` cap at `min(MAX_DENSE_TILE_PX, entry["max_tile_px"])` to avoid extrapolating beyond the measured range?
+what I did meanwhile: followed the LLD literally (cap at `MAX_DENSE_TILE_PX` only; `max_tile_px` is stored but not used by the planner). Reversible: a one-line `min(...)` in `DeviceProfile.plan_tile`.
+
+## Q-P2.02-3  `load_profile_for` with several files for the same device
+context: Phase_2/harness/tests/test_contracts_P2.py::test_C16_roundtrip (saves `copy.json` next to `test-gpu.json`, both device "Test GPU", then expects `load_profile_for` to return a profile); src/lunar_reg/device.py `load_profile_for`
+question: the LLD says "the profile whose device_name equals the CUDA device name" without saying what happens when two files match. The harness test rules out raising. Is "the canonical `<slug>.json` (file stem == slug) wins, then file-name order, plus one WARNING listing all matches" the intended rule?
+what I did meanwhile: implemented that rule. Invalid profile files raise `ValueError` (not skipped). A relative `root` that does not exist under the CWD is also tried under the repo root, so the default `configs/device_profiles` works from any working directory. Reversible: local to `load_profile_for`.
+
+## Q-P2.02-4  `LoFTRMatcher.max_tile_px` drops `TileBudget.fits` (AUDIT A126 caller side)
+context: src/lunar_reg/match/learned.py:112 (`return plan_dense_tile(self.device, self.precision, self.name).tile_px`); AUDIT.md A126 ("have callers refuse or warn loudly when it is False"); Phase_2/LLD/device.md §P2.02
+question: P2.02 adds `fits` but its DO fence covers only device.py, the profile README and tests, and no later Phase 2 LLD or prompt names this caller. On a GPU with too little free memory LoFTR still gets the 256-px floor tile with no warning. Which prompt should make `max_tile_px` (or `TiledMatcher`/`register_pair`, which P2.05/P2.06 touch) log a WARNING or classify the run (e.g. `RunStatus.OOM`/a `TileStatus`) when `not budget.fits`?
+what I did meanwhile: nothing in learned.py (outside the fence). `plan_dense_tile` and `DeviceProfile.plan_tile` return `fits=False` (also for a 0-byte, i.e. UNKNOWN, reading) and `TileBudget.__str__` says "DOES NOT FIT". Reversible: a few lines in the caller.
+
+## Q-P2.02-5  Negative fitted `fixed_bytes` and non-measured profile sources
+context: src/lunar_reg/device.py `_validate_matchers`, `DeviceProfile.load`, `DeviceProfile.plan_tile`; Phase_2/LLD/device.md §P2.03 (`fit_profile`: least squares of `peak = fixed + k*S^2`)
+question: (a) An unconstrained fit over data with an S^4 term can give `fixed_bytes < 0`. Should P2.03's `fit_profile` constrain `fixed >= 0` (or fit through the measured points differently), or is it enough that the planner guards against it? (b) Is refusing a profile whose `source` is not `"measured"` (ValueError on load) the intended reading of C16/G19?
+what I did meanwhile: (a) `load` accepts a negative `fixed_bytes` but rejects `bytes_per_px <= 0` and malformed `points`; `plan_tile` estimates `max(fixed + k*S^2, largest measured points peak at tile_px <= S, 1)`, picks the largest multiple of 64 whose estimate fits (identical to the LLD rule whenever the measured points do not exceed the fit), and returns `fits=False` whenever `free_bytes <= 0`. (b) `load` refuses any source other than `measured`; a directly constructed `DeviceProfile` labels its plans with its own `source`, not a hard-coded MEASURED. Reversible: local to device.py.
+
+## Q-P2.03-1  OOM markers beyond the two the LLD names
+context: Phase_2/LLD/device.md §P2.03 ("stderr containing `OutOfMemoryError` or `CUDA out of memory` → OOM"); src/lunar_reg/match/memory.py `OOM_MARKERS`, `_is_oom`
+question: on CPU (RLIMIT_AS budget) an out-of-memory run raises `MemoryError` or torch's `DefaultCPUAllocator: can't allocate memory`, and a run killed by the kernel/cgroup OOM killer exits with SIGKILL (return code -9, often no stderr). Read literally these are `SETUP_ERROR`, so the sweep would continue to larger sizes after a host OOM (risking the machine freezes seen earlier). Is classifying them as `OOM` (sweep stops) the intended reading?
+what I did meanwhile: `OOM` for stderr containing `OutOfMemoryError`, `CUDA out of memory`, `MemoryError`, `DefaultCPUAllocator: can't allocate memory`, or return code -9. The LLD order is otherwise unchanged (exit 0 + `PEAK_BYTES` → OK first; then OOM; non-zero → SETUP_ERROR; exit 0 without `PEAK_BYTES` → NO_OUTPUT). In-process `measure_peak_memory` failures use the same markers (OOM, else SETUP_ERROR). Reversible: one tuple and one comparison in memory.py.
+
+## Q-P2.03-2  Where the benchmark's run_record.json goes
+context: Phase_2/LLD/device.md §P2.03 ("writes `run_record.json` (C15)") and §P2.04 (four commands, one `--out data/processed/benchmarks/p2_04`); CONTRACTS C15 (`<out_dir>/run_record.json`), C16 (one top-level `run_record`)
+question: P2.04 runs four benchmarks into the same `--out`. With `DIR/run_record.json` each run would overwrite the previous run's record, so three of the four benchmark JSONs would lose their provenance. Is a per-run directory acceptable?
+what I did meanwhile: each run writes `DIR/run_<matcher>_<precision>/run_record.json` (C15 format, with `<out_dir>` = that sub-directory); the benchmark JSON `DIR/benchmark_<matcher>_<precision>.json` carries its run record's path in `run_record`. The C16 profile's single `run_record` (and `measured_utc`, `free_bytes_at_measure`, `torch`, `cuda`, `driver`) describe the latest run merged into it; a WARNING is logged when torch/cuda/driver changed between merges. Reversible: one path in `cmd_benchmark`.
+
+## Q-P2.03-3  Meaning of `max_tile_px` in the fitted entry, and the fit's intercept
+context: Phase_2/prompts/P2.04_run_profile.md ("the fitted `max_tile_px`"); configs/device_profiles/README.md (`max_tile_px` = "largest tile size the benchmark measured for this entry"); Q-P2.02-2, Q-P2.02-5(a); src/lunar_reg/match/benchmark.py `fit_profile`
+question: should `max_tile_px` be the largest tile the sweep measured OK (README), or a tile derived from the fit and the free memory at measure time (P2.04's "fitted")? And should the fit constrain `fixed_bytes >= 0`?
+what I did meanwhile: `max_tile_px` = largest OK measured tile, floored to a multiple of 64 (a measured value, never an extrapolation of the S^2 model). The fit is the unconstrained least squares the LLD names; a negative `fixed_bytes` is kept (the P2.02 planner guards it), and `bytes_per_px <= 0` raises `ValueError` (DeviceProfile.load would refuse it), as do < 3 OK rows, < 2 distinct OK tile sizes, and rows mixing matchers. Reversible: local to `fit_profile`.
+
+## Q-P2.03-4  Benchmark CLI choices the LLD leaves open
+context: Phase_2/LLD/device.md §P2.03 (command line, profile creation); src/lunar_reg/cli.py `cmd_benchmark`; src/lunar_reg/match/benchmark.py `free_bytes_before_sweep`, `cuda_device_facts`
+question: are these choices acceptable? (a) defaults `--matcher loftr --precision fp16 --device cuda --timeout 900`, `--out` required; (b) `--profile-out` with `--device cpu` exits 2 without measuring (a C16 profile is CUDA-allocator VRAM, a CPU run is host RSS); (c) `free_bytes_at_measure` is read before the sweep from `nvidia-smi --query-gpu=memory.free` (MiB resolution), not `torch.cuda.mem_get_info`, because the latter creates a CUDA context in the parent that would hold VRAM for the whole sweep; it is JSON `null` when unreadable (never a guessed number); `driver` is `"unknown"` when nvidia-smi fails; `device_name`/`total_bytes` come from `torch.cuda.get_device_properties` (name matches `load_profile_for`); (d) merging into a profile whose `device_name` differs is refused (exit 1, file untouched); (e) exit 0 when every size is OK or the sweep ended at an OOM, 1 on any timeout/setup_error/no_output or a profile that could not be fitted/written.
+what I did meanwhile: implemented (a)–(e). `MemoryMeasurement` keeps its `ok` field (always equal to `outcome is OK` for results built in memory.py) and gains `outcome` appended with default `OK`; `MATCHER_SNIPPETS` (incl. `"loftr-half"`) is replaced by `SNIPPETS[(matcher, precision)]` (no other caller existed). Reversible: local to cli.py / benchmark.py.
+
+## Q-P2.04-1  Measured LoFTR fit has a negative intercept and the planner extrapolates it past the largest measured tile
+context: configs/device_profiles/rtx4060-laptop.json (written by P2.04 commands 1–4); data/processed/benchmarks/p2_04/console_1.log, console_2.log; src/lunar_reg/device.py `DeviceProfile.plan_tile` (MAX_DENSE_TILE_PX = 1408); Q-P2.02-5(a), Q-P2.03-3
+question: the measured LoFTR fits came out with `fixed_bytes` -242883933 (fp16) and -192735154 (fp32), per configs/device_profiles/rtx4060-laptop.json. Both consoles show a regime change above 768 px: the local exponent rises from side^1.97–2.01 to side^3.65 and side^3.86 for fp16 (data/processed/benchmarks/p2_04/console_1.log) and to side^2.73 and side^3.81 for fp32 (console_2.log). Fed this profile with the run's `free_bytes_at_measure` (7730102272, same JSON), `DeviceProfile.plan_tile` plans loftr/fp16 at 1216 px and loftr/fp32 at 1152 px. Those tiles are above the largest measured tile (`max_tile_px` 1024), and the plans come from extrapolating `fixed + k*S^2` where the measured growth is far steeper than S^2. This is my own evaluation of plan_tile on the profile, not a run artefact. Should P2.05/P2.06, or a follow-up to device.py, cap the planned tile at the entry's measured `max_tile_px`? Or should the sweep measure above 1024 px, or should the fit cover only the top regime? (The lightglue fits are positive and grow as side^1.99–2.00; see console_3.log and console_4.log.)
+what I did meanwhile: nothing (P2.04 forbids editing code and hand-editing the profile). The profile is exactly what the four runs wrote. In-run OOM handling (gpu-safety: classify OOM) is the backstop until this is decided. The four benchmark JSONs and the runs' records are in data/processed/benchmarks/p2_04/ (the LLD artefact list says "three benchmark JSONs"; the four commands write four). Reversible: a cap is one `min()` in plan_tile.
+
+## Q-P2.05-1  Which device a classical or stub matcher records (LLD "None → get_device()")
+context: Phase_2/LLD/pipeline_gpu.md items 1, 3, 6; src/lunar_reg/pipeline.py `_resolve_device`
+question: read literally, `device=None` always calls `get_device()`, which imports torch, so a default classical run would break item 6 (no torch after a CPU classical run). And `device="cuda"` with sift (P2.10 passes `device` into every PipelineConfig) would record "cuda" and open a CUDA context to measure a peak for an OpenCV matcher that ran on the CPU. Is this resolution acceptable? torch matchers (loftr, lightglue, superglue) get `config.device`, or `get_device()` when None. Classical matchers always get "cpu" (recorded as "cpu", no VRAM reading). Names `build_matcher` does not know (only test stubs reach the matcher with one) get `config.device`, else "cpu", so stubbed CPU tests never open a CUDA context.
+what I did meanwhile: implemented that resolution. `extra["device"]` is the device the matcher actually ran on. Reversible: one function in pipeline.py.
+
+## Q-P2.05-2  Recorded precision strings, extra keys and the precision check
+context: Phase_2/LLD/pipeline_gpu.md items 1–4; src/lunar_reg/pipeline.py `_resolve_precision`, `register_pair`
+question: are these choices acceptable? (a) `extra["precision"]` holds what the matcher runs at. LoFTR: "fp16"/"fp32" (read back from `LoFTRMatcher.precision`, which downgrades to fp32 on any device that is not "cuda" or "cuda:<n>"). LightGlue: "fp16-disk+fp32-lightglue" on "cuda" or "cuda:<n>", else "fp32" (same string as its `matcher_precision` meta). Classical, SuperGlue and stubs: "fp32". (b) `PipelineConfig.__post_init__` raises ValueError for a precision outside `PRECISIONS = ("auto", "fp16", "fp32")`. (c) Provenance (convention 1) is carried as `timing_source` = "measured" next to `seconds_*` and `peak_vram_source` = "measured" next to `peak_vram_bytes`. (d) `device`, `precision`, `seconds_total` (and `seconds_match`/`peak_vram_bytes` once matching ran) are on every `RunOutcome.extra`, failures included, so they become `x_` columns in failures.parquet (C05); an OOM outcome records the peak up to the failed allocation. (e) `peak_vram_bytes` is absent (not None) on non-CUDA devices.
+what I did meanwhile: implemented (a)–(e). Reversible: local to pipeline.py.
+
+## Q-P2.05-3  SuperGlue still empties the CUDA cache on its success path (A077)
+context: src/lunar_reg/match/superglue.py:230-231 (`if self.device == "cuda": torch.cuda.empty_cache()` after every match); Phase_2/LLD/pipeline_gpu.md item 5 names only learned.py
+question: item 5 moved learned.py (LoFTR, DISK+LightGlue) to "empty_cache only while an exception propagates". superglue.py is outside the P2.05 fence and still empties the cache on success, with no try/finally around its forward pass. Should a later prompt apply the same pattern there?
+what I did meanwhile: nothing in superglue.py. register_pair still classifies a SuperGlue `torch.OutOfMemoryError` as OOM and empties the cache after it. Reversible.
+
+## Q-P2.06-1  TiledMatcher's default `tile_px` now leaves room for the two rectification margins
+context: src/lunar_reg/match/tiled.py `TiledMatcher.__init__`; Phase_2/LLD/tiling.md §P2.06 steps 2 and "Learned-matcher fixes" (A080); CONTRACTS.md C18 (`tile_px=None`)
+question: the rectified reference patch is `tile_px + 2 * ref_margin_px` on a side, and P2.06 makes `LoFTRMatcher.match` refuse a reference above `max_tile_px`. With the old default (`tile_px = matcher.max_tile_px`) every LoFTR tile would be MATCHER_ERROR. Is defaulting to `max(64, max_tile_px - 2 * ref_margin_px)` (640 when the matcher advertises no limit, as before) the intended reading?
+what I did meanwhile: implemented that default; an explicit `tile_px` is used unchanged (a caller passing `tile_px = max_tile_px` with LoFTR gets every tile classified MATCHER_ERROR, visible in `report()`). Reversible: one expression in `__init__`.
+
+## Q-P2.06-2  `match_datasets` signature, nodata rule and read window
+context: src/lunar_reg/match/tiled.py `match_datasets`, `_read_valid`, `_read_window`; Phase_2/LLD/tiling.md §P2.06 last paragraph; AUDIT A128
+question: C18 freezes only `match_arrays`. Are these choices acceptable? (a) signature `match_datasets(src_dataset, ref_dataset, prior=None, offset_prior=None, preprocess=None)` (mirrors `match_arrays`; `offset_prior` moved from 3rd position and its default is now `None`; no caller existed); (b) band 1 is read with `masked=True`; valid = unmasked and `> 0` (the array default plus the dataset's nodata/mask, A128); masked pixels are set to 0 before `preprocess`; (c) the reference read is the union of the C18 reference window and the rectified patch's footprint (+2 px for interpolation), so a reference finer than the source (prior scale > 1, where the source-px margin maps wider than `ref_margin_px`) is rectified from the same pixels as the in-memory path (tests compare both paths at scales 0.6 and 1.7). `TileOutcome.reference_window` stays the C18 window.
+what I did meanwhile: implemented (a)–(c). No caller of `match_datasets` exists yet. Reversible: local to tiled.py.
+
+## Q-P2.06-3  Tile-outcome details the LLD leaves open
+context: src/lunar_reg/match/tiled.py `TileStatus`, `TileDiagnostics`, `_match_tile`; CONTRACTS.md C18; Phase_0/skills/classified-outcomes/SKILL.md
+question: are these choices acceptable? (a) `TileStatus.is_failure` (and `n_failed`) counts only MATCHER_ERROR and OOM; EMPTY is "matcher ran, found nothing", OUT_OF_REFERENCE and SKIPPED_NODATA are data gaps, and `report()` says so in words; (b) `TileOutcome.index` is the tile's position in `plan_tiles` order (an int, per test_C18_members), not `Tile.index` (a `(row, col)` tuple); windows are `(row_off, col_off, height, width)`; (c) `n_matches` is the count the tile contributed after the per-tile cap, with `detail = "capped from <raw>"` when the cap applied; (d) the source tile's valid fraction is checked before the reference is rectified (same status; only the detail text says which side was short); (e) the `except torch.OutOfMemoryError` clause comes before `except Exception` and resolves torch through `sys.modules`, so CPU-only callers never import torch; (f) the summary log line is WARNING when any tile failed, INFO otherwise; (g) `prior` and `offset_prior` together raise ValueError. stitch.py is unchanged (`StitchStats.n_tiles` still counts tiles that contributed matches; the total is in `last_diagnostics`).
+what I did meanwhile: implemented (a)–(g). No script prints `report()` yet because no script calls TiledMatcher; the first caller (P2.08/P2.10) must print `tm.last_diagnostics.report()` on every run. Reversible: local to tiled.py.
+
+## Q-P2.07-1  `to_uint8` stretches in float64 up to 4e7 px, float32 only above it
+context: src/lunar_reg/preprocess/radiometric.py `to_uint8`; Phase_2/LLD/tiling.md §P2.07 A082 ("the stretch is applied row-block by row-block (4096 rows) in float32" and "`valid=None` results for images <= 4e7 px are byte-identical to P1.08's")
+question: the two sentences conflict. Under numpy 2.5 the P1.08 stretch promoted every input to float64 (np.percentile returns np.float64 scalars), and redoing it in float32 changed a few output bytes on a random float32 test image (an unrecorded scratch check in this session, [INSERT RESULT] for the count). Is this reading acceptable: both the masked and unmasked paths run in 4096-row blocks, in float64 (same ops and order as P1.08, so byte-identical; checked in a scratch script against the P1.08 source on float32/float64/uint16/int16 inputs, masked and unmasked, multi-block, with NaN) for images <= 4e7 px, and in float32 for images above 4e7 px, where the 7000x7000 tracemalloc test passes?
+what I did meanwhile: implemented that split (`STRETCH_FULL_SAMPLE_MAX_PX`, `ftype` in `to_uint8`). Above 4e7 px there is no earlier behaviour to keep, and that is where the memory saving matters. Reversible: one line selects the float type.
+
+## Q-P2.07-2  RIFT2 `max_tile_px` provenance, unreadable host memory, and when the cap is computed
+context: src/lunar_reg/match/rift2/matcher.py `default_max_tile_px`, `RIFT2Matcher.__init__`, `_check_size`; Phase_2/LLD/tiling.md §P2.07 A129
+question: are these choices acceptable? (a) the default cap is computed once at construction from `lunar_reg.device.free_memory_bytes("cpu")` and kept for the matcher's life (LoFTR's recomputes on every access), so all tiles of one run share one cap; it is logged at INFO and recorded in every result's meta (`max_tile_px`, `max_tile_px_source`); (b) `max_tile_px_source` is `INFERRED` for the default (300 B/px is the audit's estimate) and `UNKNOWN` when the caller passes a value; (c) when `/proc/meminfo` cannot be read the cap is 0 with `UNKNOWN` and every input raises a ValueError telling the caller to pass `max_tile_px` explicitly (no fallback number is invented); `TiledMatcher` then falls back to its 640 px default tile and every tile is classified MATCHER_ERROR; (d) `max_tile_px < 1` raises ValueError at construction; (e) the size check runs on both inputs before any phase congruency is computed, and again inside `detect_and_describe`.
+what I did meanwhile: implemented (a)-(e). Reversible: local to rift2/matcher.py.
+
+## Q-P2.07-3  Meaning of `meta["max_features_applied"]`
+context: src/lunar_reg/match/classical.py `ClassicalMatcher._meta`, `POSTHOC_CAP_DETECTORS`; Phase_2/LLD/tiling.md §P2.07 A081
+question: the LLD says to record `meta["max_features_applied"] = True` for akaze, kaze and brisk. Is this reading acceptable: every ClassicalMatcher result carries the key; True for akaze/kaze/brisk (this code enforces `max_features` after detection, whether or not it truncated on this pair), False for sift/asift/orb (OpenCV applies `nfeatures` natively)? Whether truncation happened on a pair is recorded separately: `n_keypoints_src_detected` / `n_keypoints_ref_detected` hold the detector's own count before the cap and `max_features_truncated_src` / `max_features_truncated_ref` are True when the cap removed keypoints (one INFO line then); `n_keypoints_*_raw` stays the count entering the G42 `max_total_keypoints` cap, i.e. after `max_features`.
+what I did meanwhile: implemented that. The kept keypoints stay in their original relative order (stable sort on -response, ties to the lower index), as in the existing `_cap`. Reversible: one dict entry.
+
+## Q-P2.08-1  `check_P2.08.sh` runs over the G18 30 s check budget because of the harness scene fixture
+context: Phase_2/harness/tests/test_contracts_P2.py::test_C19_synthetic_refine, Phase_2/harness/tests/_h2.py `terrain`; DECISIONS G18
+question: the check exits 0 but takes 35.7 s wall (scratchpad/p2/check_p208.log under this session's scratch dir /tmp/claude-1000/-home-herzlichkeit-Desktop-Projects-sih/f4361219-5391-438c-87a4-157b9e592730/), of which test_C19_synthetic_refine is 31.95 s (scratchpad/p2/c19_durations_p208.log). Splitting that test (scratchpad/p2/c19_split_p208.log): building the protected `terrain((2048, 2048), seed=5)` scene takes 27.0 s and `refine_native_arrays` 0.42 s. The harness file is protected, so the implementation cannot bring the check under 30 s. Should the architect shrink the fixture (e.g. fewer craters, or a module-scoped cached scene) in a harness update?
+what I did meanwhile: nothing in the harness. The repo test tests/test_native.py builds its 2048² scene from `fractal_terrain` + `hillshade` without craters (about 2 s), so the repo suite stays fast.
+
+## Q-P2.08-2  Choices `refine_native_arrays` makes where LLD §P2.08 is silent
+context: src/lunar_reg/align/native.py `refine_native_arrays`, `NativeRefinement`, `NativeDiagnostics`; Phase_2/LLD/native.md §P2.08; CONTRACTS C19
+question: are these readings acceptable? (a) a source coarser than the reference (`f < 1`) raises ValueError instead of upsampling the source; (b) the status rules follow the LLD's step order with one exception: when the fit cannot run (< 8 matches) or raises, and more than half the tiles failed in the matcher (MATCHER_ERROR or OOM), the outcome is TILE_FAILURES with `transform=None`, not TOO_FEW_MATCHES/ESTIMATION_FAILED, so a matcher bug or GPU OOM is never recorded as a data gap (classified-outcomes skill, "data gap vs bug"); a TOO_FEW_MATCHES detail carries the tile counts and names the cause in words (failed tiles, data gap, or matcher found nothing); after a successful fit DRIFT_EXCEEDED still wins over TILE_FAILURES; (c) a non-finite fit matrix is ESTIMATION_FAILED and a non-finite drift is DRIFT_EXCEEDED; (d) probes are a 5x5 `linspace(0, w-1)` x `linspace(0, h-1)` grid over the whole source array passed in; (e) `n_inliers` is the inlier count of the 1 px refit; (f) beyond the C19 fields (unchanged, in order) the module adds `NativeStatus.is_failure`, a `NativeRefinement.provenance` property (transform and drift COMPUTED, match and inlier counts MEASURED), `NativeRefinement.report()`, a `NativeDiagnostics` (counts, first sample, report) for batch callers, and `Sourced` constants for the LLD thresholds (8 matches, 3 px, 1 px, 512 px tiles, 0.5 tile fraction; all INFERRED from the LLD); (g) the resampled source carries a validity mask passed to `TiledMatcher` as `source_valid`: native valid = `> 0` (and finite for float input); a resampled cell is valid only when the INTER_AREA-resized valid fraction under it is 1 (an INTER_NEAREST mask as in pairs.py `_resample` would not do, because OpenCV's nearest sample is the block's first pixel, so a block ending in nodata would keep a blended value marked valid); invalid native pixels are zeroed before resizing and invalid resampled cells are set to 0; (h) `lunar_reg.align.__init__` does not re-export the new names, because that file is outside this prompt's file fence (import from `lunar_reg.align.native`).
+what I did meanwhile: implemented (a)-(h). Reversible: all local to native.py.
+
+## Q-P2.08-3  pairs.py `_resample`'s INTER_NEAREST valid mask can keep a blended nodata cell valid
+context: src/lunar_reg/pairs.py:322-330 `_resample` (INTER_AREA image + INTER_NEAREST valid mask, "LLD §1 steps 7-8"); found while reviewing src/lunar_reg/align/native.py `_resample_source`
+question: OpenCV's INTER_NEAREST downsample samples the first pixel of each block, not its centre (scratch check in this session: an 8-column ramp 0..7 resized to 2 columns gives [0, 4] with INTER_NEAREST and [2, 6] with INTER_NEAREST_EXACT). A block whose first pixel is valid but whose last pixels are nodata therefore stays valid while its INTER_AREA value is blended with nodata (a half-intensity collar). Should pairs.py adopt the full-support rule native.py now uses (valid only when the INTER_AREA-resized valid fraction is 1), or is the current rule intended?
+what I did meanwhile: nothing in pairs.py (outside P2.08's fence). native.py uses the full-support rule for its own resample (Q-P2.08-2(g)). Reversible.
+
+## Q-P2.09-1  Choices `warp_blockwise` / `save_registered_geotiff` make where LLD §P2.09 is silent
+context: src/lunar_reg/align/warp.py:56-180 (`_full_matrix`, `_source_valid`, `warp_blockwise`), :182-266 (`save_registered_geotiff`); Phase_2/LLD/native.md §P2.09
+question: are these readings acceptable? (a) `transform` accepts a `Transform` or a raw 2x3/3x3 matrix (the protected harness test passes `np.eye(3)`); the type hint is `Transform | np.ndarray`; (b) an output block with no source support is written explicitly as `nodata` instead of being left unwritten (GDAL fill behaviour for unwritten tiles is not relied on); (c) a NaN source nodata is handled with `~isnan` (a plain `!= nan` would mark every pixel valid); (d) `profile_overrides` is still applied last, so a caller can override any key, including crs/transform; (e) the function still returns None and logs one summary line with block count, blocks without support and valid percentage; (f) in `save_registered_geotiff` pixels outside the warped mask are also set to 0 (so cubic ringing past the source edge cannot leave non-zero values outside the mask), the mask is written as 0/255 uint8 under `rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True)` so it lands inside the .tif rather than as a `.msk` sidecar, and the returned dict keys are unchanged; (g) the helper `_inverse`, unused after the rewrite, was removed and replaced by `_full_matrix`.
+what I did meanwhile: implemented (a)-(g). Reversible: all local to warp.py.
+
+## Q-P2.09-2  INTER_CUBIC bleeds source nodata into valid neighbours in `warp_blockwise`
+context: src/lunar_reg/align/warp.py:151-166; Phase_2/LLD/native.md §P2.09 ("validity mask ... warped with INTER_NEAREST per block")
+question: the image is warped with INTER_CUBIC and the validity mask with INTER_NEAREST, as the LLD says. An output pixel whose nearest source pixel is valid but whose 4x4 cubic support touches a source nodata pixel keeps a value blended with the nodata value (a 1-2 px collar around source gaps, and along the source edge). Should the mask be eroded by the cubic support (or the image warped with a nodata-aware fill) so that such pixels become nodata, or is the collar acceptable for the registered product?
+what I did meanwhile: the mask is still the nearest-warped `!= src nodata` mask (no erosion, so the valid area is the LLD's). After review, the *values* no longer blend with nodata: before the cubic warp, invalid source pixels within 3 px of a valid one take the mean of their valid 3x3 neighbours (`_fill_invalid`, 3 passes, covers the 4x4 cubic support), and the image warp uses `BORDER_REPLICATE` instead of a constant 0 at the source edge (both `warp_blockwise` and `save_registered_geotiff`). So NaN or -9999 cannot reach a valid output pixel (tests/test_warp_georef.py::test_float_source_gap_does_not_bleed_into_valid_pixels); collar pixels carry an extrapolated value rather than the true one. Open question kept: erode the mask by 2 px instead, so the collar becomes nodata? Reversible: local to warp.py.
+
+## Q-P2.09-3  Review fixes in warp.py that go past the LLD's literal wording, and the runner not yet passing `source_valid`
+context: src/lunar_reg/align/warp.py (`_source_valid`, `_fill_invalid`, `warp_blockwise`, `save_registered_geotiff`); src/lunar_reg/sites/runner.py:623 (`save_registered_geotiff(pair.source, ...)`); src/lunar_reg/pairs.py:96-98 (`source` uint8 with 0 = nodata, `source_valid` bool); Phase_2/LLD/native.md §P2.09; AUDIT A130 ("ones warped with INTER_NEAREST")
+question: are these acceptable? (a) `save_registered_geotiff` gained an optional keyword `source_valid: np.ndarray | None = None` (non-zero = valid; None keeps the LLD/A130 ones mask), because with a ones mask the pairs.py `0 = nodata` pixels are marked valid in the dataset mask and counted in `valid_fraction`. The runner (outside P2.09's fence) still calls it without `source_valid`, so the per-pair GeoTIFF still marks the source's nodata area as valid until a prompt that owns runner.py passes `pair.source_valid`; should P2.10 (or another prompt) do that? (b) `warp_blockwise` also writes the warped mask as the GeoTIFF's internal dataset mask (`write_mask` per block, `GDAL_TIFF_INTERNAL_MASK=True`), so a valid pixel whose value equals `nodata` (a real 0, or cubic undershoot clipped to 0 on uint8) is still valid for mask-aware readers; mask-unaware readers still see such pixels as nodata. (c) `_source_valid` also marks non-finite float pixels (NaN, inf) invalid whatever the declared nodata. (d) the neutral fill and `BORDER_REPLICATE` described in Q-P2.09-2.
+what I did meanwhile: implemented (a)-(d) with tests in tests/test_warp_georef.py; runner.py untouched. Reversible: all local to warp.py; the new keyword is optional, so existing callers are unchanged.
+
+## Q-P2.10-1  Native-refinement geometry: window offsets, transform frame, GeoTIFF source and path
+context: src/lunar_reg/sites/runner.py:828 `_native`, :909 `_write_native_geotiff`, :771 `_ArrayDataset`; Phase_2/LLD/runner_gpu_runs.md §P2.10; CONTRACTS C11 (`*_to_native` include the window offsets), C19
+question: are these readings acceptable? (a) `lift_to_native(result.transform, pair.source_to_native, pair.reference_to_native)` maps source *product* px -> reference *raster* px, but `refine_native_arrays` gets the native *windows*; the runner therefore passes `inv(T(c0,r0)) @ prior_native @ T(s0,l0)` and maps the refined transform back with `T(c0,r0) @ T_win @ inv(T(s0,l0))`. Passing `prior_native` unchanged, as the LLD sentence reads literally, would be off by the window offsets. `native_transform` (9 floats, JSON string, row-major) is stored in the product/raster frame. (b) The native GeoTIFF is written with `warp_blockwise` from the in-memory source *window* (a minimal read-only dataset adapter, 0 = nodata), not from the whole strip opened with `open_product`, so a homography fitted on the window is not extrapolated along the rest of the strip; output grid = the reference window (`reference_window` height x width) at the reference native GSD, `dst_transform = geo.affine() @ Affine.translation(c0, r0)`, `dst_crs = geo.crs_proj4`, nodata 0. (c) Path: `<out_dir>/registered/<pair_id>_native.tif`, beside the working-GSD GeoTIFF the runner already writes there, instead of run_vikram's `REGISTERED_DIR` (`data/processed/vikram/registered`): the runner is a library that only knows `SiteConfig.out_dir`, and P2.11 runs into separate `--out-dir`s. (d) Invalid native pixels (not finite or <= 0, the pairs.py rule) are set to 0 after the read; the reference window is read boundless with 0 fill, as in `prepare_window_pair`.
+what I did meanwhile: implemented (a)-(d), tested in tests/test_runner_native.py (prior in window px, transform back in product frame, GeoTIFF origin and one warped pixel). Reversible: local to runner.py.
+
+## Q-P2.10-2  Native outcome classification and extra keys beyond the LLD list
+context: src/lunar_reg/sites/runner.py:139 `NativeRunStatus`, `NativeRunDiagnostics`, :722 `_keep`, `run_site`; scripts/run_vikram.py:389-402; Phase_0/skills/classified-outcomes/SKILL.md
+question: are these choices acceptable? (a) the runner classifies each refinement with `NativeRunStatus`: the five C19 `NativeStatus` values plus NOT_APPLICABLE (source native GSD coarser than the reference, e.g. TMC-2/IIRS vs the 1 m NAC, or a multi-band source; `refine_native_arrays` would raise), NOT_SAVED (result already stored and not overwritten, so refinement is skipped and counted), READ_FAILED (OSError/RasterioError/ValueError on a window read) and REJECTED (`refine_native_arrays` raised ValueError); NOT_APPLICABLE and NOT_SAVED are not failures. `SiteReport.native` (None when native is off) prints counts + first sample in `report()`; `run_record.json` gets `native_<status>` counts for every member when native is on, and `native_geotiff_write_failed` when a native GeoTIFF write fails (also listed in `geotiff_failures` with a "(native)" marker). (b) extra keys beyond the LLD list: `native_detail`, `native_matcher`, `native_provenance` (JSON quantity -> ValueSource: C19's provenance plus `native_gsd_m` = the pair's `reference_georef` source), `native_geotiff` / `native_geotiff_error`; the LLD key set is written on every classified outcome (see Q-P2.10-3). (c) `native=True` with a `native_matcher` not in `matchers` raises ValueError at the start of `run_site` (setup error, like an unknown instrument). (d) `refine_native_arrays` builds its matcher without a device (C19 signature), so `--device` does not reach the native matcher; with the default `sift` that is CPU anyway. (e) `--device ''` maps to None. (f) `ruff format` was not run on scripts/run_vikram.py: the file was never ruff-formatted and formatting it would rewrite many lines this prompt does not touch (no scope creep); `ruff check` passes.
+what I did meanwhile: implemented (a)-(f). Reversible: local to runner.py and run_vikram.py.
+
+## Q-P2.10-3  Native keys on unrefined outcomes; working-GSD GeoTIFF still without `source_valid`
+context: src/lunar_reg/sites/runner.py `_native` (key defaults before the first early return), `_keep` (`save_registered_geotiff(...)` call); Phase_2/LLD/runner_gpu_runs.md §P2.10 (stored key list); Phase_2/benchmark/score.py `q_native` (reads `x_native_drift_coarse_px` unconditionally); Q-P2.09-3(a)
+question: are these acceptable? (a) every classified native outcome (also NOT_APPLICABLE, READ_FAILED, REJECTED, and a refinement that returned no transform or drift) stores the full LLD key set: `native_n_matches`/`native_n_inliers` None when no refinement ran (measured values otherwise), `native_transform` None when absent, `native_drift_coarse_px` nan when absent (the repo's float-absent convention, e.g. C07 `cc`, C14 `max_disagreement_px`), `native_gsd_m` and `native_matcher` always, `native_provenance` with at least `native_gsd_m`. nan rather than None for the drift because the protected scorer does `float(r["x_native_drift_coarse_px"])`: a missing column raised KeyError and an all-None (null) parquet column would raise TypeError; with nan the scorer gives native_within_1_coarse_px = 0 for a failed anchor refinement. (b) review fix: the P2.10 draft passed `source_valid=pair.source_valid` to the working-GSD `save_registered_geotiff`; neither LLD §P2.10 nor the prompt's DO asks for it and it changes the Phase 1 default output (dataset mask and `valid_fraction` would exclude the source's 0-nodata pixels instead of the A130 ones mask), so it was reverted; the call is unchanged from Phase 1. Should the runner pass `pair.source_valid` (Q-P2.09-3(a)), and in which prompt?
+what I did meanwhile: (a) implemented, tested in tests/test_runner_native.py (`test_unrefined_outcomes_store_the_full_key_set`, `test_refinement_without_transform_or_drift_keeps_the_columns`, both reading the row back through `load_index` as the scorer does); (b) reverted, pinned by `test_working_gsd_geotiff_keeps_phase1_validity_mask` until Q-P2.09-3(a) is answered. Reversible: one keyword in runner.py and the key defaults in `_native`.
+
+## Q-P2.11-1 BLOCKER  The P2.11 check and the Phase 2 scorer need the native status on a CUDA row; the LLD command puts it on a CPU row
+context: Phase_2/LLD/runner_gpu_runs.md §P2.11 step 1 and "Artefacts checked" ("`x_native_status` present on the anchor's `native_matcher` row"); Phase_2/harness/tests/test_P2_11.py::test_anchor_rows (`gpu["x_native_status"].notna().any()` over rows whose `x_device` starts with `cuda`); Phase_2/benchmark/score.py `_gpu_anchor_rows`/`q_native`; src/lunar_reg/pipeline.py `_resolve_device` (Q-P2.05-1); SiteConfig `native_matcher="sift"` (LLD §P2.10)
+question: the LLD command (run A) leaves `native_matcher` at its default, `sift`. Under the open Q-P2.05-1 resolution a classical matcher records `x_device = "cpu"`, so run A's native status (`drift_exceeded`, data/processed/gpu_run/anchor/store_rows.json) sits on a CPU row and test_anchor_rows fails. The protected scorer's `q_native` would also report "no native refinement row". Which is intended? (a) keep Q-P2.05-1 and run P2.11 with `--native-matcher lightglue` (what I did, run B); (b) record `config.device` for classical matchers too (the literal P2.05 reading), then rerun the LLD command unchanged; (c) change the check and scorer to look at the `native_matcher` row whatever its device.
+what I did meanwhile: (a), without changing any code. Run A ran exactly as the LLD writes it, into data/processed/gpu_run/anchor. Its live-store rows were saved to data/processed/gpu_run/anchor/store_rows.json before run B. Run B is the same command plus `--native-matcher lightglue --out-dir data/processed/gpu_run/anchor_native_lightglue` (native `ok`, drift 0.7361811246 coarse px, data/processed/gpu_run/anchor_native_lightglue/store_rows.json). Run B overwrote the four saved anchor pair ids in the live store (loftr failed, so it has none) (`--overwrite`), so data/processed/results now holds run B's rows. The P2.11 run_record path the check reads (data/processed/gpu_run/anchor/run_record.json) is still run A's. docs/GPU_RUN.md reports both runs. To reverse, rerun the LLD command: it rewrites the same pair ids.
+review (P2.11 review fixes): reclassified BLOCKER per CLAUDE.md §Doubts, because the LLD step 1 command run as written cannot reach DONE WHEN (test_anchor_rows fails on run A) and (a) is a command the LLD does not have, picked after seeing that it passes. The current check pass is therefore not a pass of the LLD command: the check and the Phase 2 scorer read two runs at once (`test_run_record_cuda` and score.py `q_no_oom` read run A's data/processed/gpu_run/anchor/run_record.json, which counts `native_drift_exceeded: 1`, `native_ok: 0`; `test_anchor_rows` and score.py `q_native` read run B's live-store rows, lightglue native `ok`). Also, run B overwrote the four store files run A's run record lists in `artefacts` (data/processed/results/pairs/CH2_OHRC_RAW_20240425T1406019344-LRO_NAC_ORTHO_{sift,akaze,asift,lightglue}.npz, mtimes 07:04:38Z-07:05:10Z, inside run B's 07:04:33Z-07:05:10Z window; run A finished 07:03:04Z), so run A's npz contents are lost; store_rows.json keeps only the scalar columns. Nothing was rerun or moved in the review step (no GPU run, no data change); docs/GPU_RUN.md now states both points. After the answer, whichever command is chosen should be run so that data/processed/gpu_run/anchor/run_record.json and the live-store anchor rows come from the same run; before any second run into the same `--results-root`, the earlier run's npz files and store rows should be moved to an archive under data/processed/ (or the extra run should use a separate `--results-root`).
+
+answer (human, 2026-10-03): (a). Use `--native-matcher lightglue` as the official P2.11 run, after archiving the earlier runs, so that the run record and the live-store rows come from one run.
+done after the answer: moved data/processed/gpu_run/anchor (run A) and data/processed/gpu_run/anchor_native_lightglue (run B) to data/processed/gpu_run_archive_20261003/{runA_lld_sift_native,runB_lightglue_native}/. Copied run B's four live-store anchor npz files to .../runB_lightglue_store_npz/ (see its README.txt). Then ran the LLD step-1 command plus `--native-matcher lightglue` into data/processed/gpu_run/anchor under `systemd-run --user --scope -p MemoryMax=12G -p MemorySwapMax=0`: exit 0, native ok, drift 0.7361811246 coarse px, `oom: 0` (data/processed/gpu_run/anchor/run_record.json, store_rows.json, console_step1.log). Re-ran data/processed/gpu_run/vram_computed.py on the new rows; only the `gpu_run.rows` path changed. docs/GPU_RUN.md and docs/VRAM_CONSTRAINTS.md now cite only this run.
+
+## Q-P2.11-2  LoFTR is never tiled by the site runner, and its VRAM guard ignores the measured profile
+context: data/processed/gpu_run/anchor/products.json (loftr `matcher_error`: "reference is 1343x1330 but the VRAM budget allows at most 896px on this device"); src/lunar_reg/match/learned.py:122 (`plan_dense_tile(self.device, self.precision, self.name)` with no `profile`); src/lunar_reg/sites/runner.py (calls `register_pair` on the whole 4 m/px window pair); Q-P2.02-4, Q-P2.04-1, Q-P2.06-1
+question: in both P2.11 runs LoFTR was refused before it ran (classified `matcher_error`, `oom: 0` in both run records). The runner gives `register_pair` the whole 1343 × 1330 px reference crop, and `LoFTRMatcher.max_tile_px` plans with the analytic INFERRED model, not configs/device_profiles/rtx4060-laptop.json. So the GPU run has no LoFTR row, and the measured profile never limits LoFTR. Should a later prompt (a) route LoFTR in the runner through `TiledMatcher` (P2.06), and/or (b) have `max_tile_px` load the device profile (`load_profile_for(torch.cuda.get_device_name())`), and, per Q-P2.04-1, cap it at the largest measured tile? The free VRAM the guard planned against at that moment is not recorded anywhere.
+what I did meanwhile: nothing in code (P2.11 forbids code edits). The failure is reported as a classified row in docs/GPU_RUN.md and in docs/VRAM_CONSTRAINTS.md §5.
+
+## Q-P2.11-3  Extra artefacts written for the docs, and the runner's `preprocess` default
+context: data/processed/gpu_run/{anchor,anchor_native_lightglue}/store_rows.json, data/processed/gpu_run/vram_computed.json (+ the scripts that wrote them, kept beside them as data/processed/gpu_run/snap_rows.py and vram_computed.py); src/lunar_reg/sites/runner.py:234 (`SiteConfig.preprocess = "none"`) vs src/lunar_reg/pipeline.py:115 (`PipelineConfig.preprocess = "ohrc_nac"`)
+question: (a) G19 needs every doc number to come from an artefact. The live store is overwritten by later runs, and the COMPUTED figures in docs/VRAM_CONSTRAINTS.md need a file behind them. So I wrote store-row snapshots and a computed-figures JSON under data/processed/gpu_run/ (gitignored), produced by two small scripts kept beside them, not under scripts/ (outside the file fence). Is that acceptable, or should a later prompt add a committed `scripts/` tool for this? (b) The LLD command passes no `--preprocess`, so both runs used the SiteConfig default `none` (run records, `params.preprocess`), not the Phase 1 default preset `ohrc_nac` that `PipelineConfig` uses. The P1 ablation rows for the same anchor with `ohrc_nac` (pair ids `..._pp-ohrc_nac`, still in data/processed/results) have more inliers. Should the P2.11 command, or run_vikram's default, use `--preprocess ohrc_nac`?
+what I did meanwhile: (a) as described; nothing under the repo tree outside the two docs changed. (b) ran the LLD command unchanged; docs/GPU_RUN.md states preprocess `none` from the run records.
+
+## LLD deviations
+
+Built from every `Phase_2/QUESTIONS.md` entry that records a choice beyond or against `Phase_2/LLD/**` or `CONTRACTS.md`, and from `git log phase-1-approved..HEAD`. Each file:line was checked at HEAD 4cbf731, then re-checked row by row by an audit workflow (one checker per LLD area, a completeness sweep, and an adversarial check of every new row). Entries that record a choice the LLD leaves open but that changes no contract or LLD rule are listed too, marked "(LLD silent)". Entries with no code choice (Q-P2.02-2, Q-P2.02-4, Q-P2.04-1, Q-P2.05-3, Q-P2.08-1, Q-P2.08-3, Q-P2.11-2) have no row; they are open questions about later work.
+
+| file:line | LLD section | what differs | why |
+|---|---|---|---|
+| src/lunar_reg/device.py:412 (`extra`), :460 (`to_dict`), :484 (`entry`) | CONTRACTS.md C16 `DeviceProfile` fields | Appended field `extra: dict` (holds `free_bytes_at_measure`, `torch`, `cuda`, `driver`, `run_record`) plus public methods `to_dict()` and `entry()`; `dataclasses.fields(DeviceProfile)` has one field more than C16. | Q-P2.02-1: without it `load` then `save` drops C16 JSON keys. |
+| src/lunar_reg/device.py:544 (`load_profile_for`), :535 (`_resolve_profile_root`) | device.md §P2.02 | Several files for one device: canonical `<slug>.json` wins, then file-name order, one WARNING; invalid files raise; a relative root missing under the CWD is retried under the repo root. | Q-P2.02-3: LLD silent; harness test rules out raising. |
+| src/lunar_reg/device.py:491 (`plan_tile`), :433 (`load` source check), :351 (`_validate_matchers`) | device.md §P2.02; C16/G19 | Planner estimate is `max(fixed + k*S^2, largest measured peak at tile <= S, 1)`, `fits=False` when free bytes <= 0; `load` refuses `bytes_per_px <= 0` (or non-finite), non-finite `fixed_bytes`, malformed points, `schema != 1` and any `source` other than `measured`. | Q-P2.02-5: measured fits can have a negative intercept (Q-P2.04-1); G19 provenance. |
+| src/lunar_reg/match/memory.py:85 (`OOM_MARKERS`), :96 (`_is_oom`), :197 (`_exception_outcome`) | device.md §P2.03 (two OOM markers) | OOM also for `MemoryError`, `DefaultCPUAllocator: can't allocate memory`, and return code -9 (SIGKILL); the same markers also classify in-process `measure_peak_memory` exceptions (OOM, else SETUP_ERROR), which the LLD does not cover. | Q-P2.03-1: read literally a host OOM would be SETUP_ERROR and the sweep would continue to larger sizes. |
+| src/lunar_reg/cli.py:448 (`run_dir`) | device.md §P2.03 ("writes `run_record.json`"); C15 | Each benchmark writes `<out>/run_<matcher>_<precision>/run_record.json`, not `<out>/run_record.json`. | Q-P2.03-2: P2.04's four runs share one `--out` and would overwrite each other's record. |
+| src/lunar_reg/match/benchmark.py:386 (`max_tile_px`), :346 (`fit_profile`) | prompt P2.04 ("fitted `max_tile_px`"); device.md §P2.03 | `max_tile_px` = largest OK measured tile floored to 64; unconstrained fit kept with negative `fixed_bytes`; < 3 OK rows, < 2 sizes, mixed matchers, `bytes_per_px <= 0` raise. | Q-P2.03-3: a measured value, never an extrapolation. |
+| src/lunar_reg/cli.py:420 (`cmd_benchmark`), :438 (`--profile-out` refusal), :661-674 (defaults); src/lunar_reg/match/benchmark.py:556 (`free_bytes_before_sweep`), :587 (`cuda_device_facts`), :612 (`merge_profile_entry`), :190 (`SNIPPETS`); src/lunar_reg/match/memory.py:149 (`outcome`) | device.md §P2.03 (LLD silent on CLI details) | Defaults `--matcher loftr --precision fp16 --device cuda --timeout 900`, `--out` required; `--profile-out` refused on CPU (exit 2); `free_bytes_at_measure` from `nvidia-smi` before the sweep (`null` when unreadable, though C16 shows an int); `driver` `"unknown"` when nvidia-smi fails; merge refused on a different `device_name`; exit 1 on any timeout/setup_error/no_output or unfittable/unwritable profile; `MATCHER_SNIPPETS` (with `"loftr-half"`) replaced by `SNIPPETS[(matcher, precision)]`; `MemoryMeasurement.outcome` appended with default `OK`, `ok` field kept. | Q-P2.03-4. |
+| src/lunar_reg/pipeline.py:156 (`_resolve_device`) | pipeline_gpu.md items 1, 3, 6 ("None -> get_device()"); C03 `device` ("None = lunar_reg.device.get_device()") | Classical matchers always record `cpu`, whatever `config.device` says, so they get no VRAM reading; torch matchers (loftr, lightglue, superglue) get `config.device` or `get_device()`; names `build_matcher` does not know (test stubs) get `config.device` or `cpu`. | Q-P2.05-1: read literally, the rule imports torch on CPU runs and records `cuda` for OpenCV matchers. Consequence: Q-P2.11-1. |
+| src/lunar_reg/pipeline.py:181 (`_resolve_precision`), :134 (`PRECISIONS`), :130 (precision check), :421 (precision read back from the matcher), :358 (`fail`), :431 (`peak_vram_source`) | pipeline_gpu.md items 1-4 | Precision strings per matcher (LoFTR `fp16`/`fp32`, read back from `LoFTRMatcher.precision`; LightGlue `fp16-disk+fp32-lightglue` on CUDA, else `fp32`; all others `fp32`); `PipelineConfig.__post_init__` raises ValueError outside `auto/fp16/fp32`; `timing_source` / `peak_vram_source` (= measured) keys; device, precision and timing on failure rows too, plus the peak up to the failed allocation on OOM; `peak_vram_bytes` absent (not None) off CUDA. | Q-P2.05-2 (LLD silent). |
+| src/lunar_reg/match/tiled.py:235 (in `TiledMatcher.__init__`, :230) | tiling.md §P2.06 step 2 (rectified patch `t.width + 2m`) and "Learned-matcher fixes" (A080); C18 `tile_px=None` | Default `tile_px = max(MIN_DERIVED_TILE_PX (64), max_tile_px - 2 * ref_margin_px)` replaces the pre-P2.06 default `tile_px = max_tile_px`. Neither the LLD nor C18 states a default. Still 640 (`DEFAULT_TILE_PX`) when the matcher advertises no limit. An explicit `tile_px` is used unchanged. | Q-P2.06-1: the rectified reference patch is `tile + 2*margin` on a side, and LoFTR now refuses any reference above `max_tile_px`, so the old default would make every LoFTR tile MATCHER_ERROR. |
+| src/lunar_reg/match/tiled.py:550 (`match_datasets`), :624 (`_read_valid`), :323 (`_read_window`) | tiling.md §P2.06 last paragraph ("reads the reference window bounding box"); A128 | Signature `match_datasets(src_dataset, ref_dataset, prior=None, offset_prior=None, preprocess=None)`: `prior` is added, and `offset_prior` moves from 3rd position with its default changed from `(0, 0)` to None. Band 1 is read `masked=True`; valid = unmasked and > 0; masked pixels are set to 0 before `preprocess`. The reference read is the union of the C18 window and the rectified patch's footprint + 2 px, not the C18 bounding box alone; `match_arrays` slices the same window (:525). `TileOutcome.reference_window` stays the C18 window. | Q-P2.06-2: no caller existed; reads the same pixels as the in-memory path. |
+| src/lunar_reg/match/tiled.py:80 (`is_failure`), :138 (`n_failed`), :279, :318, :379, :435, :450 | C18; classified-outcomes skill | Only MATCHER_ERROR and OOM count as failures (EMPTY = ran, found nothing; OUT_OF_REFERENCE / SKIPPED_NODATA = data gaps, said in words in `report()`). `TileOutcome.index` is the int position in plan order, not `Tile.index`'s `(row, col)` tuple. `n_matches` is counted after the per-tile cap, with detail `capped from <raw>`. The source valid fraction is checked before rectifying (:379). `prior` + `offset_prior` together raise ValueError (:279). A tile whose corners map through the prior's horizon is OUT_OF_REFERENCE (:318). The summary log line is WARNING when any tile failed (:450). | Q-P2.06-3 (LLD silent). |
+| src/lunar_reg/preprocess/radiometric.py:113-114 (`big`, `ftype` in `to_uint8`), :44 (`STRETCH_FULL_SAMPLE_MAX_PX`), :127, :149 | tiling.md §P2.07 A082 ("in float32") | The row-block (4096-row) stretch runs in float64 for images <= 4e7 px (byte-identical to P1.08) and in float32 only above that. When the strided percentile subsample holds no valid or finite pixel but the image does, the percentiles fall back to every valid or finite pixel (one WARNING). | Q-P2.07-1: the LLD's two sentences conflict (float32 vs byte-identical). The fallback is not in a QUESTIONS entry (LLD silent). |
+| src/lunar_reg/match/rift2/matcher.py:59 (`default_max_tile_px`), :168, :165, :197 (`_check_size`) | tiling.md §P2.07 A129 | The cap is computed once at construction (not on each access like LoFTR's). `max_tile_px_source` is INFERRED for the default and UNKNOWN for a value the caller passes; cap and source go into every result's meta (:262, :317). When host memory cannot be read (or reads <= 0 bytes) the cap is 0 / UNKNOWN and every input raises ValueError. `max_tile_px < 1` raises at construction. Both inputs are size-checked before any phase congruency is computed (:273-274). | Q-P2.07-2 (LLD silent). |
+| src/lunar_reg/match/classical.py:290 (`_meta`), :71 (`POSTHOC_CAP_DETECTORS`), :310-313 | tiling.md §P2.07 A081 | `max_features_applied` is on every result: True for akaze/kaze/brisk (whether or not the cap removed keypoints on this pair), False for sift/asift/orb. It is set in `_meta`, not inside `detect` as the LLD says. Extra keys: `n_keypoints_*_detected` (before the cap) and `max_features_truncated_*` (True when the cap removed keypoints; one INFO line). `n_keypoints_*_raw` now counts after `max_features`. | Q-P2.07-3. |
+| src/lunar_reg/align/native.py:261 (`refine_native_arrays`), :302 (coarser-source raise), :343-360 (tile-failure precedence), :190 (`_resample_source`), :88 (`is_failure`), :121 (`provenance`), :140 (`NativeDiagnostics`) | native.md §P2.08; C19 | A source coarser than the reference (`f < 1`) raises ValueError instead of being resampled (LLD step 1 would upsample); ValueError also for non-2-D arrays, non-positive GSDs, unknown `model`, malformed or non-finite prior. When the fit cannot run (< 8 matches) or raises and > half the tiles failed in the matcher, the status is TILE_FAILURES with `transform=None` instead of TOO_FEW_MATCHES/ESTIMATION_FAILED (LLD step order otherwise kept; DRIFT_EXCEEDED still wins after a fit). Non-finite fit matrix -> ESTIMATION_FAILED, non-finite drift -> DRIFT_EXCEEDED. Resampled source carries a full-support validity mask (cell valid only when every native pixel under it is valid: `> 0` and finite) passed to `TiledMatcher` as `source_valid`; invalid cells set to 0. Beyond the C19 fields (unchanged, in order): `NativeStatus.is_failure`, `NativeRefinement.provenance` and `report()`, `NativeDiagnostics`, `Sourced` constants for the LLD thresholds (INFERRED). | Q-P2.08-2 (a)-(g): a matcher bug or OOM must not read as a data gap; an INTER_NEAREST mask keeps blended nodata cells valid (Q-P2.08-3). |
+| src/lunar_reg/align/warp.py:122 (`transform: Transform \| np.ndarray`), :53 (`_full_matrix`), :63 (`_source_valid`), :200-205 (unsupported block), :178 (`profile_overrides`) | native.md §P2.09 | `warp_blockwise` (and `save_registered_geotiff`) accept a `Transform` or a raw 2x3/3x3 matrix; an output block with no source support is written explicitly as `nodata` with a zero mask instead of being skipped; NaN source nodata handled with `isnan`; non-finite float pixels invalid whatever the declared nodata; `profile_overrides` still applied last, so it can override `crs`/`transform`; one summary log line (blocks, unsupported blocks, valid %); private `_inverse` removed. | Q-P2.09-1 (a)-(e), (g); Q-P2.09-3(c): the protected harness test passes `np.eye(3)`. |
+| src/lunar_reg/align/warp.py:86 (`_fill_invalid`), :223 and :312 (`BORDER_REPLICATE`) | native.md §P2.09 (INTER_CUBIC image, INTER_NEAREST mask) | Before the cubic warp (both `warp_blockwise` and, for 2-D sources, `save_registered_geotiff`), invalid source pixels within 3 px of valid ones take the iterated mean of their valid 3x3 neighbours (3 passes; farther ones 0), and the image warp replicates the source edge instead of a constant 0, so nodata cannot bleed into valid output; the mask is not eroded, so collar pixels keep an extrapolated value rather than becoming nodata. | Q-P2.09-2 (mask erosion still open), Q-P2.09-3(d). |
+| src/lunar_reg/align/warp.py:262 (`source_valid`), :237 and :204 (`write_mask` in `warp_blockwise`), :187 (`GDAL_TIFF_INTERNAL_MASK`), :322 | native.md §P2.09; A130 ("ones" mask) | `save_registered_geotiff` gains optional keyword `source_valid` (non-zero = valid; None keeps the A130 ones mask; shape mismatch raises) and sets pixels outside the warped mask to 0; `warp_blockwise` also writes the warped mask as an internal GeoTIFF dataset mask (the LLD names `write_mask` only for `save_registered_geotiff`); both write the mask inside the .tif (`GDAL_TIFF_INTERNAL_MASK=True`), not a `.msk` sidecar. Callers (src/lunar_reg/sites/runner.py:733, scripts/run_vikram.py:300) do not pass `source_valid` yet, so the per-pair working-GSD GeoTIFF still marks the source's 0 = nodata area valid. | Q-P2.09-3(a)(b), Q-P2.09-1(f). |
+| src/lunar_reg/sites/runner.py:828 (`_native`), :916 (`_write_native_geotiff`), :771 (`_ArrayDataset`), :808 (`_read_native_windows`), :798 (`_zero_invalid`) | runner_gpu_runs.md §P2.10; C11, C19 | The prior is moved into window px (`inv(T(c0,r0)) @ prior_native @ T(s0,l0)`) before `refine_native_arrays`, and the refined transform is mapped back, so `native_transform` maps source product native px to reference raster native px. The native GeoTIFF is warped from the in-memory source window (not the whole strip) onto the reference window grid, written to `<out_dir>/registered/<pair_id>_native.tif` (not `REGISTERED_DIR`). Native pixels that are not finite or are <= 0 are set to 0, and the reference window is read boundless with 0 fill. | Q-P2.10-1 (a)-(d): read literally, the LLD's `prior_native` would be off by the window offsets; the runner knows only `SiteConfig.out_dir`. |
+| src/lunar_reg/sites/runner.py:139 (`NativeRunStatus`), :188 (`NativeRunDiagnostics`), :319 (`SiteReport.native`), :1006 (run-record counts), :936, :954; scripts/run_vikram.py:434; src/lunar_reg/align/native.py:317 | runner_gpu_runs.md §P2.10 | Adds four statuses: NOT_APPLICABLE, NOT_SAVED, READ_FAILED, REJECTED (NOT_APPLICABLE and NOT_SAVED are not failures). Adds `SiteReport.native` diagnostics, printed in `report()`. Adds `native_<status>` and `native_geotiff_write_failed` counts in `run_record.json` `outcome_counts`. Adds extra keys `native_detail`, `native_matcher`, `native_provenance`, `native_geotiff(_error)`. A `native_matcher` that is not in `matchers` raises ValueError. `--device ''` maps to None. `--device`/`--precision` do not reach the native matcher (`build_matcher(matcher)` gets no device), which matters because the official P2.11 run refines with lightglue. | Q-P2.10-2 (a)-(e). |
+| src/lunar_reg/sites/runner.py:855 (`extra.update` key defaults in `_native`) | runner_gpu_runs.md §P2.10 key list | Every classified native outcome stores the full key set, including NOT_APPLICABLE, READ_FAILED, REJECTED and a refinement that returned no transform or drift. `native_n_matches`, `native_n_inliers` and `native_transform` are None and `native_drift_coarse_px` is `nan` until a refinement produces them. `native_gsd_m`, `native_matcher` and `native_provenance` are always written. `native_tiles_<status>` is written only when the refinement returned tiles. | Q-P2.10-3(a): the protected scorer does `float(r["x_native_drift_coarse_px"])` unconditionally. |
+| data/processed/gpu_run/anchor/run_record.json (`command`) | runner_gpu_runs.md §P2.11 step 1 | The official P2.11 run adds `--native-matcher lightglue` to the LLD command; the as-written run (sift native `drift_exceeded`) and a first lightglue run are archived in `data/processed/gpu_run_archive_20261003/`. | Q-P2.11-1, human answer (a): with Q-P2.05-1 the LLD command puts the native status on a CPU row that the check and scorer do not read. |
+| data/processed/gpu_run/snap_rows.py, vram_computed.py (gitignored) | runner_gpu_runs.md §P2.11 steps 3-4 | Store-row snapshots and the COMPUTED VRAM figures are written by two small scripts kept beside their outputs under `data/`, not committed tooling; runs used preprocess `none` (runner default). | Q-P2.11-3 (open). |
+| scripts/setup.sh:83, :89, :92, :158-160 | device.md §P2.01 ("`--cuda` installs `torch==<pinned>` ...; the verify step prints and asserts `torch.version.cuda` is not None when `--cuda` was given") | The requirement is `torch==<installed version with its local tag stripped, else 2.14.0>+<cuda-index>`, so it carries the index's local tag (e.g. `torch==2.14.0+cu130`). A failed install exits through `die`. The verify step also fails when `torch.__version__` does not end in `+<cuda-index>`, which rejects a CUDA build from another index that the LLD's check would accept. | A bare `torch==X.Y.Z` is already satisfied by an installed `X.Y.Z+cpu` or other-CUDA build (PEP 440), so pip would keep that build and ignore `--index-url` (setup.sh comment :74-79; README.md:83-84; scripts/README.md:59). No QUESTIONS entry. |
+| src/lunar_reg/preprocess/radiometric.py:110-112, :124-128, :145-149 (`to_uint8`) | tiling.md §P2.07 A082 | Three choices the LLD does not specify. (1) An explicit `sample_step` replaces `s` at every image size, including images <= 4e7 px where the LLD says to use all pixels. (2) `sample_step < 1` raises ValueError. (3) If the strided subsample `image[::s, ::s]` holds no valid pixel (masked path), or no finite pixel with s > 1 (unmasked path), but the image does, the percentiles fall back to every valid or finite pixel, with one WARNING from `_log_sample_fallback`. The LLD says to take percentiles from the strided subsample above 4e7 px. | LLD lists `sample_step` in the signature but never says what it does. The fallback keeps valid data from being written as nodata (all-zero output). Not recorded in QUESTIONS: Q-P2.07-1 covers only float32 vs float64. |
+| src/lunar_reg/align/native.py:87-89 (`NativeStatus.is_failure`), :325 | CONTRACTS.md C19 `NativeStatus` | The frozen C19 enum gains a public property `is_failure` (True for every member except OK; C19 lists no property, unlike C02 `RunStatus`). `refine_native_arrays` uses it to log the summary line at WARNING for failures and INFO for OK. | Q-P2.08-2(f): classified-outcomes pattern. Enum members and values are unchanged. |
+| src/lunar_reg/sites/runner.py:188 (`NativeRunDiagnostics`), :86 (`__all__`), :319 (`SiteReport.native`), :374 (`report()`), :295 (products.json `native_status`), :1008 (run-record `native_<status>` counts), :936 (`native_geotiff_write_failed`) | runner_gpu_runs.md §P2.10 (LLD silent on reporting); C15 `outcome_counts` | Extra public API and new output keys (LLD silent): a public `NativeRunDiagnostics` class (per-status `counts`, first `samples`, `record()`, `report()`) exported in `__all__`; a new field `SiteReport.native: NativeRunDiagnostics \| None` (None when native is off), printed by `SiteReport.report()`; products.json OK rows gain `native_status` when the result carries it. When native is on, run_record.json `outcome_counts` gain `native_<status>` for every `NativeRunStatus` member. A failed native GeoTIFF write adds `native_geotiff_write_failed` and a `"<pair_id> (native): ..."` entry in `geotiff_failures`. C15's open `outcome_counts` map allows the new keys. | Q-P2.10-2(a): classified-outcomes convention 2 (counts + first sample + `report()`). |
+
+Run-procedure notes (no code location):
+- Q-P2.08-1: `check_P2.08.sh` exits 0 but takes over the G18 30 s check budget because of the protected harness scene fixture.
+- Q-P2.10-2(f): `ruff format` was not run on scripts/run_vikram.py (never formatted; formatting would rewrite untouched lines).
+- P2.04: the four LLD commands write four benchmark JSONs (the LLD artefact list says three), Q-P2.04-1.
+
+## Review focus
+
+# Phase 2 — review focus
+
+| # | where | why | how to check |
+|---|---|---|---|
+| 1 | `match/tiled.py` rectification + lifting | A wrong composition order silently misplaces every tile's matches. | `test_C18_scaled_prior`; read `T_t` construction against `Phase_2/LLD/tiling.md` step 2. |
+| 2 | `align/native.py` `S` and `lift_to_native` | Half-pixel conventions decide whether native refinement has a systematic bias. | `test_C19_*`; recompute `S` for a 2048 → 512 resize by hand. |
+| 3 | `pipeline.py` OOM ordering | `torch.OutOfMemoryError` is a `RuntimeError`; the wrong `except` order hides OOMs as matcher errors. | `test_P2_05.py::test_oom_classified`. |
+| 4 | `configs/device_profiles/rtx4060-laptop.json` | Measured data drives every later tile plan; must come from the P2.04 run record, never hand edits. | Compare with `data/processed/benchmarks/p2_04/*.json`. |
+| 5 | `docs/GPU_RUN.md`, `docs/VRAM_CONSTRAINTS.md` | Panel-facing numbers. | Every number has an artefact path next to it. |
