@@ -1,12 +1,12 @@
 # STATUS
 
-current: P2.01
+current: P2.02
 phase: 2
 state: READY
 branch: phase-2
-last_done: P2.00
+last_done: P2.01
 notes:
-- P2.00 preflight: phase-2 branched from main at phase-1-approved (7284e37); contracts P0+P1 53 passed; A2-1..A2-5 all hold (anchor rows in live store: 4).
-- nvidia-smi: NVIDIA GeForce RTX 4060 Laptop GPU, 409 MiB, 8188 MiB, 580.178.04 (torch CUDA 13.0).
-- Weights cached: depth-save.pth, disk_lightglue_v0-1_arxiv-pth, loftr_outdoor.ckpt.
-- Untracked proposal.txt / proposal_outline_original.txt are the human's; left untouched (porcelain otherwise empty).
+- P2.01 setup.sh: --cuda-index (default cu130, cu126 older drivers); --cuda pins torch==<ver>+<cuda-index> (ver from installed torch minus local tag, or 2.14.0 fresh); verify prints torch.version.cuda, fails if None or suffix mismatch. README/scripts/README drop cu124. Unchecked offline: whether download.pytorch.org/whl/cu126 has torch 2.14.0+cu126 (setup.sh now fails loudly if not).
+- device.py: MemoryReading + free_memory_bytes per C17 ("cpu" /proc/meminfo, "cuda" current index, "cuda:<n>" mem_get_info(n)); any failure -> UNKNOWN, 0 bytes. free_vram_bytes = free_memory_bytes(...).free_bytes (host MemAvailable for "cpu"). ASSUMED_TOTAL_VRAM_BYTES documentation only (_SOURCE=DOCUMENTED); tile constants unchanged.
+- Tests: tests/test_device.py unchanged (9 pass); new tests/test_free_memory.py (13 tests, incl. gpu-marked real cuda:0); new tests/test_setup_cuda_pin.py (5 passed). Full CPU suite: 1019 passed.
+- ruff format of device.py re-wrapped one existing line in plan_dense_tile (quadratic-root expression); formatting only.

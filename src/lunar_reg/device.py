@@ -19,11 +19,17 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
+from pathlib import Path
+
+from lunar_reg.provenance import ValueSource
 
 logger = logging.getLogger(__name__)
 
-#: Nameplate capacity of the target GPU, used when torch cannot be queried.
+#: Nameplate capacity of the target GPU. Documentation only: nothing uses it as
+#: a fallback. A free-memory reading that fails is ``UNKNOWN`` with 0 bytes
+#: (see :func:`free_memory_bytes`), never this value.
 ASSUMED_TOTAL_VRAM_BYTES: int = 8 * 1024**3
+ASSUMED_TOTAL_VRAM_BYTES_SOURCE = ValueSource.DOCUMENTED
 
 #: Fraction of free VRAM a single matcher call is allowed to plan against.
 #: The remainder absorbs allocator fragmentation and the odd transient copy.
@@ -52,17 +58,88 @@ def get_device(prefer_cuda: bool = True) -> str:
     return "cuda"
 
 
-def free_vram_bytes(device: str = "cuda") -> int:
-    """Free VRAM in bytes, or the assumed budget when CUDA cannot be queried."""
-    if device != "cuda":
-        return ASSUMED_TOTAL_VRAM_BYTES
-    try:
-        import torch
+@dataclass(frozen=True)
+class MemoryReading:
+    """One free-memory reading for a device (CONTRACTS C17).
 
-        free, _total = torch.cuda.mem_get_info()
-        return int(free)
-    except Exception:  # noqa: BLE001 - any failure here means "assume nameplate"
-        return ASSUMED_TOTAL_VRAM_BYTES
+    ``source`` is ``MEASURED`` when the bytes were read from the device (CUDA
+    ``mem_get_info``) or the host (``/proc/meminfo``), and ``UNKNOWN`` with
+    ``free_bytes == total_bytes == 0`` when the reading failed.
+    """
+
+    device: str
+    free_bytes: int
+    total_bytes: int
+    source: ValueSource
+
+
+_PROC_MEMINFO = Path("/proc/meminfo")
+
+
+def _read_proc_meminfo() -> str:
+    """Raw text of ``/proc/meminfo`` (a separate function so tests can fake it)."""
+    return _PROC_MEMINFO.read_text()
+
+
+def _cpu_reading() -> MemoryReading:
+    fields: dict[str, int] = {}
+    for line in _read_proc_meminfo().splitlines():
+        key, _, rest = line.partition(":")
+        parts = rest.split()
+        if not parts:
+            continue
+        scale = 1024 if len(parts) > 1 and parts[1].lower() == "kb" else 1
+        fields[key.strip()] = int(parts[0]) * scale
+    free, total = fields["MemAvailable"], fields["MemTotal"]
+    if total <= 0 or free < 0:
+        raise ValueError(f"implausible /proc/meminfo: MemAvailable={free} MemTotal={total}")
+    return MemoryReading("cpu", int(free), int(total), ValueSource.MEASURED)
+
+
+def _cuda_reading(device: str) -> MemoryReading:
+    import torch
+
+    if device == "cuda":
+        index = torch.cuda.current_device()
+    else:
+        prefix, _, idx = device.partition(":")
+        if prefix != "cuda" or not idx.isdigit():
+            raise ValueError(f"not a CUDA device string: {device!r}")
+        index = int(idx)
+    free, total = torch.cuda.mem_get_info(index)
+    return MemoryReading(device, int(free), int(total), ValueSource.MEASURED)
+
+
+def free_memory_bytes(device: str) -> MemoryReading:
+    """Measured free/total memory of ``device`` (CONTRACTS C17).
+
+    ``device`` is ``"cpu"`` (host ``MemAvailable`` / ``MemTotal`` from
+    ``/proc/meminfo``), ``"cuda"`` (the current CUDA device) or ``"cuda:<n>"``
+    (``torch.cuda.mem_get_info(<n>)``). Any failure -- no torch, no driver, no
+    such device, unreadable ``/proc/meminfo``, an unrecognised device string --
+    returns ``free_bytes=0, total_bytes=0, source=UNKNOWN`` and logs one
+    warning; it never substitutes a nameplate value.
+    """
+    try:
+        if device == "cpu":
+            return _cpu_reading()
+        return _cuda_reading(device)
+    except Exception as exc:  # noqa: BLE001 - every failure is the UNKNOWN reading
+        logger.warning(
+            "free memory of %r could not be read (%s: %s); reporting UNKNOWN, 0 bytes",
+            device,
+            type(exc).__name__,
+            exc,
+        )
+        return MemoryReading(device, 0, 0, ValueSource.UNKNOWN)
+
+
+def free_vram_bytes(device: str = "cuda") -> int:
+    """Free bytes on ``device``: ``free_memory_bytes(device).free_bytes``.
+
+    For ``"cpu"`` this is host ``MemAvailable``; a failed reading is 0.
+    """
+    return free_memory_bytes(device).free_bytes
 
 
 @dataclass(frozen=True)
@@ -134,7 +211,8 @@ BACKBONE_BYTES_PER_PX: float = 3203.0
 #: How much of the backbone term autocast actually saves. ESTIMATED, NOT
 #: MEASURED -- autocast keeps normalisations, softmax and the loss in fp32, so
 #: the saving is short of the naive 0.5. Deliberately conservative; correct it
-#: with a measured run (`lunar-reg benchmark --matcher loftr-half`) on a GPU.
+#: with a measured run (`lunar-reg benchmark --matcher loftr --precision fp16`)
+#: on a GPU.
 FP16_BACKBONE_FACTOR: float = 0.6
 
 #: Hard caps, independent of free memory -- above these the models degrade in
@@ -182,9 +260,7 @@ def plan_dense_tile(
     #     budget = backbone_per_px * x + (elem / 4096) * x^2
     # is a quadratic in x; take the positive root.
     quartic = elem / 4096.0
-    x = (-backbone_per_px + math.sqrt(backbone_per_px**2 + 4 * quartic * budget)) / (
-        2 * quartic
-    )
+    x = (-backbone_per_px + math.sqrt(backbone_per_px**2 + 4 * quartic * budget)) / (2 * quartic)
     side = math.sqrt(max(x, 0.0))
     tile = int(min(side, MAX_DENSE_TILE_PX)) // 64 * 64
     tile = max(tile, MIN_DENSE_TILE_PX)
@@ -244,9 +320,11 @@ def describe_environment() -> str:
 __all__ = [
     "BACKBONE_BYTES_PER_PX",
     "FP16_BACKBONE_FACTOR",
+    "MemoryReading",
     "TileBudget",
     "describe_environment",
     "dense_matcher_peak_bytes",
+    "free_memory_bytes",
     "free_vram_bytes",
     "get_device",
     "plan_dense_tile",

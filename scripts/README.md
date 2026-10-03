@@ -54,8 +54,15 @@ Idempotent; re-running only does the missing work. Options:
 
 - `--data <archive|dir>` — unpack a `pack_data.sh` archive, or copy a `data/`
   directory (e.g. `--data /media/usb/sih/data`).
-- `--cuda` — install the CUDA (cu124) build of torch before everything else.
-  Default torch is CPU-only, which is what every result so far was produced on.
+- `--cuda` — install a CUDA build of torch before everything else, pinned to
+  the torch version already in the venv (2.14.0 in a fresh one) plus the
+  index's local tag (`torch==2.14.0+cu130`), so an installed `+cpu` or
+  other-CUDA build is replaced; fail the verify step if `torch.version.cuda` is
+  `None` or the version does not end in `+<cuda-index>`. Default torch is
+  CPU-only, which is what every result so far was produced on.
+- `--cuda-index <tag>` — the PyTorch wheel index used by `--cuda`
+  (`https://download.pytorch.org/whl/<tag>`): `cu130` (default) or `cu126` for
+  older drivers.
 - `--extras "dev,dashboard"` — pip extras to install (default `dev,dashboard`;
   `notebooks` also available).
 - `--python <path>` — interpreter to build the venv from (default `python3`,

@@ -6,6 +6,7 @@
 #   ./scripts/setup.sh --data ../ch2-data.tar.zst   # + unpack a data bundle
 #   ./scripts/setup.sh --data /media/usb/sih/data   # + copy a data directory
 #   ./scripts/setup.sh --cuda --data ... --run      # CUDA torch, then launch dashboard
+#   ./scripts/setup.sh --cuda --cuda-index cu126    # CUDA torch for an older driver
 #
 # Produce the bundle on the machine that has the data with scripts/pack_data.sh.
 set -euo pipefail
@@ -18,6 +19,7 @@ PYTHON=${PYTHON:-python3}
 EXTRAS="dev,dashboard"
 DATA_SRC=""
 WANT_CUDA=0
+CUDA_INDEX=cu130   # PyTorch wheel index; cu126 for drivers too old for CUDA 13
 FORCE=0
 RUN_AFTER=0
 
@@ -30,10 +32,11 @@ while [ $# -gt 0 ]; do
     --extras)  EXTRAS=${2:-}; shift 2 ;;
     --python)  PYTHON=${2:-}; shift 2 ;;
     --cuda)    WANT_CUDA=1; shift ;;
+    --cuda-index) CUDA_INDEX=${2:-}; shift 2 ;;
     --force)   FORCE=1; shift ;;
     --run)     RUN_AFTER=1; shift ;;
     -h|--help)
-      sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'
       exit 0 ;;
     *) die "unknown option: $1 (see --help)" ;;
   esac
@@ -67,8 +70,26 @@ info "upgrading pip / wheel"
 
 # --- 3. dependencies -------------------------------------------------------
 if [ "$WANT_CUDA" -eq 1 ]; then
-  info "installing CUDA torch (cu124) before the rest"
-  "$VPY" -m pip install torch --index-url https://download.pytorch.org/whl/cu124
+  [ -n "$CUDA_INDEX" ] || die "--cuda-index needs a value, e.g. cu130 or cu126"
+  # Pin to the torch release already in the venv (its local tag such as +cpu
+  # or +cu130 stripped) so switching the CUDA index never silently changes the
+  # version; a fresh venv gets the release this project was set up with. The
+  # requirement then carries the wanted local tag (+$CUDA_INDEX): a bare
+  # torch==X.Y.Z is already satisfied by any installed X.Y.Z+<tag> (PEP 440),
+  # so pip would keep a +cpu or other-CUDA build and ignore --index-url.
+  TORCH_PIN=$("$VPY" - <<'PY' 2>/dev/null || true
+import importlib.metadata as m
+try:
+    print(m.version("torch").split("+")[0])
+except m.PackageNotFoundError:
+    pass
+PY
+)
+  TORCH_PIN=${TORCH_PIN:-2.14.0}
+  TORCH_REQ="torch==$TORCH_PIN+$CUDA_INDEX"
+  info "installing CUDA $TORCH_REQ before the rest"
+  "$VPY" -m pip install "$TORCH_REQ" --index-url "https://download.pytorch.org/whl/$CUDA_INDEX" \
+    || die "could not install $TORCH_REQ from https://download.pytorch.org/whl/$CUDA_INDEX"
 fi
 
 info "installing lunar-reg with extras: [$EXTRAS]"
@@ -122,14 +143,21 @@ fi
 
 # --- 5. verify ----------------------------------------------------------------
 info "verifying the install"
-"$VPY" - <<'PY'
+WANT_CUDA=$WANT_CUDA CUDA_INDEX=$CUDA_INDEX "$VPY" - <<'PY'
 import importlib.util
 mods = ["numpy", "cv2", "torch", "kornia", "rasterio", "pandas", "pyarrow", "streamlit", "lunar_reg"]
 missing = [m for m in mods if importlib.util.find_spec(m) is None]
 if missing:
     raise SystemExit("missing modules: " + ", ".join(missing))
+import os
 import torch
-print(f"  torch {torch.__version__}  cuda={torch.cuda.is_available()}")
+print(f"  torch {torch.__version__}  torch.version.cuda={torch.version.cuda}  cuda={torch.cuda.is_available()}")
+if os.environ.get("WANT_CUDA") == "1":
+    if torch.version.cuda is None:
+        raise SystemExit("--cuda was given but torch.version.cuda is None: a CPU-only torch build is installed")
+    want_tag = "+" + os.environ.get("CUDA_INDEX", "")
+    if not torch.__version__.endswith(want_tag):
+        raise SystemExit(f"--cuda-index asked for a {want_tag} build but torch {torch.__version__} is installed")
 import cv2
 print(f"  opencv {cv2.__version__}")
 PY

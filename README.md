@@ -72,11 +72,19 @@ paper_baseline_status()   # which of the paper's four this project can run
 ```
 
 `torch` is pulled in as a plain CPU build by default. For CUDA on the target
-RTX 4060 (Ada, `sm_89`), install it explicitly first:
+RTX 4060 (Ada, `sm_89`), let the setup script install it first:
 
 ```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu124
+./scripts/setup.sh --cuda                     # CUDA 13 wheels (--cuda-index cu130, the default)
+./scripts/setup.sh --cuda --cuda-index cu126  # older drivers that cannot run CUDA 13
 ```
+
+`--cuda` pins torch to the version already in the venv (a fresh venv gets
+2.14.0) plus the index's local tag, e.g. `torch==2.14.0+cu130`, and installs it
+from `https://download.pytorch.org/whl/<cuda-index>`; an installed `+cpu` or
+other-CUDA build of that version is replaced. The verify step fails if the
+installed build has no CUDA (`torch.version.cuda` is `None`) or its version does
+not end in `+<cuda-index>`.
 
 Then confirm what the pipeline thinks it is running on:
 
