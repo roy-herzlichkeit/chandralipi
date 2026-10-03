@@ -65,6 +65,11 @@ ASIFT_MAX_TOTAL_KEYPOINTS_SOURCE = ValueSource.INFERRED
 ASIFT_DETECT_THREADS = 4
 ASIFT_DETECT_THREADS_SOURCE = ValueSource.MEASURED
 
+#: Detectors whose OpenCV factory takes no feature-count argument, so
+#: ``max_features`` is enforced after detection by keeping the strongest
+#: keypoints by ``response`` (AUDIT A081, Phase_2/LLD/tiling.md §P2.07).
+POSTHOC_CAP_DETECTORS = ("akaze", "kaze", "brisk")
+
 
 @dataclass(frozen=True)
 class DetectorInfo:
@@ -188,6 +193,9 @@ class ClassicalMatcher:
             BF_TRAIN_LIMIT,
         )
         self._detector = None
+        #: Keypoints the detector returned on the last :meth:`detect`, before
+        #: the A081 ``max_features`` cap (``None`` before the first call).
+        self.last_n_detected: int | None = None
 
     def _get_detector(self):
         if self._detector is None:
@@ -195,21 +203,63 @@ class ClassicalMatcher:
         return self._detector
 
     def detect(self, image: np.ndarray):
-        """Keypoints and descriptors for one image."""
+        """Keypoints and descriptors for one image.
+
+        For akaze, kaze and brisk at most ``max_features`` keypoints are
+        returned, the strongest by response (their OpenCV factories take no
+        feature-count argument). The detector's own keypoint count, before that
+        cap, is kept in :attr:`last_n_detected` so :meth:`match` can record
+        whether the cap truncated (``None`` until a detection has run).
+        """
         from lunar_reg.preprocess.radiometric import to_uint8
 
         arr = image if image.dtype == np.uint8 else to_uint8(image)
         detector = self._get_detector()
+        if self.detector_name in POSTHOC_CAP_DETECTORS:
+            keypoints, descriptors = detector.detectAndCompute(arr, None)
+            self.last_n_detected = len(keypoints or [])
+            return self._cap_features(keypoints, descriptors)
         if self.detector_name != "asift":
-            return detector.detectAndCompute(arr, None)
+            keypoints, descriptors = detector.detectAndCompute(arr, None)
+            self.last_n_detected = len(keypoints or [])
+            return keypoints, descriptors
         import cv2
 
         previous = cv2.getNumThreads()
         cv2.setNumThreads(max(1, min(previous, ASIFT_DETECT_THREADS)))
         try:
-            return detector.detectAndCompute(arr, None)
+            keypoints, descriptors = detector.detectAndCompute(arr, None)
         finally:
             cv2.setNumThreads(previous)
+        self.last_n_detected = len(keypoints or [])
+        return keypoints, descriptors
+
+    def _detect_counted(self, image: np.ndarray) -> tuple[list, np.ndarray | None, int]:
+        """:meth:`detect` plus the detector's keypoint count before ``max_features``.
+
+        A replaced ``detect`` (tests) that does not set :attr:`last_n_detected`
+        reports the length it returned.
+        """
+        self.last_n_detected = None
+        keypoints, descriptors = self.detect(image)
+        keypoints = list(keypoints or [])
+        n_detected = self.last_n_detected
+        return keypoints, descriptors, len(keypoints) if n_detected is None else n_detected
+
+    def _cap_features(self, keypoints, descriptors) -> tuple[list, np.ndarray | None]:
+        """Keep the ``max_features`` keypoints with the highest ``response`` (A081).
+
+        For detectors without a native feature cap (:data:`POSTHOC_CAP_DETECTORS`).
+        Stable sort, so ties go to the lower index; the kept keypoints stay in
+        their original relative order, so the result is deterministic.
+        """
+        keypoints = list(keypoints or [])
+        if len(keypoints) <= self.max_features:
+            return keypoints, descriptors
+        response = np.array([k.response for k in keypoints], dtype=np.float64)
+        order = np.sort(np.argsort(-response, kind="stable")[: self.max_features])
+        kept_des = None if descriptors is None else np.asarray(descriptors)[order]
+        return [keypoints[i] for i in order], kept_des
 
     def _cap(self, keypoints, descriptors) -> tuple[list, np.ndarray | None, int, bool]:
         """Keep at most ``max_total_keypoints``, the strongest by response (G42).
@@ -235,15 +285,33 @@ class ClassicalMatcher:
             "max_features": self.max_features,
             "cross_check": self.cross_check,
             "max_total_keypoints": self.max_total_keypoints,
+            # True: this code enforced max_features after detection (akaze, kaze,
+            # brisk); False: OpenCV's detector applies it natively (sift, asift, orb).
+            "max_features_applied": self.detector_name in POSTHOC_CAP_DETECTORS,
             **extra,
         }
 
     def match(self, source: np.ndarray, reference: np.ndarray) -> MatchResult:
         import cv2
 
-        kp1, des1, raw1, capped1 = self._cap(*self.detect(source))
-        kp2, des2, raw2, capped2 = self._cap(*self.detect(reference))
+        kp1, des1, det1 = self._detect_counted(source)
+        kp2, des2, det2 = self._detect_counted(reference)
+        # A081: the detector's own count, and whether max_features truncated it
+        # (only akaze/kaze/brisk; sift/asift/orb cap natively inside OpenCV).
+        trunc1, trunc2 = det1 > len(kp1), det2 > len(kp2)
+        if trunc1 or trunc2:
+            logger.info(
+                "%s: max_features=%d truncated detections (detected %d, %d)",
+                self.name, self.max_features, det1, det2,
+            )  # fmt: skip
+        kp1, des1, raw1, capped1 = self._cap(kp1, des1)
+        kp2, des2, raw2, capped2 = self._cap(kp2, des2)
         cap_meta = {
+            "n_keypoints_src_detected": det1,
+            "n_keypoints_ref_detected": det2,
+            "max_features_truncated_src": trunc1,
+            "max_features_truncated_ref": trunc2,
+            # Count entering the G42 max_total_keypoints cap, i.e. after max_features.
             "n_keypoints_src_raw": raw1,
             "n_keypoints_ref_raw": raw2,
             "keypoints_capped_src": capped1,

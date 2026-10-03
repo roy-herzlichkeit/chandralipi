@@ -1,13 +1,13 @@
 # STATUS
 
-current: P2.07
+current: P2.08
 phase: 2
 state: READY
 branch: phase-2
-last_done: P2.06
+last_done: P2.07
 notes:
-- P2.06: tiled.py implements C18: TileStatus, TileOutcome, TileDiagnostics (counts, samples, n_failed, report), TiledMatcher(min_valid_fraction=0.5, ref_margin_px=32). match_arrays rectifies a tile-sized reference window through the 3x3 prior (cv2.warpPerspective WARP_INVERSE_MAP, tile + 2*margin; no cv2.remap 32767 px limit), classifies every tile, lifts dst through T_t; last_diagnostics set every call; OOM type resolved at except time via _oom_types(). match_datasets uses the same routine with masked windowed reads (Q-P2.06-2).
-- Default tile_px = max_tile_px - 2*ref_margin_px when the matcher advertises a limit, so LoFTR's new reference guard fits (Q-P2.06-1). stitch.py unchanged; plan_tiles untouched.
-- learned.py: LoFTR size guard covers both inputs (A080); LightGlue passes out["scores"][0] as MatchResult.scores (A127).
-- No script calls TiledMatcher yet; the first caller (P2.08/P2.10) must print tm.last_diagnostics.report() on every run (Q-P2.06-3).
-- Full CPU suite (scripts/ci.sh): 1104 passed; GPU lightglue scores test passed. Q-P2.04-1 and Q-P2.02-4 (device.py planner cap, budget.fits) still open.
+- P2.07: classical.py caps akaze/kaze/brisk at max_features after detection (POSTHOC_CAP_DETECTORS, strongest by response, stable ties); every ClassicalMatcher meta has max_features_applied (True only for those three, Q-P2.07-3); meta adds n_keypoints_{src,ref}_detected and max_features_truncated_{src,ref}; n_keypoints_*_raw is the count after max_features.
+- RIFT2Matcher(max_tile_px=None): the default is computed once at construction from free_memory_bytes("cpu") (300 B/px, INFERRED; 0 + UNKNOWN when meminfo is unreadable, which refuses every input). Both inputs over the cap raise ValueError naming it. The cap is a property, and TiledMatcher now sizes RIFT2 tiles from it (Q-P2.07-2).
+- to_uint8 gained keyword-only sample_step and lo_hi, and runs in 4096-row blocks. Images up to 4e7 px are stretched in float64 (byte-identical to P1.08) and larger images in float32 (a deviation from the LLD's float32 wording, Q-P2.07-1). Empty strided sample falls back to all valid or finite pixels, with a warning.
+- The one RuntimeWarning (NaN cast to uint8) is unchanged from the P1.08 unmasked behaviour and is triggered by the new NaN test.
+- Full CPU suite (scripts/ci.sh) passes (1126 passed, scratch log ci_p207.log).

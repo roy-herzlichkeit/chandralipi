@@ -14,6 +14,7 @@ and count.
 from __future__ import annotations
 
 import logging
+import math
 
 import numpy as np
 
@@ -21,6 +22,7 @@ from lunar_reg.match.base import MatchResult
 from lunar_reg.match.rift2.descriptor import N_GRIDS, PATCH_SIZE, describe_keypoints
 from lunar_reg.match.rift2.mim import DOMINANT_RATIO, build_mim
 from lunar_reg.match.rift2.phase import N_ORIENTATIONS, N_SCALES, compute_phase_congruency
+from lunar_reg.provenance import ValueSource
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,39 @@ FAST_THRESHOLD_UINT8 = 1
 #: Lowe ratio for descriptor matching. NOT stated in either paper -- the papers
 #: use nearest-neighbour with an outlier filter. This is our choice.
 DEFAULT_RATIO = 0.9
+
+#: Host bytes RIFT2 allocates per input pixel: the audit's estimate of the
+#: float64 log-Gabor bank (192 B/px) plus amplitude and PC stacks (96 B/px),
+#: rounded up for per-orientation temporaries (AUDIT A129). An estimate, not a
+#: measurement.
+BYTES_PER_PX = 300
+BYTES_PER_PX_SOURCE = ValueSource.INFERRED
+
+#: Share of host ``MemAvailable`` one RIFT2 input may claim (Phase_2/LLD/tiling.md
+#: §P2.07): two inputs are processed one after the other, and the rest of the
+#: pipeline holds its own arrays.
+HOST_RAM_FRACTION = 0.25
+
+#: The default cap is rounded down to a multiple of this.
+TILE_PX_MULTIPLE = 64
+
+
+def default_max_tile_px() -> tuple[int, ValueSource]:
+    """Largest input side RIFT2 should take on this host, and its provenance.
+
+    ``floor(sqrt(HOST_RAM_FRACTION * MemAvailable / BYTES_PER_PX))`` rounded down
+    to a multiple of :data:`TILE_PX_MULTIPLE`. The memory reading is measured
+    but the per-pixel cost is an estimate, so the cap is ``INFERRED``. When the
+    host memory cannot be read the cap is ``0`` with ``ValueSource.UNKNOWN``,
+    and every input is refused until ``max_tile_px`` is passed explicitly.
+    """
+    from lunar_reg.device import free_memory_bytes
+
+    reading = free_memory_bytes("cpu")
+    if reading.source is ValueSource.UNKNOWN or reading.free_bytes <= 0:
+        return 0, ValueSource.UNKNOWN
+    side = math.isqrt(int(HOST_RAM_FRACTION * reading.free_bytes / BYTES_PER_PX))
+    return (side // TILE_PX_MULTIPLE) * TILE_PX_MULTIPLE, ValueSource.INFERRED
 
 
 def _to_uint8(array: np.ndarray) -> np.ndarray:
@@ -123,9 +158,22 @@ class RIFT2Matcher:
         dominant_ratio: float = DOMINANT_RATIO,
         use_edges: bool = True,
         use_corners: bool = True,
+        max_tile_px: int | None = None,
     ) -> None:
         if not (use_edges or use_corners):
             raise ValueError("at least one of use_edges / use_corners must be True")
+        if max_tile_px is not None and max_tile_px < 1:
+            raise ValueError(f"max_tile_px must be >= 1, got {max_tile_px}")
+        if max_tile_px is None:
+            self._max_tile_px, self.max_tile_px_source = default_max_tile_px()
+            logger.info(
+                "rift2: max_tile_px=%d from host MemAvailable (%s)",
+                self._max_tile_px,
+                self.max_tile_px_source.value,
+            )
+        else:
+            # Given by the caller: provenance is whatever the caller derived it from.
+            self._max_tile_px, self.max_tile_px_source = int(max_tile_px), ValueSource.UNKNOWN
         self.n_scales = n_scales
         self.n_orientations = n_orientations
         self.patch_size = patch_size
@@ -137,15 +185,43 @@ class RIFT2Matcher:
         self.use_corners = use_corners
         self.name = "rift2"
 
+    @property
+    def max_tile_px(self) -> int:
+        """Largest input side (rows or columns) this matcher accepts (AUDIT A129).
+
+        Like LoFTR's: ``TiledMatcher`` sizes its tiles from it, and an input
+        above it raises ``ValueError`` so the caller classifies it.
+        """
+        return self._max_tile_px
+
+    def _check_size(self, role: str, image: np.ndarray) -> None:
+        """Refuse an input whose phase-congruency bank would exhaust host RAM."""
+        h, w = np.shape(image)[:2]
+        limit = self._max_tile_px
+        if max(h, w) > limit:
+            why = (
+                "host free memory could not be read; pass max_tile_px explicitly"
+                if self.max_tile_px_source is ValueSource.UNKNOWN and limit == 0
+                else f"about {BYTES_PER_PX} B/px of host RAM ({BYTES_PER_PX_SOURCE.value})"
+            )
+            raise ValueError(
+                f"{self.name}: {role} is {h}x{w} but max_tile_px is {limit} ({why}). "
+                f"Tile the input first (lunar_reg.match.tiled.TiledMatcher) rather than "
+                f"raising the cap."
+            )
+
     def detect_and_describe(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Keypoints and RIFT descriptors for one image.
 
         The log-Gabor convolutions are computed once and shared between
         detection and description, as the paper notes -- which is why the MIM is
         nearly free once phase congruency has been computed.
+
+        Raises ``ValueError`` when a side of ``image`` exceeds :attr:`max_tile_px`.
         """
         from lunar_reg.preprocess.radiometric import to_uint8
 
+        self._check_size("image", image)
         arr = image if image.dtype == np.uint8 else to_uint8(image)
         phase = compute_phase_congruency(arr.astype(np.float64), self.n_scales, self.n_orientations)
         mim = build_mim(phase.amplitude_by_orientation)
@@ -183,6 +259,8 @@ class RIFT2Matcher:
             "n_scales": self.n_scales,
             "n_orientations": self.n_orientations,
             "empty_reason": reason,
+            "max_tile_px": self._max_tile_px,
+            "max_tile_px_source": self.max_tile_px_source.value,
             "n_keypoints_src": int(n_src),
             "n_keypoints_ref": int(n_ref),
         }
@@ -191,6 +269,9 @@ class RIFT2Matcher:
     def match(self, source: np.ndarray, reference: np.ndarray) -> MatchResult:
         import cv2
 
+        # Both inputs are checked before any phase congruency is computed.
+        self._check_size("source", source)
+        self._check_size("reference", reference)
         src_pts, src_desc = self.detect_and_describe(source)
         ref_pts, ref_desc = self.detect_and_describe(reference)
 
@@ -233,5 +314,7 @@ class RIFT2Matcher:
                 "n_scales": self.n_scales,
                 "n_orientations": self.n_orientations,
                 "n_descriptors": (len(src_desc), len(ref_desc)),
+                "max_tile_px": self._max_tile_px,
+                "max_tile_px_source": self.max_tile_px_source.value,
             },
         )

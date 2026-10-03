@@ -38,10 +38,48 @@ DEFAULT_CLAHE_GRID = CLAHE_TILE_GRID.value
 VALID_U8_MIN = 1
 
 
+#: Above this many pixels, :func:`to_uint8` takes its percentiles from a strided
+#: subsample and stretches in float32 (AUDIT A082, Phase_2/LLD/tiling.md §P2.07).
+#: Up to it the output is byte-identical to the P1.08 stretch.
+STRETCH_FULL_SAMPLE_MAX_PX = 40_000_000
+
+#: Rows stretched per block, so no full-size float copy of the image is made.
+STRETCH_ROW_BLOCK = 4096
+
+
+def _stretch_sample_step(size: int) -> int:
+    """Stride ``s`` of the percentile subsample ``image[::s, ::s]`` (1 = every pixel)."""
+    if size <= STRETCH_FULL_SAMPLE_MAX_PX:
+        return 1
+    return math.ceil(math.sqrt(size / STRETCH_FULL_SAMPLE_MAX_PX))
+
+
+def _strided(array: np.ndarray, step: int) -> np.ndarray:
+    """``array[::step, ::step]`` along every axis (a view)."""
+    return array if step == 1 else array[(slice(None, None, step),) * array.ndim]
+
+
+def _log_sample_fallback(step: int, n_pixels: int, kind: str) -> None:
+    """One line when the strided percentile sample missed every usable pixel."""
+    logger.warning(
+        "to_uint8: strided sample (step %d) holds no %s pixel; percentiles taken "
+        "from all %d %s pixels instead",
+        step, kind, n_pixels, kind,
+    )  # fmt: skip
+
+
+def _row_blocks(n_rows: int):
+    for r0 in range(0, n_rows, STRETCH_ROW_BLOCK):
+        yield slice(r0, min(r0 + STRETCH_ROW_BLOCK, n_rows))
+
+
 def to_uint8(
     image: np.ndarray,
     percentiles: tuple[float, float] = (1.0, 99.0),
     valid: np.ndarray | None = None,
+    *,
+    sample_step: int | None = None,
+    lo_hi: tuple[float, float] | None = None,
 ) -> np.ndarray:
     """Percentile-stretch to 8-bit.
 
@@ -53,28 +91,80 @@ def to_uint8(
     With ``valid`` (True = real data) the percentiles come from valid finite
     pixels only, valid pixels map into 1..255 by
     ``clip((x - lo) / max(hi - lo, 1e-6) * 254 + 1, 1, 255)`` and invalid pixels
-    are 0.
+    are 0. Without ``valid``, ``clip(x, lo, hi)`` maps linearly onto 0..255.
+
+    ``lo_hi`` replaces the percentiles with fixed stretch limits, so tiles of
+    one image can share one stretch. Otherwise the percentiles come from
+    ``image[::s, ::s]`` with ``s = sample_step`` if given, else
+    ``ceil(sqrt(size / 4e7))`` above 4e7 pixels and every pixel below. When
+    that subsample holds no valid finite pixel but the image does, the
+    percentiles fall back to every valid finite pixel (logged as a warning), so
+    valid data is never written as nodata.
+
+    Memory (AUDIT A082): the stretch runs in blocks of
+    :data:`STRETCH_ROW_BLOCK` rows. Up to :data:`STRETCH_FULL_SAMPLE_MAX_PX`
+    pixels it is computed in float64 exactly as in P1.08 (byte-identical
+    output); above it, in float32, so no float64 copy of the image is made.
     """
     image = np.asarray(image)
+    if sample_step is not None and sample_step < 1:
+        raise ValueError(f"sample_step must be >= 1, got {sample_step}")
+    step = sample_step if sample_step is not None else _stretch_sample_step(image.size)
+    big = image.size > STRETCH_FULL_SAMPLE_MAX_PX
+    ftype = np.float32 if big else np.float64
+
     if valid is not None:
         v = _effective_valid(image, valid, "to_uint8")
         out = np.zeros(image.shape, dtype=np.uint8)
         if not v.any():
             return out
-        vals = image[v].astype(np.float32)
-        lo, hi = np.percentile(vals, percentiles)
-        scaled = (vals - lo) / max(float(hi - lo), 1e-6) * 254 + 1
-        out[v] = np.clip(scaled, VALID_U8_MIN, 255).astype(np.uint8)
+        if lo_hi is not None:
+            lo, hi = (float(x) for x in lo_hi)
+        else:
+            sample = _strided(image, step)[_strided(v, step)].astype(np.float32)
+            if sample.size == 0:
+                # v.any() holds, so the valid pixels all lie off the stride grid.
+                _log_sample_fallback(step, int(np.count_nonzero(v)), "valid")
+                sample = image[v].astype(np.float32)
+            lo, hi = np.percentile(sample, percentiles)
+            del sample
+        lo_f = ftype(lo)
+        den = ftype(max(float(hi - lo), 1e-6))
+        for rows in _row_blocks(image.shape[0]):
+            vb = v[rows]
+            vals = image[rows][vb].astype(np.float32, copy=False)
+            scaled = (vals - lo_f) / den * ftype(254) + ftype(1)
+            out[rows][vb] = np.clip(scaled, VALID_U8_MIN, 255).astype(np.uint8)
         return out
-    finite = image[np.isfinite(image)]
-    if finite.size == 0:
-        return np.zeros(image.shape, dtype=np.uint8)
-    lo, hi = np.percentile(finite, percentiles)
+
+    out = np.zeros(image.shape, dtype=np.uint8)
+    if lo_hi is not None:
+        lo, hi = (np.float64(x) for x in lo_hi)
+    else:
+        sample = _strided(image, step)
+        finite = sample[np.isfinite(sample)]
+        if finite.size == 0 and step > 1:
+            finite = image[np.isfinite(image)]
+            if finite.size:
+                _log_sample_fallback(step, int(finite.size), "finite")
+        if finite.size == 0:
+            return out
+        lo, hi = np.percentile(finite, percentiles)
+        del finite
     if hi <= lo:
-        return np.zeros(image.shape, dtype=np.uint8)
-    scaled = (np.clip(image, lo, hi) - lo) / (hi - lo)
+        return out
+    lo_f, hi_f = ftype(lo), ftype(hi)
+    span = ftype(hi_f - lo_f)
     # Paper step 4.1.3: "All datasets were normalised to an 8-bit range (0-255)".
-    return (scaled * float(NORMALIZE_TARGET_MAX.value)).astype(np.uint8)
+    target = ftype(NORMALIZE_TARGET_MAX.value)
+    for rows in _row_blocks(image.shape[0]):
+        blk = image[rows].astype(ftype)
+        np.clip(blk, lo_f, hi_f, out=blk)
+        blk -= lo_f
+        blk /= span
+        blk *= target
+        out[rows] = blk.astype(np.uint8)
+    return out
 
 
 def apply_clahe(
