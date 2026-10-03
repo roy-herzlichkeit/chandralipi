@@ -8,7 +8,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 2 | P2.01 | CUDA setup + free memory | P2.00 | harness/check_P2.01.sh | done |
 | 3 | P2.02 | device profiles | P2.01 | harness/check_P2.02.sh | done |
 | 4 | P2.03 | benchmark CLI | P2.02 | harness/check_P2.03.sh | done |
-| 5 | P2.04 | RUN (gpu): measure RTX 4060 profile | P2.03 | harness/check_P2.04.sh | todo |
+| 5 | P2.04 | RUN (gpu): measure RTX 4060 profile | P2.03 | harness/check_P2.04.sh | done |
 | 6 | P2.05 | device, timing, VRAM, OOM in register_pair | P2.02 | harness/check_P2.05.sh | todo |
 | 7 | P2.06 | prior-driven tiling + tile outcomes | P2.05 | harness/check_P2.06.sh | todo |
 | 8 | P2.07 | classical caps + RIFT2 memory guard | P2.06 | harness/check_P2.07.sh | todo |
