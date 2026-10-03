@@ -29,9 +29,15 @@ prints :meth:`SiteReport.report` on every run.
 :func:`compute_exp1_gate` turns the stored results of the three 2023 strips into
 the C20 exp-1 gate document.
 
+Phase 2 (``Phase_2/LLD/runner_gpu_runs.md`` §P2.10): ``SiteConfig.device`` and
+``precision`` go into every :class:`~lunar_reg.pipeline.PipelineConfig`; with
+``SiteConfig.native`` the OK result of ``native_matcher`` is refined once per
+strip at the reference's native GSD (:func:`_native`), classified by
+:class:`NativeRunStatus` and counted in :class:`NativeRunDiagnostics`.
+
 Test seam (LLD §1): ``build_catalog``, ``georeference_from_label``,
-``georeference_from_raster``, ``prepare_window_pair``, ``register_pair`` and
-``sun_from_label`` are imported by
+``georeference_from_raster``, ``prepare_window_pair``, ``register_pair``,
+``sun_from_label``, ``open_product`` and ``refine_native_arrays`` are imported by
 name at module level and called through this module's attributes, so tests can
 monkeypatch them here.
 """
@@ -46,14 +52,16 @@ import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
 
 import cv2
 import numpy as np
 
+from lunar_reg.align.native import lift_to_native, refine_native_arrays
 from lunar_reg.ingest.catalog import InstrumentStatus, ProductCatalog, build_catalog
 from lunar_reg.ingest.lro import GeoReference, georeference_from_label, georeference_from_raster
-from lunar_reg.ingest.pds4 import read_label
+from lunar_reg.ingest.pds4 import open_product, read_label
 from lunar_reg.ingest.sun import FRAME_NORTH, SunGeometry, sun_from_label
 from lunar_reg.pairs import (
     PrepDiagnostics,
@@ -75,6 +83,8 @@ __all__ = [
     "EXP1_MIN_U_SCORE",
     "EXP1_RULE",
     "LABEL_AZIMUTH_CONVENTIONS",
+    "NativeRunDiagnostics",
+    "NativeRunStatus",
     "ProductRun",
     "SiteConfig",
     "SiteReport",
@@ -126,6 +136,78 @@ _TAG = re.compile(r"\d{8}T\d{10}", re.IGNORECASE)
 _SAMPLE_MAX = 200
 
 
+class NativeRunStatus(str, Enum):
+    """What happened to one strip's native-GSD refinement in the runner (P2.10).
+
+    The first five members are :class:`lunar_reg.align.native.NativeStatus`
+    (C19) with the same values; the others are the runner's own outcomes
+    before or around :func:`~lunar_reg.align.native.refine_native_arrays`.
+    """
+
+    OK = "ok"
+    TOO_FEW_MATCHES = "too_few_matches"
+    ESTIMATION_FAILED = "estimation_failed"
+    DRIFT_EXCEEDED = "drift_exceeded"
+    TILE_FAILURES = "tile_failures"
+    #: The source's native GSD is coarser than the reference's (TMC-2, IIRS
+    #: against the 1 m NAC) or the source is multi-band: there is nothing finer
+    #: to refine against. An expected non-result, not a failure.
+    NOT_APPLICABLE = "not_applicable"
+    #: The registration was already stored and not overwritten, so its result
+    #: was not saved and no refinement ran (pass ``--overwrite``). Not a failure.
+    NOT_SAVED = "not_saved"
+    #: A native window could not be read (OSError / rasterio error).
+    READ_FAILED = "read_failed"
+    #: ``refine_native_arrays`` raised ``ValueError`` on this input.
+    REJECTED = "rejected"
+
+    @property
+    def is_failure(self) -> bool:
+        return self not in (
+            NativeRunStatus.OK,
+            NativeRunStatus.NOT_APPLICABLE,
+            NativeRunStatus.NOT_SAVED,
+        )
+
+
+#: How :meth:`NativeRunDiagnostics.report` describes each status in words.
+_NATIVE_WORDS = {
+    NativeRunStatus.OK: "refined at the reference native GSD",
+    NativeRunStatus.TOO_FEW_MATCHES: "too few correspondences (detail: data gap or none found)",
+    NativeRunStatus.ESTIMATION_FAILED: "FAILURE: transform fit failed",
+    NativeRunStatus.DRIFT_EXCEEDED: "FAILURE: refined transform drifted from the coarse prior",
+    NativeRunStatus.TILE_FAILURES: "FAILURE: most tiles failed in the matcher (error or OOM)",
+    NativeRunStatus.NOT_APPLICABLE: "not applicable: source not finer than the reference",
+    NativeRunStatus.NOT_SAVED: "not run: result already stored (pass --overwrite)",
+    NativeRunStatus.READ_FAILED: "FAILURE: a native window could not be read",
+    NativeRunStatus.REJECTED: "FAILURE: refine_native_arrays rejected the input",
+}
+
+
+@dataclass
+class NativeRunDiagnostics:
+    """Per-status counts and the first sample of the runner's native refinements."""
+
+    counts: dict[str, int] = field(default_factory=dict)
+    samples: dict[str, str] = field(default_factory=dict)
+
+    def record(self, status: NativeRunStatus, sample: str) -> None:
+        self.counts[status.value] = self.counts.get(status.value, 0) + 1
+        self.samples.setdefault(status.value, sample[:_SAMPLE_MAX])
+
+    def report(self) -> str:
+        total = sum(self.counts.values())
+        n_ok = self.counts.get(NativeRunStatus.OK.value, 0)
+        n_failed = sum(n for k, n in self.counts.items() if NativeRunStatus(k).is_failure)
+        lines = [f"native refinement: {total} strip(s), {n_ok} ok, {n_failed} failed"]
+        for value in sorted(self.counts):
+            words = _NATIVE_WORDS[NativeRunStatus(value)]
+            lines.append(f"  {value}: {self.counts[value]}  ({words})  e.g. {self.samples[value]}")
+        if not total:
+            lines.append("  (no OK result of the native matcher to refine)")
+        return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # types (LLD §1)
 # ---------------------------------------------------------------------------
@@ -175,6 +257,14 @@ class SiteConfig:
     reference_independent: bool = True
     # product_id -> (centre_line, centre_sample); None = every product, centred as before
     centres: dict[str, tuple[int, int]] | None = None
+    # P2.10 (Phase_2/LLD/runner_gpu_runs.md): GPU and native mode; the defaults keep
+    # Phase 1 behaviour (device chosen by the pipeline, no native refinement)
+    device: str | None = None  # into every PipelineConfig; None = lunar_reg.device.get_device
+    precision: str = "auto"  # into every PipelineConfig (pipeline.PRECISIONS)
+    native: bool = False  # refine the native_matcher result at the reference's native GSD
+    native_matcher: str = "sift"  # one refinement per strip (Phase_2/DECISIONS.md D2-5)
+    native_tile_px: int | None = None  # None = align.native.DEFAULT_NATIVE_TILE_PX
+    native_max_drift_coarse_px: float = 1.0  # refine_native_arrays max_drift_coarse_px
 
 
 @dataclass
@@ -201,6 +291,8 @@ class ProductRun:
             if o.ok:
                 row["n_inliers"] = int(o.result.n_inliers)
                 row["u_score"] = _u_score(o.result)
+                if "native_status" in o.result.extra:
+                    row["native_status"] = o.result.extra["native_status"]
             rows.append(row)
         return {"product_id": self.product_id, "instrument": self.instrument,
                 "level": self.level, "prep": self.prep.value, "prep_detail": self.prep_detail,
@@ -223,6 +315,8 @@ class SiteReport:
     dry_run: bool = False
     #: ``"<pair_id>: <error>"`` per failed registered-GeoTIFF write (result still saved)
     geotiff_failures: list[str] = field(default_factory=list)
+    #: native refinements (P2.10); None when ``SiteConfig.native`` is off
+    native: NativeRunDiagnostics | None = None
 
     @property
     def any_ok(self) -> bool:
@@ -258,6 +352,8 @@ class SiteReport:
                     parts.append(
                         f"{matcher} ok {o.result.n_inliers} inliers u={_u_score(o.result):.2f}"
                     )
+                    if "native_status" in o.result.extra:
+                        parts[-1] += f", native {o.result.extra['native_status']}"
                 else:
                     parts.append(f"{matcher} {o.status.value}")
             lines.append(f"  {run.instrument} {run.level} {run.product_id}: " + "; ".join(parts))
@@ -274,6 +370,8 @@ class SiteReport:
                     f"(results still saved), e.g. {self.geotiff_failures[0]}"
                 )
             lines.append(self.batch.report())
+            if self.native is not None:
+                lines.append(self.native.report())
         lines.extend(self.notes)
         if self.run_record_path is not None:
             lines.append(f"run record: {self.run_record_path}")
@@ -447,6 +545,7 @@ class _Tally:
     artefacts: list[str] = field(default_factory=list)
     counts: dict[str, int] = field(default_factory=dict)
     geotiff_failures: list[str] = field(default_factory=list)
+    native: NativeRunDiagnostics = field(default_factory=NativeRunDiagnostics)
 
     def bump(self, key: str) -> None:
         self.counts[key] = self.counts.get(key, 0) + 1
@@ -474,7 +573,8 @@ def _coarse(entry, cfg: SiteConfig, geo: GeoReference, tag: str):
     outcome = register_pair(
         pair.source, pair.reference, f"coarse_{tag}",
         PipelineConfig(matcher=cfg.coarse_matcher, use_ecc=False, n_bootstrap=0,
-                       min_inliers=cfg.min_inliers, gsd_m=cfg.coarse_gsd_m),
+                       min_inliers=cfg.min_inliers, gsd_m=cfg.coarse_gsd_m,
+                       device=cfg.device, precision=cfg.precision),
         source_valid=pair.source_valid, reference_valid=pair.reference_valid,
     )  # fmt: skip
     if not outcome.ok:
@@ -580,6 +680,7 @@ def _run_product(entry, cfg: SiteConfig, geo: GeoReference, ref_sun: dict | None
             matcher=matcher, model=cfg.model, min_inliers=cfg.min_inliers,
             ransac_threshold_px=cfg.ransac_threshold_px, gsd_m=cfg.gsd_m,
             preprocess=cfg.preprocess, ecc_prefilter=cfg.ecc_prefilter, extra=dict(extra_base),
+            device=cfg.device, precision=cfg.precision,
         )  # fmt: skip
         outcome = register_pair(
             pair.source, pair.reference, pair_id, config,
@@ -592,14 +693,20 @@ def _run_product(entry, cfg: SiteConfig, geo: GeoReference, ref_sun: dict | None
         tally.batch.outcomes.append(outcome)
         run.outcomes.append(outcome)
         if outcome.ok:
-            _keep(outcome, pair, pair_id, matcher, cfg, geo, search_prior, sun_extra, tally)
+            _keep(outcome, pair, pair_id, matcher, cfg, geo, search_prior, sun_extra, tally,
+                  source_label=entry.label_path)  # fmt: skip
     return run
 
 
 def _keep(outcome: RunOutcome, pair: WindowPair, pair_id: str, matcher: str, cfg: SiteConfig,
           geo: GeoReference, search_prior: str, sun_extra: dict,
-          tally: _Tally) -> None:  # fmt: skip
-    """LLD §2 step 4f: sun keys, label offset, registered GeoTIFF, immediate save."""
+          tally: _Tally, source_label: Path | None = None) -> None:  # fmt: skip
+    """LLD §2 step 4f: sun keys, label offset, registered GeoTIFF, immediate save.
+
+    With ``cfg.native`` and ``matcher == cfg.native_matcher`` the native-GSD
+    refinement (:func:`_native`, P2.10) runs before the save, so its keys are
+    stored with the result.
+    """
     from lunar_reg.align.warp import save_registered_geotiff
     from lunar_reg.results import save_results
 
@@ -612,9 +719,12 @@ def _keep(outcome: RunOutcome, pair: WindowPair, pair_id: str, matcher: str, cfg
                                                  cfg.gsd_m)  # fmt: skip
     r.extra["label_offset_source"] = ValueSource.COMPUTED.value
     npz = Path(cfg.results_root) / "pairs" / f"{pair_id}.npz"
+    run_native = cfg.native and matcher == cfg.native_matcher
     if not cfg.overwrite and npz.exists():
         # Not saved: leave the stored result's GeoTIFF untouched as well.
         tally.not_saved.append(pair_id)
+        if run_native:
+            tally.native.record(NativeRunStatus.NOT_SAVED, f"{pair_id}: already stored")
         return
     if cfg.save_registered:
         r0, c0 = pair.reference_window[0], pair.reference_window[1]
@@ -637,6 +747,8 @@ def _keep(outcome: RunOutcome, pair: WindowPair, pair_id: str, matcher: str, cfg
             r.extra["registered_geotiff_error"] = f"{type(exc).__name__}: {exc}"[:_SAMPLE_MAX]
             tally.bump("geotiff_write_failed")
             tally.geotiff_failures.append(f"{pair_id}: {r.extra['registered_geotiff_error']}")
+    if run_native:
+        _native(r, pair, pair_id, source_label, cfg, geo, tally)
     # Saved now, one by one: a crash on a later pair loses nothing.
     try:
         save_results([r], cfg.results_root, overwrite=cfg.overwrite)
@@ -645,6 +757,187 @@ def _keep(outcome: RunOutcome, pair: WindowPair, pair_id: str, matcher: str, cfg
         return
     tally.saved.append(pair_id)
     tally.artefacts.append(str(npz))
+
+
+# ---------------------------------------------------------------------------
+# native-GSD refinement (Phase_2/LLD/runner_gpu_runs.md §P2.10)
+# ---------------------------------------------------------------------------
+
+
+class _NotApplicable(Exception):
+    """The source cannot be refined at native GSD (an expected non-result)."""
+
+
+class _ArrayDataset:
+    """The read-only rasterio-dataset surface :func:`warp_blockwise` uses, over one array.
+
+    The native GeoTIFF warps the source *window* the refinement was fitted on,
+    already in memory, not the whole strip (a homography fitted on the window
+    is not extrapolated along the rest of the strip). 0 is nodata, as in
+    :class:`~lunar_reg.pairs.WindowPair`.
+    """
+
+    def __init__(self, array: np.ndarray, nodata: float = 0) -> None:
+        self._array = array
+        self.height, self.width = array.shape
+        self.dtypes = (array.dtype.name,)
+        self.nodata = nodata
+
+    def read(self, index: int, window) -> np.ndarray:
+        if index != 1:
+            raise ValueError(f"single-band array dataset, asked for band {index}")
+        r0, c0 = int(window.row_off), int(window.col_off)
+        h, w = int(window.height), int(window.width)
+        return self._array[r0 : r0 + h, c0 : c0 + w].copy()
+
+
+def _translation(x: float, y: float) -> np.ndarray:
+    return np.array([[1.0, 0.0, x], [0.0, 1.0, y], [0.0, 0.0, 1.0]])
+
+
+def _zero_invalid(array: np.ndarray) -> np.ndarray:
+    """Pixels that are not finite and > 0 set to 0 (the pairs.py validity rule, 0 = nodata)."""
+    valid = np.isfinite(array)
+    with np.errstate(invalid="ignore"):
+        valid &= array > 0
+    if valid.all():
+        return array
+    return np.where(valid, array, 0).astype(array.dtype, copy=False)
+
+
+def _read_native_windows(source_label, reference_path, pair: WindowPair):
+    """``(source, reference)`` native windows of ``pair``, invalid pixels set to 0.
+
+    The source window lies inside the product (``prepare_window_pair`` clamps
+    it); the reference window may overhang the raster and is read boundless
+    with 0 fill, as in ``prepare_window_pair``.
+    """
+    from rasterio.windows import Window
+
+    l0, s0, h, w = pair.source_window
+    r0, c0, rh, rw = pair.reference_window
+    with open_product(source_label) as ds:
+        if ds.count > 1:
+            raise _NotApplicable(f"multi-band source ({ds.count} bands)")
+        source = ds.read(1, window=Window(s0, l0, w, h))
+    with open_product(reference_path) as ds:
+        reference = ds.read(1, window=Window(c0, r0, rw, rh), boundless=True, fill_value=0)
+    return _zero_invalid(source), _zero_invalid(reference)
+
+
+def _native(r, pair: WindowPair, pair_id: str, source_label, cfg: SiteConfig,
+            geo: GeoReference, tally: _Tally) -> None:  # fmt: skip
+    """Refine one OK result at the reference's native GSD and record it in ``r.extra``.
+
+    ``prior_native = lift_to_native(r.transform, ...)`` maps source-product px
+    to reference-raster px (the C11 ``*_to_native`` matrices include the window
+    offsets); the arrays are windows, so the prior is moved into window px
+    before :func:`refine_native_arrays` and its result back out of them.
+    ``native_transform`` (9 floats, JSON, row-major) therefore maps source
+    product native px -> reference raster native px. With ``save_registered``
+    and an OK refinement, the source window is warped onto the reference
+    window's native grid into ``<out_dir>/registered/<pair_id>_native.tif``.
+    """
+    from rasterio.errors import RasterioError
+
+    extra = r.extra
+
+    def record(status: NativeRunStatus, detail: str) -> None:
+        extra["native_status"] = status.value
+        extra["native_detail"] = detail[:_SAMPLE_MAX]
+        tally.native.record(status, f"{pair_id}: {detail or status.value}")
+
+    src_gsd, ref_gsd = float(pair.source_native_gsd_m), float(pair.reference_native_gsd_m)
+    # The full LLD key set on every classified outcome, so the index always has
+    # the columns: counts and transform None and drift nan (C19 "None"; the
+    # repo's float-absent convention) until a refinement produces them.
+    gsd_source = pair.provenance.get("reference_georef", geo.source.value)
+    extra.update(
+        native_n_matches=None,
+        native_n_inliers=None,
+        native_drift_coarse_px=float("nan"),
+        native_transform=None,
+        native_gsd_m=ref_gsd,
+        native_matcher=cfg.native_matcher,
+        native_provenance=json.dumps({"native_gsd_m": gsd_source}, sort_keys=True),
+    )
+    if src_gsd > ref_gsd:
+        record(
+            NativeRunStatus.NOT_APPLICABLE,
+            f"source native GSD {src_gsd:g} m is coarser than the reference's {ref_gsd:g} m",
+        )
+        return
+    try:
+        source, reference = _read_native_windows(source_label, cfg.reference_label, pair)
+    except _NotApplicable as exc:
+        record(NativeRunStatus.NOT_APPLICABLE, str(exc))
+        return
+    except (OSError, RasterioError, ValueError) as exc:
+        record(NativeRunStatus.READ_FAILED, f"{type(exc).__name__}: {exc}")
+        return
+
+    l0, s0 = pair.source_window[0], pair.source_window[1]
+    r0, c0 = pair.reference_window[0], pair.reference_window[1]
+    src_off, ref_off = _translation(s0, l0), _translation(c0, r0)
+    prior_native = lift_to_native(r.transform, pair.source_to_native, pair.reference_to_native)
+    prior_window = np.linalg.inv(ref_off) @ prior_native @ src_off
+    try:
+        out = refine_native_arrays(
+            source, reference, prior_window,
+            source_native_gsd_m=src_gsd, reference_native_gsd_m=ref_gsd,
+            matcher=cfg.native_matcher, tile_px=cfg.native_tile_px, model=cfg.model,
+            coarse_gsd_m=cfg.gsd_m, max_drift_coarse_px=cfg.native_max_drift_coarse_px,
+        )  # fmt: skip
+    except ValueError as exc:
+        record(NativeRunStatus.REJECTED, f"{type(exc).__name__}: {exc}")
+        return
+
+    status = NativeRunStatus(out.status.value)
+    record(status, out.detail)
+    extra["native_n_matches"] = int(out.n_matches)
+    extra["native_n_inliers"] = int(out.n_inliers)
+    if out.drift_coarse_px is not None:
+        extra["native_drift_coarse_px"] = float(out.drift_coarse_px)
+    if out.transform is not None:
+        full = ref_off @ np.asarray(out.transform, dtype=np.float64) @ np.linalg.inv(src_off)
+        extra["native_transform"] = json.dumps([float(v) for v in full.ravel()])
+    # one ValueSource per numeric output (convention 1)
+    extra["native_provenance"] = json.dumps(
+        {**out.provenance, "native_gsd_m": gsd_source}, sort_keys=True
+    )
+    if out.tiles is not None:
+        for tile_status, n in sorted(out.tiles.counts.items()):
+            extra[f"native_tiles_{tile_status}"] = int(n)
+
+    if cfg.save_registered and status is NativeRunStatus.OK:
+        _write_native_geotiff(source, out.transform, pair, pair_id, cfg, geo, r, tally)
+
+
+def _write_native_geotiff(source: np.ndarray, window_transform, pair: WindowPair,
+                          pair_id: str, cfg: SiteConfig, geo: GeoReference, r,
+                          tally: _Tally) -> None:  # fmt: skip
+    """The source window warped onto the reference window's native grid (``warp_blockwise``)."""
+    from affine import Affine
+
+    from lunar_reg.align.warp import warp_blockwise
+
+    r0, c0, rh, rw = pair.reference_window
+    path = Path(cfg.out_dir) / "registered" / f"{pair_id}_native.tif"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        warp_blockwise(
+            _ArrayDataset(source), np.asarray(window_transform, dtype=np.float64), path,
+            (int(rh), int(rw)),
+            dst_transform=geo.affine() @ Affine.translation(c0, r0), dst_crs=geo.crs_proj4,
+            nodata=0,
+        )  # fmt: skip
+    except Exception as exc:  # noqa: BLE001 - GDAL/rasterio raise many types on a bad write
+        r.extra["native_geotiff_error"] = f"{type(exc).__name__}: {exc}"[:_SAMPLE_MAX]
+        tally.bump("native_geotiff_write_failed")
+        tally.geotiff_failures.append(f"{pair_id} (native): {r.extra['native_geotiff_error']}")
+        return
+    r.extra["native_geotiff"] = str(path)
+    tally.artefacts.append(str(path))
 
 
 def run_site(cfg: SiteConfig) -> SiteReport:
@@ -658,6 +951,11 @@ def run_site(cfg: SiteConfig) -> SiteReport:
     unknown = [i for i in cfg.instruments if i not in CH2_INSTRUMENTS]
     if unknown:
         raise ValueError(f"instruments must be among {CH2_INSTRUMENTS}, got {unknown}")
+    if cfg.native and cfg.native_matcher not in cfg.matchers:
+        # setup error: no result would ever be refined
+        raise ValueError(
+            f"native_matcher {cfg.native_matcher!r} is not among matchers {cfg.matchers}"
+        )
     record = start_run(list(sys.argv) or ["run_site"], _params(cfg))
 
     # 1. catalog
@@ -705,6 +1003,9 @@ def run_site(cfg: SiteConfig) -> SiteReport:
     counts["products"] = len(runs)
     counts["saved"] = len(tally.saved)
     counts["not_saved_exists"] = len(tally.not_saved)
+    if cfg.native:
+        for s in NativeRunStatus:
+            counts[f"native_{s.value}"] = int(tally.native.counts.get(s.value, 0))
     sun_note = (
         f"reference sun: {'none' if ref_sun is None else ref_sun.get('azimuth_frame')}; "
         f"label azimuth convention: {convention or 'none (label azimuth unverified)'}"
@@ -716,16 +1017,21 @@ def run_site(cfg: SiteConfig) -> SiteReport:
     rr_path = write_run_record(record, cfg.out_dir)
 
     n_ok = counts[RunStatus.OK.value]
+    native_note = ""
+    if cfg.native:
+        native_note = f", native {tally.native.counts.get(NativeRunStatus.OK.value, 0)} ok of "
+        native_note += f"{sum(tally.native.counts.values())}"
     logger.info(
-        "run_site %s: %d product(s), %d prepared, %d registration(s), %d ok, %d saved%s",
+        "run_site %s: %d product(s), %d prepared, %d registration(s), %d ok, %d saved%s%s",
         cfg.site, len(runs), tally.prep.counts.get("ok", 0), len(tally.batch.outcomes), n_ok,
-        len(tally.saved), " (dry run)" if cfg.dry_run else "",
+        len(tally.saved), native_note, " (dry run)" if cfg.dry_run else "",
     )  # fmt: skip
     return SiteReport(
         catalog=catalog, runs=runs, batch=tally.batch, run_record_path=rr_path,
         instruments=tuple(cfg.instruments), prep=tally.prep, saved=tally.saved,
         not_saved=tally.not_saved, notes=[*notes, sun_note], dry_run=cfg.dry_run,
         geotiff_failures=tally.geotiff_failures,
+        native=tally.native if cfg.native else None,
     )  # fmt: skip
 
 

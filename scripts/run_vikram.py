@@ -335,6 +335,7 @@ def _prior_shift(text: str) -> tuple[float, float] | None:
 def main(argv=None) -> int:
     from lunar_reg.align.refine import ECC_PREFILTERS
     from lunar_reg.pairs import BAND_REDUCTIONS
+    from lunar_reg.pipeline import PRECISIONS
     from lunar_reg.preprocess.presets import PRESET_NAMES
     from lunar_reg.sites.runner import SiteConfig
 
@@ -385,6 +386,20 @@ def main(argv=None) -> int:
                          "<out-dir>/preview")
     ap.add_argument("--overwrite", action="store_true",
                     help="replace results already stored under the same pair id")
+    # P2.10 (Phase_2/LLD/runner_gpu_runs.md): GPU and native mode; defaults keep Phase 1
+    ap.add_argument("--device", default=defaults.device,
+                    help="cpu, cuda or cuda:<n> for the learned matchers (default: the "
+                         "pipeline's choice, cuda when available)")
+    ap.add_argument("--precision", default=defaults.precision, choices=PRECISIONS,
+                    help="learned-matcher precision (auto = fp16 for LoFTR on CUDA, else fp32)")
+    ap.add_argument("--native", action="store_true",
+                    help="refine the --native-matcher result of each strip at the reference's "
+                         "native GSD; with --save-registered also write <pair_id>_native.tif "
+                         "under <out-dir>/registered")
+    ap.add_argument("--native-matcher", default=defaults.native_matcher,
+                    help="matcher whose OK result is refined (must be among --matchers)")
+    ap.add_argument("--native-tile-px", type=int, default=defaults.native_tile_px,
+                    help="native refinement tile side, px (default: align.native's 512)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING)
     if args.export_only:
@@ -416,6 +431,11 @@ def main(argv=None) -> int:
         overwrite=args.overwrite,
         dry_run=args.dry_run,
         reference_sun_json=Path(args.reference_sun_json) if args.reference_sun_json else None,
+        device=args.device or None,
+        precision=args.precision,
+        native=args.native,
+        native_matcher=args.native_matcher,
+        native_tile_px=args.native_tile_px,
     )
     report = run_site(cfg)
     print(report.report())
