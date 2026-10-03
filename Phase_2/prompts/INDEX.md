@@ -10,7 +10,7 @@ Status values: `todo` | `done` | `failed` | `skipped`. Implementers edit only th
 | 4 | P2.03 | benchmark CLI | P2.02 | harness/check_P2.03.sh | done |
 | 5 | P2.04 | RUN (gpu): measure RTX 4060 profile | P2.03 | harness/check_P2.04.sh | done |
 | 6 | P2.05 | device, timing, VRAM, OOM in register_pair | P2.02 | harness/check_P2.05.sh | done |
-| 7 | P2.06 | prior-driven tiling + tile outcomes | P2.05 | harness/check_P2.06.sh | todo |
+| 7 | P2.06 | prior-driven tiling + tile outcomes | P2.05 | harness/check_P2.06.sh | done |
 | 8 | P2.07 | classical caps + RIFT2 memory guard | P2.06 | harness/check_P2.07.sh | todo |
 | 9 | P2.08 | native-GSD refinement | P2.06 | harness/check_P2.08.sh | todo |
 | 10 | P2.09 | georeferenced blockwise warp | P2.00 | harness/check_P2.09.sh | todo |

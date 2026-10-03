@@ -133,12 +133,16 @@ class LoFTRMatcher:
 
         h, w = source.shape[:2]
         limit = self.max_tile_px
-        if max(h, w) > limit:
-            raise ValueError(
-                f"{self.name}: input is {h}x{w} but the VRAM budget allows at most "
-                f"{limit}px on this device. Tile the input first "
-                f"(lunar_reg.match.tiled.TiledMatcher) rather than raising the cap."
-            )
+        # The guard covers both inputs (AUDIT A080): LoFTR's cost depends on the
+        # larger of the two, so an oversized reference is as fatal as a source.
+        for role, image in (("source", source), ("reference", reference)):
+            ih, iw = image.shape[:2]
+            if max(ih, iw) > limit:
+                raise ValueError(
+                    f"{self.name}: {role} is {ih}x{iw} but the VRAM budget allows at most "
+                    f"{limit}px on this device. Tile the input first "
+                    f"(lunar_reg.match.tiled.TiledMatcher) rather than raising the cap."
+                )
 
         model = self._get_model()
         autocast = (
@@ -262,6 +266,9 @@ class LightGlueMatcher:
                     }
                 )
                 idx = out["matches"][0].cpu().numpy()
+                # kornia's per-match confidence (AUDIT A127); TiledMatcher's cap
+                # keeps the highest-scoring matches when scores are present.
+                match_scores = out["scores"][0].float().cpu().numpy()
                 src = f0.keypoints.float().cpu().numpy()
                 dst = f1.keypoints.float().cpu().numpy()
             failed = False
@@ -285,6 +292,7 @@ class LightGlueMatcher:
         return MatchResult(
             src_pts=src[idx[:, 0]],
             dst_pts=dst[idx[:, 1]],
+            scores=match_scores,
             matcher=self.name,
             meta=meta,
         )
