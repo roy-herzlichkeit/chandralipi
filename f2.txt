@@ -1,0 +1,61 @@
+The problem. 
+ISRO asks for software that finds corresponding points between Chandrayaan-2 images and lunar reference maps with sub-pixel accuracy and with the points spread across the whole image. Three things make it hard: the Sun angle changes how terrain looks (shadows are black and swap sides), the instruments differ in scale by up to 320 times, and IIRS sees partly reflected light and partly heat. A fourth difficulty dominated our work: the positions recorded in the archive are predictions and can be kilometres off.
+
+Our central finding. 
+The RMSE that published lunar work reports is the residual of a fit on its own points, and it is nearly blind to where those points are. On synthetic data with a known answer, moving the same 400 points from an even grid into a tight blob changed the RMSE by 4 percent and the real worst-case error by 51 times. That is why ISRO's requirement mentions uniform distribution, and why we accept a registration only when its points are spread across the frame and its bootstrap uncertainty is small, reported next to the RMSE.
+
+What works on real data today.
+- OHRC to LRO NAC at the Vikram landing site (2024-04-25 strip, 4 m working scale): four matchers registered it. ASIFT kept 2,180 inliers with a bootstrap uncertainty of 0.12 px; LightGlue 808 inliers with a fit RMSE of 0.99 px; all four passed the uniformity gate.
+- JAXA SELENE to SELENE: all five matchers pass both gates, fit RMSE 0.56 to 0.71 px at 38.4 m per pixel.
+- JAXA SELENE to NASA LRO WAC, two agencies and two cameras: SIFT, LoFTR and LightGlue pass both gates; ASIFT and AKAZE do not, and the result says so.
+
+What we measured on synthetic data with a known answer.
+- SIFT's correct matches fall from 228 to 4 to 0 as the Sun direction changes by 15, 30 and 60 degrees.
+- After ECC refinement, four different matchers converge to the same final error; normalising local contrast first cut the 30-degree error 4.8 times.
+- A four-corner perspective model of an OHRC strip is 639 m wrong against ISRO's per-pixel geometry grid; bounding boxes over-state footprints up to 4.2 times.
+
+What is new.
+- Acceptance by distribution and uncertainty, not by residual alone.
+- Find the image first (coarse pass), then register it; this recovered a 2.9 km offset on real data.
+- Pushbroom geometry from ISRO's own per-pixel grid.
+- Prior-rectified tiling for full-resolution strips (prototype: 0.10 px median raw-match error on a synthetic scene).
+- Pairing of any product with any reference, correct at the poles, driven by a configuration file.
+- Sun geometry computed from NASA's SPICE ephemeris, with independent cross-checks.
+- A conditional illumination bridge that renders the reference terrain under the source image's Sun.
+- Every failure classified and counted; every number tagged with where it came from.
+
+Hardware: one laptop with 13th Gen Intel i7 laptop with 16GB of RAM, and, an 8GB RTX 4060 graphics card and a second machine with an RTX 3060 (6 GB).
+
+IMPACT.
+ISRO
+- Places Chandrayaan-2 images precisely on established lunar maps, which improves mosaics, change detection, landing-site work and comparison with other missions.
+- Measures the archive's own position errors: on one strip we found a 2.9 km offset between the recorded and the matched position. Run across the archive, the same tool can report that offset for every product.
+- Gives a way to judge any registration result, ours or a commercial tool's, by how its points are spread and how uncertain it is across the image, not by RMSE alone.
+- Runs on an ordinary laptop GPU and scales to more machines, so it does not need a data centre.
+
+India
+- Makes Indian lunar data easier to combine with NASA and JAXA data, which raises its scientific value and supports planning of future Indian lunar missions.
+- The same methods apply to Earth observation from Indian satellites, where matching across sensors, dates and resolutions is the same problem.
+- The documentation is written for a reader without remote-sensing background, so students can learn from it and extend it.
+
+Our team
+- We learned to work with real planetary archives, their formats and their errors, and to keep what we measured separate from what we assumed.
+- We built a tested, reusable pipeline and a working process (phases, frozen interfaces, protected checks, external review) that we can take to the next problem.
+- We found and fixed real problems on first contact with real data: a 639 m geometry error, a 4.2 times footprint inflation, a GDAL unit mistake in a NASA map, and catalogue coverage claims that were off by hundreds of kilometres.
+
+
+KEY RESULTS (CURRENT, 4th October 2026).
+OHRC strip registered to the LRO NAC 1 m map at Vikram:   4 of 4 matchers [real]
+Inliers on that pair:   140 (SIFT), 144 (AKAZE), 808 (LightGlue), 2,180 (ASIFT) [real]
+Fit RMSE on that pair at 4 m per pixel:   0.88 to 1.28 px [real, self-residual]
+Uniformity on that pair:   0.83 to 0.99, all pass [real]
+Archive position error found by the coarse pass:   556 m east, 2,888 m south [real]
+Preset gain on that pair:   SIFT 58 to 163 inliers, AKAZE 68 to 204 [real]
+SELENE to SELENE:   5 of 5 matchers pass both gates, RMSE 0.56 to 0.71 px [real]
+SELENE to LRO WAC:   3 of 5 matchers pass both gates [real]
+Four-corner model versus ISRO's per-pixel grid:   639 m median disagreement [real]
+Footprint inflation from bounding boxes:   up to 4.2 times [real]
+NASA NAC map sites covered by OHRC, TMC-2 and IIRS together:   11 of 668, catalogue outlines, accurate to about 8 km [real catalogues]
+OpenCV brute-force matcher limit that crashed ASIFT:   262,143 reference descriptors [measured]
+Automated tests passing:   928 [real]
+Raw data on disk:   about 57 GB, every file hashed [real]
